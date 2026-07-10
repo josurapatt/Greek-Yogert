@@ -1,6 +1,7 @@
 import { ClipboardList, History, Home, LogOut, Package, PlusCircle, Settings, ShoppingBasket, BarChart3 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAuth, useCart, useData } from '../store'
+import { channelLabels } from '../lib'
 import type { ReactNode } from 'react'
 
 const nav = [
@@ -11,7 +12,7 @@ const nav = [
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { logout, isDemo } = useAuth(); const { items } = useCart(); const { orders } = useData()
+  const { logout, isDemo } = useAuth(); const { items, channel } = useCart(); const { orders } = useData()
   const quantity = items.reduce((sum, item) => sum + item.quantity, 0)
   const waiting = orders.filter((order) => order.status === 'pending').length
   return <div className="app-shell">
@@ -21,7 +22,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <button className="logout" onClick={() => void logout()}><LogOut /> ออกจากระบบ</button>
     </aside>
     <div className="content-shell">
-      <header className="topbar"><div><strong>Greek &amp; More</strong><span className="demo-pill">{isDemo ? 'โหมดทดลอง' : 'ระบบจริง'}</span></div><NavLink className="cart-chip" to="/cart"><ShoppingBasket /> ตะกร้า {quantity > 0 && <b>{quantity}</b>}</NavLink></header>
+      <header className="topbar"><div><strong>Greek &amp; More</strong><span className="demo-pill">{isDemo ? 'โหมดทดลอง' : 'ระบบจริง'}</span>{channel && <span className="channel-pill">{channelLabels[channel]}</span>}</div><NavLink className="cart-chip" to="/cart"><ShoppingBasket /> ตะกร้า {quantity > 0 && <b>{quantity}</b>}</NavLink></header>
       <main>{children}</main>
       <nav className="bottom-nav">{nav.slice(0, 4).map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} end={to === '/'}><Icon /><span>{label}</span>{to === '/queue' && waiting > 0 && <b className="badge">{waiting}</b>}</NavLink>)}</nav>
     </div>
