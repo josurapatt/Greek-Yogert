@@ -8,6 +8,7 @@ import QueueOrderCard from "./components/QueueOrderCard";
 import { defaultProducts, toppings } from "./data";
 import { filterHistoryOrders } from "./history";
 import {
+  applyCartItemUpdate,
   isSelectionAvailable,
   normalizePaymentMethod,
   paymentMethodsForChannel,
@@ -299,6 +300,101 @@ describe("global topping availability", () => {
         banana: false,
       }),
     ).toThrow("หมด");
+  });
+
+  it("clears a sold-out granola flavor error after an edit selects an available flavor", () => {
+    const stale = item({
+      productId: apple.id,
+      productName: apple.name,
+      selectedOptions: ["น้ำผึ้ง"],
+      selectedOptionIds: ["น้ำผึ้ง"],
+    });
+    const invalid = priceCartItem(stale, apple, "หน้าร้าน", toppings, {
+      "granola-honey": false,
+    });
+    const corrected = priceCartItem(
+      { ...stale, selectedOptions: ["กล้วย"], selectedOptionIds: ["กล้วย"] },
+      apple,
+      "หน้าร้าน",
+      toppings,
+      { "granola-honey": false },
+    );
+    const saved = applyCartItemUpdate(invalid, {
+      ...corrected,
+      validationError: corrected.validationError,
+    });
+    expect(saved.selectedOptions).toEqual(["กล้วย"]);
+    expect(saved.validationError).toBeUndefined();
+  });
+
+  it("clears a sold-out topping error after an edit replaces that topping", () => {
+    const invalid = priceCartItem(item(), sizeS, "หน้าร้าน", toppings, {
+      banana: false,
+    });
+    const corrected = priceCartItem(
+      item({
+        selectedOptions: ["ส้ม", "แอปเปิ้ล", "บิสคอฟ"],
+        selectedOptionIds: ["orange", "apple", "biscoff"],
+      }),
+      sizeS,
+      "หน้าร้าน",
+      toppings,
+      { banana: false },
+    );
+    const saved = applyCartItemUpdate(invalid, {
+      ...corrected,
+      validationError: corrected.validationError,
+    });
+    expect(saved.selectedOptions).toEqual(["ส้ม", "แอปเปิ้ล", "บิสคอฟ"]);
+    expect(saved.validationError).toBeUndefined();
+  });
+
+  it("keeps the availability error when the edited item still uses a sold-out selection", () => {
+    const invalid = priceCartItem(item(), sizeS, "หน้าร้าน", toppings, {
+      banana: false,
+    });
+    const corrected = priceCartItem(
+      item({ quantity: 2 }),
+      sizeS,
+      "หน้าร้าน",
+      toppings,
+      { banana: false },
+    );
+    const saved = applyCartItemUpdate(invalid, {
+      ...corrected,
+      validationError: corrected.validationError,
+    });
+    expect(saved.validationError).toContain("กล้วย");
+  });
+
+  it("clears only the corrected cart item's availability error", () => {
+    const first = priceCartItem(item({ id: "first" }), sizeS, "หน้าร้าน", toppings, {
+      banana: false,
+    });
+    const second = priceCartItem(item({ id: "second" }), sizeS, "หน้าร้าน", toppings, {
+      apple: false,
+    });
+    const corrected = priceCartItem(
+      item({
+        id: "first",
+        selectedOptions: ["ส้ม", "แอปเปิ้ล", "บิสคอฟ"],
+        selectedOptionIds: ["orange", "apple", "biscoff"],
+      }),
+      sizeS,
+      "หน้าร้าน",
+      toppings,
+      { banana: false },
+    );
+    const saved = [first, second].map((cartItem) =>
+      cartItem.id === corrected.id
+        ? applyCartItemUpdate(cartItem, {
+            ...corrected,
+            validationError: corrected.validationError,
+          })
+        : cartItem,
+    );
+    expect(saved[0].validationError).toBeUndefined();
+    expect(saved[1].validationError).toContain("แอปเปิ้ล");
   });
 
   it("blocks a sold-out required flavor for Apple Ohlala", () => {

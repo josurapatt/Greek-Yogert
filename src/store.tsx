@@ -5,7 +5,7 @@ import { collection, deleteField, doc, FieldPath, onSnapshot, runTransaction, se
 import { auth, db, firebaseReady } from './firebase'
 import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
 import { toFirestoreData } from './firestoreData'
-import { businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
+import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
 import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
 interface SessionUser { uid: string; email: string }
@@ -188,7 +188,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const exact = rows.find((entry) => entry.productId === item.productId && JSON.stringify(entry.selectedOptionIds) === JSON.stringify(item.selectedOptionIds))
     return exact ? rows.map((entry) => entry.id === exact.id ? { ...entry, quantity: entry.quantity + item.quantity, lineTotal: entry.unitPrice * (entry.quantity + item.quantity) } : entry) : [...rows, item]
   })
-  const update = (id: string, patch: Partial<CartItem>) => setItems((rows) => rows.map((item) => item.id === id ? { ...item, ...patch, lineTotal: (patch.unitPrice ?? item.unitPrice) * (patch.quantity ?? item.quantity) } : item))
+  const update = (id: string, patch: Partial<CartItem>) => setItems((rows) => rows.map((item) => item.id === id ? applyCartItemUpdate(item, patch) : item))
   const remove = (id: string) => setItems((rows) => rows.filter((item) => item.id !== id))
   const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, { ...item, id: crypto.randomUUID(), quantity: 1, lineTotal: item.unitPrice }] : rows })
   const clear = () => { setItems([]); setEditingOrder(null); setChannel(null) }

@@ -116,6 +116,16 @@ export function priceCartItem(item: CartItem, product: Product, channel: OrderCh
   return priced
 }
 
+export function applyCartItemUpdate(item: CartItem, patch: Partial<CartItem>): CartItem {
+  const updated: CartItem = {
+    ...item,
+    ...patch,
+    lineTotal: (patch.unitPrice ?? item.unitPrice) * (patch.quantity ?? item.quantity),
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'validationError') && !patch.validationError) delete updated.validationError
+  return updated
+}
+
 export function repriceCartItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[], availability: ToppingAvailability = {}): CartItem[] {
   return items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)

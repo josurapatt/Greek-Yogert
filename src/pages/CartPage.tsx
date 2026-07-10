@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
 import CartItemOptions from "../components/CartItemOptions";
+import { toppings } from "../data";
 import {
   channelLabels,
   money,
@@ -18,6 +19,7 @@ import {
   orderChannels,
   orderTotals,
   paymentMethodsForChannel,
+  priceCartItem,
   validatePaymentMethod,
 } from "../lib";
 import { useCart, useData } from "../store";
@@ -341,7 +343,17 @@ export default function CartPage() {
               initial={editingItem}
               onClose={() => setEditingItem(null)}
               onSave={(item) => {
-                update(item.id, item);
+                const repriced = priceCartItem(
+                  item,
+                  product,
+                  channel,
+                  toppings,
+                  toppingAvailability,
+                );
+                update(item.id, {
+                  ...repriced,
+                  validationError: repriced.validationError,
+                });
                 setEditingItem(null);
               }}
             />
