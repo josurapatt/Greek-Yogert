@@ -27,7 +27,10 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
         run: |
-          test -n "$VITE_FIREBASE_PROJECT_ID" && test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
+          for variable in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID; do
+            test -n "${!variable}" || { echo "Missing required Customer QR UAT secret: $variable"; exit 1; }
+          done
+          test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
           pnpm build
       - name: Deploy isolated UAT Firebase resources
         env:
