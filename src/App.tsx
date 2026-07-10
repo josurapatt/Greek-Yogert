@@ -26,7 +26,7 @@ export default function App() {
     <Route path="*" element={<Navigate to="/order" replace />} />
   </Routes></CustomerProvider>
   if (loading) return <div className="splash"><div className="brand-mark">G&amp;M</div><p>กำลังโหลดร้าน…</p></div>
-  if (!user) return <Routes><Route path="*" element={<LoginPage />} /></Routes>
+  if (!user || user.isAnonymous) return <Routes><Route path="*" element={<LoginPage />} /></Routes>
   return <Layout><Routes>
     <Route path="/" element={<HomePage />} />
     <Route path="/order" element={<OrderPage />} />
