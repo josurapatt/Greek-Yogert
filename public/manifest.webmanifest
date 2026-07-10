@@ -1,0 +1,10 @@
+{
+  "name": "Greek & More Order Manager",
+  "short_name": "Greek & More",
+  "lang": "th",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5fb",
+  "theme_color": "#7161ad",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function validStatus(value) { return value in ['pending', 'completed', 'cancelled']; }
+    function validOrder(data) {
+      return data.id is string
+        && data.queueNumber is string
+        && data.businessDate is string
+        && data.customerName is string
+        && data.items is list
+        && data.items.size() > 0
+        && data.subtotal is number
+        && data.discount is number
+        && data.total is number
+        && data.total >= 0
+        && data.status == 'pending';
+    }
+
+    match /products/{productId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+    match /orders/{orderId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.id == orderId && validOrder(request.resource.data);
+      allow update: if signedIn()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.businessDate == resource.data.businessDate
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validStatus(request.resource.data.status)
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0;
+      allow delete: if false;
+    }
+    match /counters/{businessDate} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+    match /settings/{document=**} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == userId;
+    }
+  }
+}
