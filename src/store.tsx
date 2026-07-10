@@ -3,9 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { collection, deleteField, doc, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db, firebaseReady } from './firebase'
-import { defaultProducts } from './data'
-import { businessDate, createOrder, nextLocalQueue, orderTotals } from './lib'
-import type { CartItem, OrderDraft, Product, ShopOrder } from './types'
+import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
+import { businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems } from './lib'
+import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder } from './types'
 
 interface SessionUser { uid: string; email: string }
 interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
@@ -58,7 +58,7 @@ const readLocal = <T,>(key: string, fallback: T): T => {
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
-  const [products, setProducts] = useState<Product[]>(() => firebaseReady ? [] : readLocal(PRODUCTS_KEY, defaultProducts))
+  const [products, setProducts] = useState<Product[]>(() => firebaseReady ? [] : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)))
   const [orders, setOrders] = useState<ShopOrder[]>(() => firebaseReady ? [] : readLocal(ORDERS_KEY, []))
   const [loading, setLoading] = useState(Boolean(db))
 
@@ -66,7 +66,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!db || !user) { setLoading(false); return }
     const stopProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const rows = snapshot.docs.map((entry) => entry.data() as Product)
-      setProducts(rows.length ? rows : defaultProducts)
+      setProducts(rows.length ? mergeProducts(rows) : defaultProducts.map(normalizeProduct))
       if (!rows.length) defaultProducts.forEach((product) => void setDoc(doc(db!, 'products', product.id), product))
       setLoading(false)
     })
@@ -81,6 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const submitOrder = useCallback(async (draft: OrderDraft) => {
     if (!draft.items.length) throw new Error('ตะกร้าว่าง ไม่สามารถส่งออเดอร์ได้')
+    const preparedDraft = { ...draft, items: prepareOrderItems(draft.items, products, draft.channel, toppings) }
     if (db) {
       const firestore = db
       const date = businessDate()
@@ -89,23 +90,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const counter = await transaction.get(counterRef)
         const sequence = (counter.data()?.lastSequence ?? 0) + 1
         const padded = String(sequence).padStart(3, '0')
-        const order = createOrder(draft, `${date.replaceAll('-', '')}-${padded}`, `Q${padded}`, user?.uid)
+        const order = createOrder(preparedDraft, `${date.replaceAll('-', '')}-${padded}`, `Q${padded}`, user?.uid)
         transaction.set(counterRef, { lastSequence: sequence, updatedAt: order.createdAt })
         transaction.set(doc(firestore, 'orders', order.id), order)
         return order
       })
     }
     const next = nextLocalQueue(orders)
-    const order = createOrder(draft, next.id, next.queue, user?.uid)
+    const order = createOrder(preparedDraft, next.id, next.queue, user?.uid)
     setOrders((current) => [order, ...current])
     return order
-  }, [orders, user])
+  }, [orders, products, user])
 
   const replaceOrder = async (id: string, draft: OrderDraft) => {
     const current = orders.find((order) => order.id === id)
     if (!current || current.status !== 'pending') throw new Error('แก้ไขได้เฉพาะออเดอร์ที่รอจัดเตรียม')
-    const totals = orderTotals(draft.items, draft.discount)
-    const patch = { customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, items: draft.items, ...totals, updatedAt: new Date().toISOString() }
+    const items = prepareOrderItems(draft.items, products, draft.channel, toppings)
+    const totals = orderTotals(items, draft.discount)
+    const patch = { customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, items, ...totals, updatedAt: new Date().toISOString() }
     if (db) await updateDoc(doc(db, 'orders', id), patch)
     else setOrders((rows) => rows.map((order) => order.id === id ? { ...order, ...patch } : order))
   }
@@ -124,8 +126,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   const saveProduct = async (product: Product) => {
-    if (db) await setDoc(doc(db, 'products', product.id), product)
-    else setProducts((rows) => [...rows.filter((entry) => entry.id !== product.id), product])
+    const normalized = normalizeProduct(product)
+    if (db) await setDoc(doc(db, 'products', normalized.id), normalized)
+    else setProducts((rows) => [...rows.filter((entry) => entry.id !== normalized.id), normalized])
   }
 
   const importBackup = async (data: { products: Product[]; orders: ShopOrder[] }) => {
@@ -143,29 +146,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
 export function useData() { const value = useContext(DataContext); if (!value) throw new Error('DataProvider missing'); return value }
 
 interface CartValue {
-  items: CartItem[]; editingOrder: ShopOrder | null
+  items: CartItem[]; editingOrder: ShopOrder | null; channel: OrderChannel | null
   add(item: CartItem): void; update(id: string, patch: Partial<CartItem>): void; remove(id: string): void
-  duplicate(id: string): void; clear(): void; editOrder(order: ShopOrder): void
+  duplicate(id: string): void; clear(): void; editOrder(order: ShopOrder, products: Product[]): void
+  changeChannel(channel: OrderChannel, products: Product[]): void
 }
 const CartContext = createContext<CartValue | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => firebaseReady ? [] : readLocal('gym-cart-v1', []))
   const [editingOrder, setEditingOrder] = useState<ShopOrder | null>(null)
+  const [channel, setChannel] = useState<OrderChannel | null>(null)
   useEffect(() => {
     if (firebaseReady) localStorage.removeItem('gym-cart-v1')
     else localStorage.setItem('gym-cart-v1', JSON.stringify(items))
   }, [items])
   const add = (item: CartItem) => setItems((rows) => {
     const exact = rows.find((entry) => entry.productId === item.productId && JSON.stringify(entry.selectedOptionIds) === JSON.stringify(item.selectedOptionIds))
-    return exact ? rows.map((entry) => entry.id === exact.id ? { ...entry, quantity: entry.quantity + item.quantity } : entry) : [...rows, item]
+    return exact ? rows.map((entry) => entry.id === exact.id ? { ...entry, quantity: entry.quantity + item.quantity, lineTotal: entry.unitPrice * (entry.quantity + item.quantity) } : entry) : [...rows, item]
   })
-  const update = (id: string, patch: Partial<CartItem>) => setItems((rows) => rows.map((item) => item.id === id ? { ...item, ...patch } : item))
+  const update = (id: string, patch: Partial<CartItem>) => setItems((rows) => rows.map((item) => item.id === id ? { ...item, ...patch, lineTotal: (patch.unitPrice ?? item.unitPrice) * (patch.quantity ?? item.quantity) } : item))
   const remove = (id: string) => setItems((rows) => rows.filter((item) => item.id !== id))
-  const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, { ...item, id: crypto.randomUUID(), quantity: 1 }] : rows })
-  const clear = () => { setItems([]); setEditingOrder(null) }
-  const editOrder = (order: ShopOrder) => { setItems(order.items.map((item) => ({ ...item, id: crypto.randomUUID() }))); setEditingOrder(order) }
-  return <CartContext.Provider value={{ items, editingOrder, add, update, remove, duplicate, clear, editOrder }}>{children}</CartContext.Provider>
+  const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, { ...item, id: crypto.randomUUID(), quantity: 1, lineTotal: item.unitPrice }] : rows })
+  const clear = () => { setItems([]); setEditingOrder(null); setChannel(null) }
+  const editOrder = (order: ShopOrder, products: Product[]) => { setItems(repriceCartItems(order.items.map((item) => ({ ...item, id: crypto.randomUUID(), selectedChannel: order.channel })), products, order.channel, toppings)); setEditingOrder(order); setChannel(order.channel) }
+  const changeChannel = (nextChannel: OrderChannel, products: Product[]) => { setItems((rows) => repriceCartItems(rows, products, nextChannel, toppings)); setChannel(nextChannel) }
+  return <CartContext.Provider value={{ items, editingOrder, channel, add, update, remove, duplicate, clear, editOrder, changeChannel }}>{children}</CartContext.Provider>
 }
 
 export function useCart() { const value = useContext(CartContext); if (!value) throw new Error('CartProvider missing'); return value }
