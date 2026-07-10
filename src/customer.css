@@ -1,0 +1,9 @@
+.customer-page { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; color: #342040; }
+.customer-page header { margin-bottom: 20px; }
+.customer-page h1 { margin: 10px 0 6px; }
+.customer-cart { display: grid; gap: 10px; margin-top: 22px; padding: 16px; border-radius: 18px; background: #fff; box-shadow: 0 6px 24px #32134c16; }
+.customer-cart h2 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.customer-cart p { margin: 0; }
+.customer-cart em { display: block; color: #b42318; font-style: normal; }
+.customer-cart input, .customer-cart textarea { width: 100%; box-sizing: border-box; padding: 11px; border: 1px solid #d8cce1; border-radius: 10px; font: inherit; }
+.customer-cart textarea { min-height: 76px; resize: vertical; }

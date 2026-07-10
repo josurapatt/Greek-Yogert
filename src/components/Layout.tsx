@@ -1,4 +1,5 @@
-import { ClipboardList, History, Home, LogOut, Package, PlusCircle, Settings, ShoppingBasket, BarChart3 } from 'lucide-react'
+import { ClipboardList, History, Home, LogOut, Package, PlusCircle, Settings, ShoppingBasket, BarChart3, MessageSquare } from 'lucide-react'
+import { customerQrUatEnabled } from '../firebase'
 import { NavLink } from 'react-router-dom'
 import { useAuth, useCart, useData } from '../store'
 import { channelLabels } from '../lib'
@@ -10,6 +11,7 @@ const nav = [
   { to: '/reports', label: 'รายงาน', icon: BarChart3 }, { to: '/products', label: 'สินค้า', icon: Package },
   { to: '/settings', label: 'ตั้งค่า', icon: Settings },
 ]
+if (customerQrUatEnabled) nav.splice(3, 0, { to: '/customer-requests', label: 'คำขอลูกค้า', icon: MessageSquare })
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { logout, isDemo } = useAuth(); const { items, channel } = useCart(); const { orders } = useData()

@@ -8,8 +8,8 @@ import { toFirestoreData } from './firestoreData'
 import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
 import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
-interface SessionUser { uid: string; email: string }
-interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
+interface SessionUser { uid: string; email: string; isAnonymous?: boolean }
+interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; isAnonymous: boolean; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!auth) return
     return onAuthStateChanged(auth, (account) => {
-      setUser(account ? { uid: account.uid, email: account.email ?? '' } : null)
+      setUser(account ? { uid: account.uid, email: account.email ?? '', isAnonymous: account.isAnonymous } : null)
       setLoading(false)
     })
   }, [])
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('gym-demo-email')
     setUser(null)
   }
-  return <AuthContext.Provider value={{ user, loading, isDemo: !firebaseReady, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, isDemo: !firebaseReady, isAnonymous: Boolean(user?.isAnonymous), login, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthProvider missing'); return value }
@@ -60,14 +60,14 @@ const readLocal = <T,>(key: string, fallback: T): T => {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, isAnonymous } = useAuth()
   const [products, setProducts] = useState<Product[]>(() => firebaseReady ? [] : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)))
   const [orders, setOrders] = useState<ShopOrder[]>(() => firebaseReady ? [] : readLocal(ORDERS_KEY, []))
   const [toppingAvailability, setAvailability] = useState<ToppingAvailability>(() => firebaseReady ? {} : readLocal(TOPPING_AVAILABILITY_KEY, {}))
   const [loading, setLoading] = useState(Boolean(db))
 
   useEffect(() => {
-    if (!db || !user) { setLoading(false); return }
+    if (!db || !user || isAnonymous) { setLoading(false); return }
     const stopProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       const rows = snapshot.docs.map((entry) => entry.data() as Product)
       setProducts(rows.length ? mergeProducts(rows) : defaultProducts.map(normalizeProduct))
@@ -81,7 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAvailability((snapshot.data()?.availability as ToppingAvailability | undefined) ?? {})
     })
     return () => { stopProducts(); stopOrders(); stopAvailability() }
-  }, [user])
+  }, [user, isAnonymous])
 
   useEffect(() => { if (!db) localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)) }, [products])
   useEffect(() => { if (!db) localStorage.setItem(ORDERS_KEY, JSON.stringify(orders)) }, [orders])

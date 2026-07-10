@@ -49,3 +49,12 @@ export interface OrderDraft {
   customerName: string; channel: OrderChannel; paymentMethod: PaymentMethod
   items: CartItem[]; discount?: number
 }
+
+export type CustomerRequestStatus = 'รอร้านยืนยัน' | 'ร้านรับออเดอร์แล้ว' | 'กำลังจัดเตรียม' | 'พร้อมรับ / พร้อมจัดส่ง' | 'ปฏิเสธ' | 'ยกเลิก'
+
+export interface CustomerOrderRequest {
+  id: string; ownerUid: string; status: CustomerRequestStatus; channel: 'หน้าร้าน'
+  customerName?: string; customerNote?: string; items: CartItem[]; subtotal: number; total: number; itemCount: number
+  createdAt: string; updatedAt: string; confirmedOrderId?: string; queueNumber?: string
+  paymentMethod?: Exclude<PaymentMethod, 'Platform'>; confirmedAt?: string; rejectedAt?: string; rejectionReason?: string
+}

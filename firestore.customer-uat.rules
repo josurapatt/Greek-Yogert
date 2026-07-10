@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function staff() { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function customerOwns(data) { return signedIn() && request.auth.uid == data.ownerUid; }
+    function pending(value) { return value == 'รอร้านยืนยัน'; }
+    function validCustomerRequest(data) {
+      return data.keys().hasOnly(['id','ownerUid','status','channel','customerName','customerNote','items','subtotal','total','itemCount','createdAt','updatedAt'])
+        && data.id is string && data.ownerUid == request.auth.uid && pending(data.status) && data.channel == 'หน้าร้าน'
+        && data.items is list && data.items.size() > 0 && data.subtotal is number && data.total is number && data.itemCount is number
+        && data.createdAt is string && data.updatedAt is string;
+    }
+    match /publicMenu/{productId} { allow read: if signedIn(); allow write: if staff(); }
+    match /publicSettings/{document} { allow read: if signedIn(); allow write: if staff(); }
+    match /customerOrderRequests/{requestId} {
+      allow create: if signedIn() && validCustomerRequest(request.resource.data) && request.resource.data.id == requestId;
+      allow get: if staff() || customerOwns(resource.data);
+      allow list: if staff();
+      allow update: if staff();
+      allow delete: if false;
+    }
+    match /products/{productId} { allow read, create, update: if staff(); allow delete: if false; }
+    match /orders/{orderId} { allow read, create, update: if staff(); allow delete: if false; }
+    match /counters/{businessDate} { allow read, create, update: if staff(); allow delete: if false; }
+    match /settings/{document=**} { allow read, create, update: if staff(); allow delete: if false; }
+    match /users/{userId} { allow read: if staff(); allow write: if staff() && request.auth.uid == userId; }
+  }
+}
