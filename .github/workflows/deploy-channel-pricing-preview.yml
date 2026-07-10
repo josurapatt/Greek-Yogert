@@ -24,8 +24,6 @@ jobs:
       (github.event_name == 'pull_request' && github.head_ref == 'feature/channel-pricing' &&
       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
-    outputs:
-      preview_url: ${{ steps.deploy.outputs.preview_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,7 +93,10 @@ jobs:
             --non-interactive \
             --json > "$result_file"
           preview_url=$(node -e "const data=JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); const urls=[]; const visit=(value)=>{ if (typeof value === 'string' && /^https:\/\//.test(value)) urls.push(value); else if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') Object.values(value).forEach(visit); }; visit(data.result); const url=urls.find((value)=>value.includes('--channel-pricing-uat-')) || urls[0]; if (!url) process.exit(1); process.stdout.write(url);" "$result_file")
+          preview_host=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$preview_url")
+          preview_suffix="${preview_host#*--channel-pricing-uat-}"
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "Preview hostname suffix: $preview_suffix"
           {
             echo "### Channel pricing UAT preview"
             echo ""
