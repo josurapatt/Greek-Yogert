@@ -1,5 +1,5 @@
-import { platformExtraToppingIds } from './data'
-import type { CartItem, ChannelGroup, ChannelToppingRules, OrderChannel, OrderDraft, PriceBreakdown, Product, ShopOrder, Topping } from './types'
+import { granolaFlavorIdsByName, platformExtraToppingIds } from './data'
+import type { CartItem, ChannelGroup, ChannelToppingRules, OrderChannel, OrderDraft, PaymentMethod, PriceBreakdown, Product, ShopOrder, Topping, ToppingAvailability } from './types'
 
 const bangkokDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -14,6 +14,32 @@ export function formatThaiDateTime(value?: string): string {
 
 export const orderChannels: OrderChannel[] = ['หน้าร้าน', 'Openchat', 'Lineman', 'Grab']
 export const channelLabels: Record<OrderChannel, string> = { 'หน้าร้าน': 'หน้าร้าน', Openchat: 'Openchat', Lineman: 'LINE MAN', Grab: 'Grab' }
+export const paymentMethodLabels: Record<PaymentMethod, string> = { สด: 'สด', โอน: 'โอน', โครงการ: 'โครงการ', Platform: 'Platform' }
+
+export function paymentMethodLabel(value?: string): string {
+  return value && value in paymentMethodLabels ? paymentMethodLabels[value as PaymentMethod] : 'ไม่ระบุ'
+}
+
+export function paymentMethodsForChannel(channel: OrderChannel): PaymentMethod[] {
+  return getChannelGroup(channel) === 'platform' ? ['Platform'] : ['สด', 'โอน', 'โครงการ']
+}
+
+export function normalizePaymentMethod(channel: OrderChannel, current?: PaymentMethod): PaymentMethod {
+  const allowed = paymentMethodsForChannel(channel)
+  return current && allowed.includes(current) ? current : allowed[0]
+}
+
+export function validatePaymentMethod(channel: OrderChannel, paymentMethod: PaymentMethod): string | null {
+  return paymentMethodsForChannel(channel).includes(paymentMethod) ? null : 'วิธีชำระเงินไม่ตรงกับช่องทางการขาย'
+}
+
+export function availabilityIdForSelection(product: Product, selectionId: string): string {
+  return product.optionMode === 'granola' ? granolaFlavorIdsByName[selectionId] ?? selectionId : selectionId
+}
+
+export function isSelectionAvailable(product: Product, selectionId: string, availability: ToppingAvailability = {}): boolean {
+  return availability[availabilityIdForSelection(product, selectionId)] !== false
+}
 
 export function getChannelGroup(channel: OrderChannel): ChannelGroup {
   return channel === 'Lineman' || channel === 'Grab' ? 'platform' : 'storefront'
@@ -63,9 +89,10 @@ export function calculateUnitPrice(product: Product, selectedIds: string[], avai
   return calculatePriceBreakdown(product, selectedIds, available, channel).unitPrice
 }
 
-export function validateSelection(product: Product, selectedIds: string[], channel: OrderChannel = 'หน้าร้าน'): string | null {
+export function validateSelection(product: Product, selectedIds: string[], channel: OrderChannel = 'หน้าร้าน', availability: ToppingAvailability = {}): string | null {
   if (product.optionMode === 'granola' && selectedIds.length !== 1) return 'กรุณาเลือกรสกราโนล่า 1 รส'
   if (product.optionMode === 'toppings' && selectedIds.length < product.includedToppings) return `กรุณาเลือกท็อปปิ้งอย่างน้อย ${product.includedToppings} อย่าง`
+  if (selectedIds.some((id) => !isSelectionAvailable(product, id, availability))) return 'ตัวเลือกที่เลือกหมด กรุณาเลือกใหม่'
   if (product.optionMode === 'toppings') {
     const rules = getChannelRules(product, channel)
     if (!rules.allowDuplicateToppings && new Set(selectedIds).size !== selectedIds.length) return 'ช่องทางนี้ไม่อนุญาตให้เลือกท็อปปิ้งซ้ำ'
@@ -75,9 +102,10 @@ export function validateSelection(product: Product, selectedIds: string[], chann
   return null
 }
 
-export function priceCartItem(item: CartItem, product: Product, channel: OrderChannel, available: Topping[]): CartItem {
+export function priceCartItem(item: CartItem, product: Product, channel: OrderChannel, available: Topping[], availability: ToppingAvailability = {}): CartItem {
   const priceBreakdown = calculatePriceBreakdown(product, item.selectedOptionIds, available, channel)
-  const validationError = validateSelection(product, item.selectedOptionIds, channel)
+  const unavailable = item.selectedOptionIds.flatMap((id, index) => isSelectionAvailable(product, id, availability) ? [] : [item.selectedOptions[index] ?? available.find((entry) => entry.id === id)?.name ?? id])
+  const validationError = unavailable.length ? `หมด: ${unavailable.join(', ')}` : validateSelection(product, item.selectedOptionIds, channel, availability)
   const priced: CartItem = {
     ...item, productName: product.name, basePrice: priceBreakdown.basePrice,
     selectedChannel: channel, priceBreakdown, unitPrice: priceBreakdown.unitPrice,
@@ -88,15 +116,25 @@ export function priceCartItem(item: CartItem, product: Product, channel: OrderCh
   return priced
 }
 
-export function repriceCartItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[]): CartItem[] {
+export function applyCartItemUpdate(item: CartItem, patch: Partial<CartItem>): CartItem {
+  const updated: CartItem = {
+    ...item,
+    ...patch,
+    lineTotal: (patch.unitPrice ?? item.unitPrice) * (patch.quantity ?? item.quantity),
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'validationError') && !patch.validationError) delete updated.validationError
+  return updated
+}
+
+export function repriceCartItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[], availability: ToppingAvailability = {}): CartItem[] {
   return items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId)
-    return product ? priceCartItem(item, product, channel, available) : { ...item, selectedChannel: channel, validationError: 'ไม่พบสินค้านี้ในเมนูปัจจุบัน' }
+    return product ? priceCartItem(item, product, channel, available, availability) : { ...item, selectedChannel: channel, validationError: 'ไม่พบสินค้านี้ในเมนูปัจจุบัน' }
   })
 }
 
-export function prepareOrderItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[]): CartItem[] {
-  const priced = repriceCartItems(items, products, channel, available)
+export function prepareOrderItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[], availability: ToppingAvailability = {}): CartItem[] {
+  const priced = repriceCartItems(items, products, channel, available, availability)
   const invalid = priced.find((item) => item.validationError)
   if (invalid) throw new Error(`${invalid.productName}: ${invalid.validationError}`)
   return priced.map((item) => {

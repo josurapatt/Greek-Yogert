@@ -6,16 +6,18 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { channelLabels, formatThaiDateTime, money } from "../lib";
+import { channelLabels, formatThaiDateTime, money, paymentMethodLabel } from "../lib";
+import { updateOrderStatusAndNavigate } from "../orderActions";
 import { useCart, useData } from "../store";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const { orders, products, setOrderStatus } = useData();
+  const { orders, products, toppingAvailability, setOrderStatus } = useData();
   const { editOrder } = useCart();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const order = orders.find((entry) => entry.id === id);
   if (!order)
     return (
@@ -29,9 +31,13 @@ export default function OrderDetailPage() {
       </div>
     );
   const changeStatus = async (status: typeof order.status) => {
+    if (busy) return;
     setBusy(true);
+    setError("");
     try {
-      await setOrderStatus(order.id, status);
+      await updateOrderStatusAndNavigate(order.id, status, setOrderStatus, navigate);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "อัปเดตสถานะไม่สำเร็จ");
     } finally {
       setBusy(false);
     }
@@ -87,7 +93,7 @@ export default function OrderDetailPage() {
           </p>
           <p>
             <span>ชำระเงิน</span>
-            <b>{order.paymentMethod}</b>
+            <b>{paymentMethodLabel(order.paymentMethod)}</b>
           </p>
           <p>
             <span>เวลาสั่ง</span>
@@ -107,7 +113,7 @@ export default function OrderDetailPage() {
               <span className="item-qty">{item.quantity}×</span>
               <div>
                 <h3>{item.productName}</h3>
-                {item.selectedOptions.length > 0 && (
+                {(item.selectedOptions?.length ?? 0) > 0 && (
                   <p>{item.selectedOptions.join(" • ")}</p>
                 )}
                 {item.priceBreakdown && (
@@ -150,7 +156,7 @@ export default function OrderDetailPage() {
             <button
               className="secondary"
               onClick={() => {
-                editOrder(order, products);
+                editOrder(order, products, toppingAvailability);
                 navigate("/cart");
               }}
             >
@@ -182,6 +188,7 @@ export default function OrderDetailPage() {
           </button>
         )}
       </section>
+      {error && <p className="validation">{error}</p>}
     </div>
   );
 }

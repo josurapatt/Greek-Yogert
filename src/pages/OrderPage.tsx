@@ -24,7 +24,7 @@ const channelDetails: Record<
 };
 
 export default function OrderPage() {
-  const { products } = useData();
+  const { products, toppingAvailability } = useData();
   const { items, add, channel, changeChannel } = useCart();
   const [selected, setSelected] = useState<Product | null>(null);
   const active = products.filter((product) => product.active);
@@ -40,7 +40,7 @@ export default function OrderPage() {
       )
     )
       return;
-    changeChannel(next, products);
+    changeChannel(next, products, toppingAvailability);
   };
 
   if (!channel)
@@ -136,6 +136,7 @@ export default function OrderPage() {
         <ProductModal
           product={selected}
           channel={channel}
+          availability={toppingAvailability}
           onClose={() => setSelected(null)}
           onSave={(item) => {
             add(item);

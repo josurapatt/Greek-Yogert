@@ -5,6 +5,7 @@ export type OptionMode = 'none' | 'granola' | 'toppings'
 export type ChannelGroup = 'storefront' | 'platform'
 
 export interface Topping { id: string; name: string; premium: boolean }
+export type ToppingAvailability = Record<string, boolean>
 
 export interface ChannelToppingRules {
   allowDuplicateToppings: boolean

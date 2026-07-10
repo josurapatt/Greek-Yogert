@@ -31,7 +31,7 @@ const blankProduct = () =>
   });
 
 export default function ProductsPage() {
-  const { products: storedProducts, saveProduct } = useData();
+  const { products: storedProducts, toppingAvailability, saveProduct, setToppingAvailability } = useData();
   const products = [...storedProducts];
   const [editing, setEditing] = useState<Product | null>(null);
   const [saved, setSaved] = useState("");
@@ -86,6 +86,29 @@ export default function ProductsPage() {
           <Plus /> เพิ่มสินค้า
         </button>
       </div>
+      <section className="availability-panel">
+        <div className="section-heading">
+          <h2>สถานะท็อปปิ้งและรสชาติ</h2>
+          <p>ใช้ร่วมกันทุกช่องทาง รายการเดิมที่ยังไม่มีสถานะถือว่าเปิดขาย</p>
+        </div>
+        <div className="availability-grid">
+          {toppings.map((topping) => {
+            const available = toppingAvailability[topping.id] !== false;
+            return (
+              <article className={`availability-card ${available ? "available" : "sold-out"}`} key={topping.id}>
+                <span>{topping.name}</span>
+                <button
+                  aria-pressed={!available}
+                  className={available ? "availability-toggle" : "availability-toggle sold-out"}
+                  onClick={() => void setToppingAvailability(topping.id, !available)}
+                >
+                  {available ? "เปิดขาย" : "หมด"}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
       <section className="manage-grid">
         {products
           .sort((a, b) => a.name.localeCompare(b.name))
