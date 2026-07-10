@@ -4,6 +4,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { collection, deleteField, doc, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db, firebaseReady } from './firebase'
 import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
+import { toFirestoreData } from './firestoreData'
 import { businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems } from './lib'
 import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder } from './types'
 
@@ -90,7 +91,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const counter = await transaction.get(counterRef)
         const sequence = (counter.data()?.lastSequence ?? 0) + 1
         const padded = String(sequence).padStart(3, '0')
-        const order = createOrder(preparedDraft, `${date.replaceAll('-', '')}-${padded}`, `Q${padded}`, user?.uid)
+        const order = toFirestoreData(createOrder(preparedDraft, `${date.replaceAll('-', '')}-${padded}`, `Q${padded}`, user?.uid))
         transaction.set(counterRef, { lastSequence: sequence, updatedAt: order.createdAt })
         transaction.set(doc(firestore, 'orders', order.id), order)
         return order
@@ -107,7 +108,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!current || current.status !== 'pending') throw new Error('แก้ไขได้เฉพาะออเดอร์ที่รอจัดเตรียม')
     const items = prepareOrderItems(draft.items, products, draft.channel, toppings)
     const totals = orderTotals(items, draft.discount)
-    const patch = { customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, items, ...totals, updatedAt: new Date().toISOString() }
+    const patch = toFirestoreData({ customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, items, ...totals, updatedAt: new Date().toISOString() })
     if (db) await updateDoc(doc(db, 'orders', id), patch)
     else setOrders((rows) => rows.map((order) => order.id === id ? { ...order, ...patch } : order))
   }
