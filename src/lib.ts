@@ -77,12 +77,15 @@ export function validateSelection(product: Product, selectedIds: string[], chann
 
 export function priceCartItem(item: CartItem, product: Product, channel: OrderChannel, available: Topping[]): CartItem {
   const priceBreakdown = calculatePriceBreakdown(product, item.selectedOptionIds, available, channel)
-  const validationError = validateSelection(product, item.selectedOptionIds, channel) ?? undefined
-  return {
+  const validationError = validateSelection(product, item.selectedOptionIds, channel)
+  const priced: CartItem = {
     ...item, productName: product.name, basePrice: priceBreakdown.basePrice,
     selectedChannel: channel, priceBreakdown, unitPrice: priceBreakdown.unitPrice,
-    lineTotal: priceBreakdown.unitPrice * item.quantity, validationError,
+    lineTotal: priceBreakdown.unitPrice * item.quantity,
   }
+  if (validationError) priced.validationError = validationError
+  else delete priced.validationError
+  return priced
 }
 
 export function repriceCartItems(items: CartItem[], products: Product[], channel: OrderChannel, available: Topping[]): CartItem[] {
@@ -96,7 +99,11 @@ export function prepareOrderItems(items: CartItem[], products: Product[], channe
   const priced = repriceCartItems(items, products, channel, available)
   const invalid = priced.find((item) => item.validationError)
   if (invalid) throw new Error(`${invalid.productName}: ${invalid.validationError}`)
-  return priced.map((item) => ({ ...item, selectedChannel: channel, lineTotal: item.unitPrice * item.quantity, validationError: undefined }))
+  return priced.map((item) => {
+    const prepared = { ...item, selectedChannel: channel, lineTotal: item.unitPrice * item.quantity }
+    delete prepared.validationError
+    return prepared
+  })
 }
 
 export function orderTotals(items: CartItem[], discount = 0) {
@@ -114,9 +121,16 @@ export function nextLocalQueue(orders: ShopOrder[], date = businessDate()): { se
 
 export function createOrder(draft: OrderDraft, id: string, queueNumber: string, userId?: string): ShopOrder {
   const now = new Date().toISOString()
-  const items = draft.items.map((item) => ({ ...item, selectedChannel: item.selectedChannel ?? draft.channel, lineTotal: item.unitPrice * item.quantity, validationError: undefined }))
+  const items = draft.items.map((item) => {
+    const snapshot = { ...item, selectedChannel: item.selectedChannel ?? draft.channel, lineTotal: item.unitPrice * item.quantity }
+    delete snapshot.validationError
+    if (snapshot.priceBreakdown === undefined) delete snapshot.priceBreakdown
+    return snapshot
+  })
   const totals = orderTotals(items, draft.discount)
-  return { id, queueNumber, businessDate: businessDate(new Date(now)), customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, status: 'pending', items, ...totals, createdAt: now, updatedAt: now, createdBy: userId }
+  const order: ShopOrder = { id, queueNumber, businessDate: businessDate(new Date(now)), customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, status: 'pending', items, ...totals, createdAt: now, updatedAt: now }
+  if (userId) order.createdBy = userId
+  return order
 }
 
 export const money = (value: number) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(value)
