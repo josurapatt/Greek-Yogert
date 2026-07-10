@@ -20,6 +20,12 @@ export const toppings: Topping[] = [
 const allToppings = toppings.map((topping) => topping.id)
 const premiumToppings = toppings.filter((topping) => topping.premium).map((topping) => topping.id)
 const granolaOptions = ['กล้วย', 'เบอร์รี่รวม', 'ช็อกโกแลต', 'น้ำผึ้ง']
+export const granolaFlavorIdsByName: Record<string, string> = {
+  กล้วย: 'granola-banana',
+  เบอร์รี่รวม: 'granola-berry',
+  ช็อกโกแลต: 'granola-chocolate',
+  น้ำผึ้ง: 'granola-honey',
+}
 const common = { premiumIncludedSurcharge: 5, extraNormalPrice: 10, extraPremiumPrice: 15, active: true }
 export const platformExtraToppingIds = ['granola-banana', 'granola-berry', 'granola-chocolate', 'granola-honey', 'biscoff']
 

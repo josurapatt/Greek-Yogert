@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './styles.css'
 import './channel.css'
+import './staff-ux.css'
 import App from './App'
 import { AuthProvider, CartProvider, DataProvider } from './store'
 

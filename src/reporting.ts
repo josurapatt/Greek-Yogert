@@ -1,4 +1,4 @@
-import { channelLabels } from "./lib";
+import { channelLabels, paymentMethodLabel } from "./lib";
 import type { ShopOrder } from "./types";
 
 export function completedSalesSummary(orders: ShopOrder[]) {
@@ -22,7 +22,7 @@ export function buildOrderExportRows(orders: ShopOrder[]) {
         วันที่และเวลา: order.createdAt,
         ชื่อลูกค้า: order.customerName,
         สินค้า: item.productName,
-        "ท็อปปิ้ง/ตัวเลือก": item.selectedOptions.join(", "),
+        "ท็อปปิ้ง/ตัวเลือก": (item.selectedOptions ?? []).join(", "),
         จำนวน: item.quantity,
         ราคาหลัก: item.priceBreakdown?.basePrice ?? item.basePrice,
         ค่าพรีเมียม: item.priceBreakdown?.premiumIncludedSurcharge ?? 0,
@@ -31,7 +31,7 @@ export function buildOrderExportRows(orders: ShopOrder[]) {
         ยอดรวมรายการ: item.lineTotal ?? item.unitPrice * item.quantity,
         ส่วนลดทั้งออเดอร์: order.discount,
         ยอดสุทธิทั้งออเดอร์: order.total,
-        วิธีชำระเงิน: order.paymentMethod,
+        วิธีชำระเงิน: paymentMethodLabel(order.paymentMethod),
         ช่องทางการขาย: channelLabels[order.channel] ?? order.channel,
         สถานะ: order.status === "completed" ? "พร้อมส่ง" : "ยกเลิก",
       })),

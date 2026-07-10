@@ -1,12 +1,12 @@
 /* oxlint-disable react/only-export-components -- providers and their typed hooks intentionally share this module */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { collection, deleteField, doc, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteField, doc, FieldPath, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db, firebaseReady } from './firebase'
 import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
 import { toFirestoreData } from './firestoreData'
-import { businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems } from './lib'
-import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder } from './types'
+import { businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
+import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
 interface SessionUser { uid: string; email: string }
 interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
@@ -42,16 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthProvider missing'); return value }
 
 interface DataValue {
-  products: Product[]; orders: ShopOrder[]; loading: boolean
+  products: Product[]; orders: ShopOrder[]; toppingAvailability: ToppingAvailability; loading: boolean
   submitOrder(draft: OrderDraft): Promise<ShopOrder>
   replaceOrder(id: string, draft: OrderDraft): Promise<void>
   setOrderStatus(id: string, status: ShopOrder['status']): Promise<void>
   saveProduct(product: Product): Promise<void>
+  setToppingAvailability(id: string, available: boolean): Promise<void>
   importBackup(data: { products: Product[]; orders: ShopOrder[] }): Promise<void>
 }
 const DataContext = createContext<DataValue | null>(null)
 const PRODUCTS_KEY = 'gym-products-v1'
 const ORDERS_KEY = 'gym-orders-v1'
+const TOPPING_AVAILABILITY_KEY = 'gym-topping-availability-v1'
 
 const readLocal = <T,>(key: string, fallback: T): T => {
   try { return JSON.parse(localStorage.getItem(key) || '') as T } catch { return fallback }
@@ -61,6 +63,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>(() => firebaseReady ? [] : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)))
   const [orders, setOrders] = useState<ShopOrder[]>(() => firebaseReady ? [] : readLocal(ORDERS_KEY, []))
+  const [toppingAvailability, setAvailability] = useState<ToppingAvailability>(() => firebaseReady ? {} : readLocal(TOPPING_AVAILABILITY_KEY, {}))
   const [loading, setLoading] = useState(Boolean(db))
 
   useEffect(() => {
@@ -74,15 +77,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const stopOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
       setOrders(snapshot.docs.map((entry) => entry.data() as ShopOrder).sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
     })
-    return () => { stopProducts(); stopOrders() }
+    const stopAvailability = onSnapshot(doc(db, 'settings', 'toppingAvailability'), (snapshot) => {
+      setAvailability((snapshot.data()?.availability as ToppingAvailability | undefined) ?? {})
+    })
+    return () => { stopProducts(); stopOrders(); stopAvailability() }
   }, [user])
 
   useEffect(() => { if (!db) localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)) }, [products])
   useEffect(() => { if (!db) localStorage.setItem(ORDERS_KEY, JSON.stringify(orders)) }, [orders])
+  useEffect(() => { if (!db) localStorage.setItem(TOPPING_AVAILABILITY_KEY, JSON.stringify(toppingAvailability)) }, [toppingAvailability])
 
   const submitOrder = useCallback(async (draft: OrderDraft) => {
     if (!draft.items.length) throw new Error('ตะกร้าว่าง ไม่สามารถส่งออเดอร์ได้')
-    const preparedDraft = { ...draft, items: prepareOrderItems(draft.items, products, draft.channel, toppings) }
+    const paymentError = validatePaymentMethod(draft.channel, draft.paymentMethod)
+    if (paymentError) throw new Error(paymentError)
+    const preparedDraft = { ...draft, items: prepareOrderItems(draft.items, products, draft.channel, toppings, toppingAvailability) }
     if (db) {
       const firestore = db
       const date = businessDate()
@@ -101,12 +110,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const order = createOrder(preparedDraft, next.id, next.queue, user?.uid)
     setOrders((current) => [order, ...current])
     return order
-  }, [orders, products, user])
+  }, [orders, products, toppingAvailability, user])
 
   const replaceOrder = async (id: string, draft: OrderDraft) => {
     const current = orders.find((order) => order.id === id)
     if (!current || current.status !== 'pending') throw new Error('แก้ไขได้เฉพาะออเดอร์ที่รอจัดเตรียม')
-    const items = prepareOrderItems(draft.items, products, draft.channel, toppings)
+    const paymentError = validatePaymentMethod(draft.channel, draft.paymentMethod)
+    if (paymentError) throw new Error(paymentError)
+    const items = prepareOrderItems(draft.items, products, draft.channel, toppings, toppingAvailability)
     const totals = orderTotals(items, draft.discount)
     const patch = toFirestoreData({ customerName: draft.customerName.trim() || 'ลูกค้าทั่วไป', channel: draft.channel, paymentMethod: draft.paymentMethod, items, ...totals, updatedAt: new Date().toISOString() })
     if (db) await updateDoc(doc(db, 'orders', id), patch)
@@ -132,6 +143,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     else setProducts((rows) => [...rows.filter((entry) => entry.id !== normalized.id), normalized])
   }
 
+  const setToppingAvailability = async (id: string, available: boolean) => {
+    if (db) {
+      await setDoc(
+        doc(db, 'settings', 'toppingAvailability'),
+        { availability: { [id]: available }, updatedAt: new Date().toISOString() },
+        { mergeFields: [new FieldPath('availability', id), 'updatedAt'] },
+      )
+    } else setAvailability((current) => ({ ...current, [id]: available }))
+  }
+
   const importBackup = async (data: { products: Product[]; orders: ShopOrder[] }) => {
     if (!Array.isArray(data.products) || !Array.isArray(data.orders)) throw new Error('รูปแบบไฟล์สำรองไม่ถูกต้อง')
     if (db) {
@@ -140,7 +161,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } else { setProducts(data.products); setOrders(data.orders) }
   }
 
-  const value = { products, orders, loading, submitOrder, replaceOrder, setOrderStatus, saveProduct, importBackup }
+  const value = { products, orders, toppingAvailability, loading, submitOrder, replaceOrder, setOrderStatus, saveProduct, setToppingAvailability, importBackup }
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }
 
@@ -149,8 +170,9 @@ export function useData() { const value = useContext(DataContext); if (!value) t
 interface CartValue {
   items: CartItem[]; editingOrder: ShopOrder | null; channel: OrderChannel | null
   add(item: CartItem): void; update(id: string, patch: Partial<CartItem>): void; remove(id: string): void
-  duplicate(id: string): void; clear(): void; editOrder(order: ShopOrder, products: Product[]): void
-  changeChannel(channel: OrderChannel, products: Product[]): void
+  duplicate(id: string): void; clear(): void; editOrder(order: ShopOrder, products: Product[], availability?: ToppingAvailability): void
+  changeChannel(channel: OrderChannel, products: Product[], availability?: ToppingAvailability): void
+  revalidate(products: Product[], availability?: ToppingAvailability): void
 }
 const CartContext = createContext<CartValue | null>(null)
 
@@ -170,9 +192,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const remove = (id: string) => setItems((rows) => rows.filter((item) => item.id !== id))
   const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, { ...item, id: crypto.randomUUID(), quantity: 1, lineTotal: item.unitPrice }] : rows })
   const clear = () => { setItems([]); setEditingOrder(null); setChannel(null) }
-  const editOrder = (order: ShopOrder, products: Product[]) => { setItems(repriceCartItems(order.items.map((item) => ({ ...item, id: crypto.randomUUID(), selectedChannel: order.channel })), products, order.channel, toppings)); setEditingOrder(order); setChannel(order.channel) }
-  const changeChannel = (nextChannel: OrderChannel, products: Product[]) => { setItems((rows) => repriceCartItems(rows, products, nextChannel, toppings)); setChannel(nextChannel) }
-  return <CartContext.Provider value={{ items, editingOrder, channel, add, update, remove, duplicate, clear, editOrder, changeChannel }}>{children}</CartContext.Provider>
+  const editOrder = (order: ShopOrder, products: Product[], availability: ToppingAvailability = {}) => { setItems(repriceCartItems(order.items.map((item) => ({ ...item, id: crypto.randomUUID(), selectedChannel: order.channel })), products, order.channel, toppings, availability)); setEditingOrder(order); setChannel(order.channel) }
+  const changeChannel = (nextChannel: OrderChannel, products: Product[], availability: ToppingAvailability = {}) => { setItems((rows) => repriceCartItems(rows, products, nextChannel, toppings, availability)); setChannel(nextChannel) }
+  const revalidate = useCallback((products: Product[], availability: ToppingAvailability = {}) => { if (channel) setItems((rows) => repriceCartItems(rows, products, channel, toppings, availability)) }, [channel])
+  return <CartContext.Provider value={{ items, editingOrder, channel, add, update, remove, duplicate, clear, editOrder, changeChannel, revalidate }}>{children}</CartContext.Provider>
 }
 
 export function useCart() { const value = useContext(CartContext); if (!value) throw new Error('CartProvider missing'); return value }

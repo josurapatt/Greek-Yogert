@@ -1,0 +1,106 @@
+name: Deploy staff UX UAT preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staff-ux-topping-uat-preview
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy-preview:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/staff-ux-topping-availability') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'feature/staff-ux-topping-availability' &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Build isolated demo app
+        env:
+          VITE_FIREBASE_API_KEY: ""
+          VITE_FIREBASE_AUTH_DOMAIN: ""
+          VITE_FIREBASE_PROJECT_ID: ""
+          VITE_FIREBASE_STORAGE_BUCKET: ""
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ""
+          VITE_FIREBASE_APP_ID: ""
+        run: |
+          for variable in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID; do
+            test -z "${!variable}" || { echo "Preview builds must not receive Firebase web configuration"; exit 1; }
+          done
+          pnpm build
+
+      - name: Verify preview deployment inputs
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$FIREBASE_PROJECT_ID" || { echo "Missing required GitHub secret: FIREBASE_PROJECT_ID"; exit 1; }
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || { echo "Missing required GitHub secret: FIREBASE_SERVICE_ACCOUNT_JSON"; exit 1; }
+          node -e "const c=require('./firebase.json'); if (!c.hosting || c.functions || c.database || c.storage) throw new Error('Preview workflow permits static Hosting configuration only')"
+
+      - name: Prepare Firebase service-account credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))"
+
+      - name: Deploy Hosting preview channel
+        id: deploy
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          result_file="$RUNNER_TEMP/firebase-preview-result.json"
+          pnpm dlx firebase-tools@latest hosting:channel:deploy staff-ux-topping-uat \
+            --project "$FIREBASE_PROJECT_ID" \
+            --expires 7d \
+            --no-authorized-domains \
+            --non-interactive \
+            --json > "$result_file"
+          preview_url=$(node -e "const data=JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); const urls=[]; const visit=(value)=>{ if (typeof value === 'string' && /^https:\/\//.test(value)) urls.push(value); else if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') Object.values(value).forEach(visit); }; visit(data.result); const url=urls.find((value)=>value.includes('--staff-ux-topping-uat-')) || urls[0]; if (!url) process.exit(1); process.stdout.write(url);" "$result_file")
+          preview_host=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$preview_url")
+          preview_suffix="${preview_host#*--staff-ux-topping-uat-}"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "Preview hostname suffix: $preview_suffix"
+          {
+            echo "### Staff UX and topping availability UAT preview"
+            echo ""
+            echo "- Demo mode: enabled"
+            echo "- Firebase Hosting channel: staff-ux-topping-uat"
+            echo "- Preview URL: [$preview_url]($preview_url)"
+          } >> "$GITHUB_STEP_SUMMARY"

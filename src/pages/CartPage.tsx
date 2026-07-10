@@ -10,7 +10,16 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
-import { channelLabels, money, orderChannels, orderTotals } from "../lib";
+import CartItemOptions from "../components/CartItemOptions";
+import {
+  channelLabels,
+  money,
+  normalizePaymentMethod,
+  orderChannels,
+  orderTotals,
+  paymentMethodsForChannel,
+  validatePaymentMethod,
+} from "../lib";
 import { useCart, useData } from "../store";
 import type { CartItem, OrderChannel, PaymentMethod } from "../types";
 
@@ -24,8 +33,9 @@ export default function CartPage() {
     duplicate,
     clear,
     changeChannel,
+    revalidate,
   } = useCart();
-  const { products, submitOrder, replaceOrder } = useData();
+  const { products, toppingAvailability, submitOrder, replaceOrder } = useData();
   const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const [customerName, setCustomerName] = useState(
@@ -50,6 +60,11 @@ export default function CartPage() {
       setDiscount(editingOrder.discount);
     }
   }, [editingOrder]);
+  useEffect(() => {
+    if (!channel) return;
+    setPayment((current) => normalizePaymentMethod(channel, current));
+    revalidate(products, toppingAvailability);
+  }, [channel, products, toppingAvailability, revalidate]);
   const totals = useMemo(() => orderTotals(items, discount), [items, discount]);
   const invalidItems = items.filter((item) => item.validationError);
 
@@ -62,7 +77,8 @@ export default function CartPage() {
       )
     )
       return;
-    changeChannel(next, products);
+    changeChannel(next, products, toppingAvailability);
+    setPayment((current) => normalizePaymentMethod(next, current));
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -73,6 +89,11 @@ export default function CartPage() {
     }
     if (invalidItems.length) {
       setError("มีสินค้าที่ต้องแก้ไขก่อนส่งออเดอร์");
+      return;
+    }
+    const paymentError = validatePaymentMethod(channel, paymentMethod);
+    if (paymentError) {
+      setError(paymentError);
       return;
     }
     setBusy(true);
@@ -161,9 +182,7 @@ export default function CartPage() {
                 <div className="cart-item-main">
                   <div>
                     <h3>{item.productName}</h3>
-                    {item.selectedOptions.length > 0 && (
-                      <p>{item.selectedOptions.join(" • ")}</p>
-                    )}
+                    <CartItemOptions options={item.selectedOptions ?? []} />
                     <strong>{money(item.unitPrice)} / ชิ้น</strong>
                     {item.priceBreakdown && (
                       <small className="snapshot-line">
@@ -249,7 +268,7 @@ export default function CartPage() {
             <fieldset>
               <legend>วิธีชำระเงิน</legend>
               <div className="segmented">
-                {(["สด", "โอน", "โครงการ", "Platform"] as PaymentMethod[]).map(
+                {paymentMethodsForChannel(channel).map(
                   (value) => (
                     <label key={value}>
                       <input
@@ -318,6 +337,7 @@ export default function CartPage() {
             <ProductModal
               product={product}
               channel={channel}
+              availability={toppingAvailability}
               initial={editingItem}
               onClose={() => setEditingItem(null)}
               onSave={(item) => {
