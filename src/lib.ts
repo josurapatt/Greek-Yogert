@@ -13,7 +13,7 @@ export function formatThaiDateTime(value?: string): string {
 }
 
 export const orderChannels: OrderChannel[] = ['หน้าร้าน', 'Openchat', 'Lineman', 'Grab']
-export const channelLabels: Record<OrderChannel, string> = { 'หน้าร้าน': 'หน้าร้าน', Openchat: 'Openchat', Lineman: 'LINE MAN', Grab: 'Grab' }
+export const channelLabels: Record<OrderChannel, string> = { 'หน้าร้าน': 'หน้าร้าน', Openchat: 'OpenChat', Lineman: 'LINE MAN', Grab: 'Grab' }
 export const paymentMethodLabels: Record<PaymentMethod, string> = { สด: 'สด', โอน: 'โอน', โครงการ: 'โครงการ', Platform: 'Platform' }
 
 export function paymentMethodLabel(value?: string): string {

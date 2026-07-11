@@ -7,7 +7,13 @@ import {
   pendingCustomerRequests,
   removeCustomerRequest,
 } from "./customerRequests";
-import { isCustomerRoute, orderDetailBackPath } from "./routes";
+import {
+  isCustomerRoute,
+  orderDetailBackPath,
+  shouldUseCustomerOrdering,
+  staffOrderPath,
+} from "./routes";
+import { orderChannels } from "./lib";
 import type { CartItem, CustomerOrderRequest, ShopOrder } from "./types";
 
 afterEach(cleanup);
@@ -54,6 +60,28 @@ const request = (
 });
 
 describe("staff route boundaries", () => {
+  it("routes authenticated staff ordering to the existing staff workflow", () => {
+    expect(staffOrderPath).toBe("/order");
+    expect(
+      shouldUseCustomerOrdering(staffOrderPath, true, {
+        isAnonymous: false,
+      }),
+    ).toBe(false);
+  });
+  it("keeps every staff sales channel selectable", () => {
+    expect(orderChannels).toEqual(["หน้าร้าน", "Openchat", "Lineman", "Grab"]);
+  });
+  it("keeps public ordering and status routes in the customer workflow", () => {
+    expect(shouldUseCustomerOrdering("/order", true, null)).toBe(true);
+    expect(
+      shouldUseCustomerOrdering("/order", true, { isAnonymous: true }),
+    ).toBe(true);
+    expect(
+      shouldUseCustomerOrdering("/order/status/request-1", true, {
+        isAnonymous: false,
+      }),
+    ).toBe(true);
+  });
   it("opens a queue card on the staff detail route, never the customer order route", () => {
     render(
       <MemoryRouter>

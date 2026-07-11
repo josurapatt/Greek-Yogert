@@ -6,9 +6,10 @@ import { channelLabels } from '../lib'
 import type { ReactNode } from 'react'
 import PendingBadge from './PendingBadge'
 import { pendingCustomerRequests } from '../customerRequests'
+import { staffOrderPath } from '../routes'
 
 const nav = [
-  { to: '/', label: 'หน้าหลัก', icon: Home }, { to: '/order', label: 'สั่งสินค้า', icon: PlusCircle },
+  { to: '/', label: 'หน้าหลัก', icon: Home }, { to: staffOrderPath, label: 'สั่งสินค้า', icon: PlusCircle },
   { to: '/queue', label: 'คิว', icon: ClipboardList }, { to: '/history', label: 'ประวัติ', icon: History },
   { to: '/reports', label: 'รายงาน', icon: BarChart3 }, { to: '/products', label: 'สินค้า', icon: Package },
   { to: '/settings', label: 'ตั้งค่า', icon: Settings },

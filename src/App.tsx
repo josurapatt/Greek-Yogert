@@ -17,17 +17,17 @@ import CustomerOrderPage from './pages/CustomerOrderPage'
 import CustomerStatusPage from './pages/CustomerStatusPage'
 import CustomerRequestsPage from './pages/CustomerRequestsPage'
 import CustomerRequestDetailPage from './pages/CustomerRequestDetailPage'
-import { isCustomerRoute } from './routes'
+import { shouldUseCustomerOrdering } from './routes'
 
 export default function App() {
   const { user, loading } = useAuth()
   const location = useLocation()
-  if (customerQrUatEnabled && isCustomerRoute(location.pathname)) return <CustomerProvider><Routes>
+  if (loading) return <div className="splash"><div className="brand-mark">G&amp;M</div><p>กำลังโหลดร้าน…</p></div>
+  if (shouldUseCustomerOrdering(location.pathname, customerQrUatEnabled, user)) return <CustomerProvider><Routes>
     <Route path="/order" element={<CustomerOrderPage />} />
     <Route path="/order/status/:requestId" element={<CustomerStatusPage />} />
     <Route path="*" element={<Navigate to="/order" replace />} />
   </Routes></CustomerProvider>
-  if (loading) return <div className="splash"><div className="brand-mark">G&amp;M</div><p>กำลังโหลดร้าน…</p></div>
   if (!user || user.isAnonymous) return <Routes><Route path="*" element={<LoginPage />} /></Routes>
   return <Layout><Routes>
     <Route path="/" element={<HomePage />} />

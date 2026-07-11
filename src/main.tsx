@@ -5,6 +5,7 @@ import './styles.css'
 import './channel.css'
 import './staff-ux.css'
 import './customer.css'
+import './report.css'
 import App from './App'
 import { AuthProvider, CartProvider, DataProvider } from './store'
 

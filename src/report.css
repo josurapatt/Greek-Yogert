@@ -1,0 +1,156 @@
+.sales-channel-layout {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sales-channel-summary table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sales-channel-summary th,
+.sales-channel-summary td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.sales-channel-summary th:nth-child(n + 2),
+.sales-channel-summary td:nth-child(n + 2) {
+  text-align: right;
+}
+
+.sales-channel-summary tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.channel-color,
+.channel-legend i {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 0.45rem;
+  border-radius: 3px;
+}
+
+.unknown-channel-row {
+  color: #6c6659;
+  background: #faf8f3;
+}
+
+.report-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+}
+
+.report-table-scroll,
+.hourly-chart-scroll {
+  overflow-x: auto;
+}
+
+.chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.chart-heading h2,
+.chart-heading p {
+  margin-bottom: 0.25rem;
+}
+
+.channel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: flex-end;
+  font-size: 0.78rem;
+}
+
+.hourly-chart {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-width: 520px;
+  height: 310px;
+  padding: 2.2rem 1rem 2.2rem 2.7rem;
+  gap: 0.7rem;
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent 59px,
+    #eeeaf3 60px
+  );
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.chart-y-label {
+  position: absolute;
+  top: 50%;
+  left: 0.35rem;
+  color: #777185;
+  font-size: 0.72rem;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.hour-column {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 48px;
+  height: 100%;
+}
+
+.hour-column > b {
+  margin-bottom: 0.3rem;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.hour-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  width: min(42px, 85%);
+  height: 220px;
+}
+
+.hour-segment {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  transition: 0.15s;
+}
+
+.hour-segment:hover {
+  filter: brightness(0.9);
+}
+
+.hour-column > span {
+  position: absolute;
+  bottom: -1.55rem;
+  font-size: 0.72rem;
+}
+
+.chart-empty {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  text-align: center;
+}
+
+@media (max-width: 780px) {
+  .chart-heading {
+    flex-direction: column;
+  }
+
+  .channel-legend {
+    justify-content: flex-start;
+  }
+}
