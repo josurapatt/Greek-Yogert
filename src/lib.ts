@@ -20,6 +20,18 @@ export function paymentMethodLabel(value?: string): string {
   return value && value in paymentMethodLabels ? paymentMethodLabels[value as PaymentMethod] : 'ไม่ระบุ'
 }
 
+export function orderPaymentMethods(order: ShopOrder): PaymentMethod[] {
+  const lineMethods = order.items.flatMap((item) => item.paymentMethod ? [item.paymentMethod] : [])
+  const methods = lineMethods.length ? lineMethods : order.paymentMethods?.length ? order.paymentMethods : order.paymentMethod ? [order.paymentMethod] : []
+  return [...new Set(methods)]
+}
+
+export function orderPaymentLabel(order: ShopOrder): string {
+  const methods = orderPaymentMethods(order)
+  return methods.length ? methods.map(paymentMethodLabel).join(' + ') : paymentMethodLabel()
+}
+
+
 export function paymentMethodsForChannel(channel: OrderChannel): PaymentMethod[] {
   return getChannelGroup(channel) === 'platform' ? ['Platform'] : ['สด', 'โอน', 'โครงการ']
 }

@@ -1,4 +1,4 @@
-import { channelLabels, paymentMethodLabel } from "./lib";
+import { channelLabels, orderPaymentLabel, paymentMethodLabel } from "./lib";
 import type { ShopOrder } from "./types";
 
 export function completedSalesSummary(orders: ShopOrder[]) {
@@ -31,7 +31,7 @@ export function buildOrderExportRows(orders: ShopOrder[]) {
         ยอดรวมรายการ: item.lineTotal ?? item.unitPrice * item.quantity,
         ส่วนลดทั้งออเดอร์: order.discount,
         ยอดสุทธิทั้งออเดอร์: order.total,
-        วิธีชำระเงิน: paymentMethodLabel(order.paymentMethod),
+        วิธีชำระเงิน: item.paymentMethod ? paymentMethodLabel(item.paymentMethod) : orderPaymentLabel(order),
         ช่องทางการขาย: channelLabels[order.channel] ?? order.channel,
         สถานะ: order.status === "completed" ? "พร้อมส่ง" : "ยกเลิก",
       })),

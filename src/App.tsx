@@ -16,11 +16,13 @@ import SettingsPage from './pages/SettingsPage'
 import CustomerOrderPage from './pages/CustomerOrderPage'
 import CustomerStatusPage from './pages/CustomerStatusPage'
 import CustomerRequestsPage from './pages/CustomerRequestsPage'
+import CustomerRequestDetailPage from './pages/CustomerRequestDetailPage'
+import { isCustomerRoute } from './routes'
 
 export default function App() {
   const { user, loading } = useAuth()
   const location = useLocation()
-  if (customerQrUatEnabled && location.pathname.startsWith('/order')) return <CustomerProvider><Routes>
+  if (customerQrUatEnabled && isCustomerRoute(location.pathname)) return <CustomerProvider><Routes>
     <Route path="/order" element={<CustomerOrderPage />} />
     <Route path="/order/status/:requestId" element={<CustomerStatusPage />} />
     <Route path="*" element={<Navigate to="/order" replace />} />
@@ -38,6 +40,7 @@ export default function App() {
     <Route path="/products" element={<ProductsPage />} />
     <Route path="/settings" element={<SettingsPage />} />
     <Route path="/customer-requests" element={<CustomerRequestsPage />} />
+    <Route path="/customer-requests/:id" element={<CustomerRequestDetailPage />} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></Layout>
 }

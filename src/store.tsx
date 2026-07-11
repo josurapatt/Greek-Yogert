@@ -6,8 +6,9 @@ import { auth, customerQrUatEnabled, db, firebaseReady } from './firebase'
 import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
 import { toFirestoreData } from './firestoreData'
 import { isAuthorizedStaffDocument, unauthorizedStaffMessage } from './staffAuthorization'
+import { removeCustomerRequest } from './customerRequests'
 import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
-import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
+import type { CartItem, CustomerOrderRequest, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
 interface SessionUser { uid: string; email: string; isAnonymous?: boolean }
 interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; isAnonymous: boolean; authorizationError: string; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
@@ -58,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthProvider missing'); return value }
 
 interface DataValue {
-  products: Product[]; orders: ShopOrder[]; toppingAvailability: ToppingAvailability; loading: boolean
+  products: Product[]; orders: ShopOrder[]; customerRequests: CustomerOrderRequest[]; toppingAvailability: ToppingAvailability; loading: boolean
+  dismissCustomerRequest(id: string): void
   submitOrder(draft: OrderDraft): Promise<ShopOrder>
   replaceOrder(id: string, draft: OrderDraft): Promise<void>
   setOrderStatus(id: string, status: ShopOrder['status']): Promise<void>
@@ -79,6 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user, isAnonymous } = useAuth()
   const [products, setProducts] = useState<Product[]>(() => firebaseReady ? [] : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)))
   const [orders, setOrders] = useState<ShopOrder[]>(() => firebaseReady ? [] : readLocal(ORDERS_KEY, []))
+  const [customerRequests, setCustomerRequests] = useState<CustomerOrderRequest[]>([])
   const [toppingAvailability, setAvailability] = useState<ToppingAvailability>(() => firebaseReady ? {} : readLocal(TOPPING_AVAILABILITY_KEY, {}))
   const [loading, setLoading] = useState(Boolean(db))
 
@@ -96,7 +99,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const stopAvailability = onSnapshot(doc(db, 'settings', 'toppingAvailability'), (snapshot) => {
       setAvailability((snapshot.data()?.availability as ToppingAvailability | undefined) ?? {})
     })
-    return () => { stopProducts(); stopOrders(); stopAvailability() }
+    const stopCustomerRequests = customerQrUatEnabled ? onSnapshot(collection(db, 'customerOrderRequests'), (snapshot) => {
+      setCustomerRequests(snapshot.docs.map((entry) => entry.data() as CustomerOrderRequest).sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+    }) : () => undefined
+    return () => { stopProducts(); stopOrders(); stopAvailability(); stopCustomerRequests() }
   }, [user, isAnonymous])
 
   useEffect(() => { if (!db) localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products)) }, [products])
@@ -177,7 +183,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } else { setProducts(data.products); setOrders(data.orders) }
   }
 
-  const value = { products, orders, toppingAvailability, loading, submitOrder, replaceOrder, setOrderStatus, saveProduct, setToppingAvailability, importBackup }
+  const dismissCustomerRequest = (id: string) => setCustomerRequests((rows) => removeCustomerRequest(rows, id))
+  const value = { products, orders, customerRequests, toppingAvailability, loading, dismissCustomerRequest, submitOrder, replaceOrder, setOrderStatus, saveProduct, setToppingAvailability, importBackup }
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }
 

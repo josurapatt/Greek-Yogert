@@ -3,7 +3,7 @@ import {
   channelLabels,
   formatThaiDateTime,
   money,
-  paymentMethodLabel,
+  orderPaymentLabel,
 } from "../lib";
 import type { ShopOrder } from "../types";
 
@@ -17,7 +17,7 @@ export default function HistoryOrderCard({ order }: { order: ShopOrder }) {
         <p>
           {formatThaiDateTime(order.createdAt)} •{" "}
           {channelLabels[order.channel] ?? order.channel} • {quantity} ถ้วย •{" "}
-          {paymentMethodLabel(order.paymentMethod)}
+          {orderPaymentLabel(order)}
         </p>
       </div>
       <span className={`status ${order.status}`}>

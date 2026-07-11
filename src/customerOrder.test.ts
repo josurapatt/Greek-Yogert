@@ -94,9 +94,27 @@ describe("customer QR request lifecycle", () => {
     expect(() => confirmCustomerRequest(result.request, "โอน", 8)).toThrow(
       "ดำเนินการแล้ว",
     );
-    expect(() => confirmCustomerRequest(request, "Platform", 7)).toThrow(
+    expect(() => confirmCustomerRequest(request, "Platform" as never, 7)).toThrow(
       "ไม่ถูกต้อง",
     );
+  });
+  it("quick confirmation applies one payment method to every line", () => {
+    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
+    const result = confirmCustomerRequest(request, "สด", 1);
+    expect(result.order.items.map((item) => item.paymentMethod)).toEqual(["สด", "สด"]);
+    expect(result.order.paymentMethods).toEqual(["สด"]);
+  });
+  it("detail confirmation supports different payment methods per line", () => {
+    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
+    const result = confirmCustomerRequest(request, { "cart-1": "สด", "cart-2": "โอน" }, 1);
+    expect(result.order.items.map((item) => item.paymentMethod)).toEqual(["สด", "โอน"]);
+    expect(result.order.paymentMethods).toEqual(["สด", "โอน"]);
+    expect(result.request.paymentMethods).toEqual(["สด", "โอน"]);
+  });
+  it("blocks confirmation when any line has no valid staff payment method", () => {
+    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
+    expect(() => confirmCustomerRequest(request, { "cart-1": "สด" }, 1)).toThrow("กรุณาเลือกวิธีชำระเงิน");
+    expect(() => confirmCustomerRequest(request, { "cart-1": "Platform" as never, "cart-2": "สด" }, 1)).toThrow("กรุณาเลือกวิธีชำระเงิน");
   });
   it("rejects without creating a queue reference", () => {
     const request = createCustomerRequest(

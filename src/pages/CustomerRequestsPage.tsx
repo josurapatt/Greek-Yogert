@@ -1,76 +1,35 @@
-import {
-  collection,
-  doc,
-  onSnapshot,
-  runTransaction,
-} from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { doc, runTransaction } from "firebase/firestore";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { db } from "../firebase";
 import {
-  confirmCustomerRequest,
   customerPaymentMethods,
-  rejectCustomerRequest,
   toCustomerPublicProduct,
-  waitingForShop,
 } from "../customerOrder";
-import { businessDate, formatThaiDateTime, money } from "../lib";
-import { toFirestoreData } from "../firestoreData";
+import { formatThaiDateTime, money } from "../lib";
 import { defaultProducts } from "../data";
-import { useAuth } from "../store";
-import type { CustomerOrderRequest, PaymentMethod } from "../types";
+import { useAuth, useData } from "../store";
+import { confirmCustomerRequestTransaction, rejectCustomerRequestTransaction, requestIsStillPending } from "../customerRequestActions";
+import type { CustomerOrderRequest, StaffPaymentMethod } from "../types";
+import { pendingCustomerRequests } from "../customerRequests";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<CustomerOrderRequest[]>([]);
+  const { customerRequests: requests, dismissCustomerRequest } = useData();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  useEffect(() => {
-    if (!db) return;
-    return onSnapshot(collection(db, "customerOrderRequests"), (snapshot) =>
-      setRequests(
-        snapshot.docs
-          .map((row) => row.data() as CustomerOrderRequest)
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-      ),
-    );
-  }, []);
   const confirm = async (
     request: CustomerOrderRequest,
-    paymentMethod: PaymentMethod,
+    paymentMethod: StaffPaymentMethod,
   ) => {
     if (!db || busy) return;
     try {
       setBusy(request.id);
-      const firestore = db;
-      await runTransaction(firestore, async (transaction) => {
-        const requestRef = doc(firestore, "customerOrderRequests", request.id);
-        const current = (await transaction.get(requestRef)).data() as
-          | CustomerOrderRequest
-          | undefined;
-        if (!current) throw new Error("ไม่พบคำขอ");
-        if (current.status !== waitingForShop || current.confirmedOrderId)
-          throw new Error("คำขอนี้ถูกดำเนินการแล้ว");
-        const date = businessDate();
-        const counterRef = doc(firestore, "counters", date);
-        const counter = await transaction.get(counterRef);
-        const result = confirmCustomerRequest(
-          current,
-          paymentMethod,
-          (counter.data()?.lastSequence ?? 0) + 1,
-          user?.uid,
-        );
-        transaction.set(counterRef, {
-          lastSequence: Number(result.order.queueNumber.replace(/\D/g, "")),
-          updatedAt: result.order.createdAt,
-        });
-        transaction.set(
-          doc(firestore, "orders", result.order.id),
-          toFirestoreData(result.order),
-        );
-        transaction.set(requestRef, toFirestoreData(result.request));
-      });
+      await confirmCustomerRequestTransaction(db, request.id, paymentMethod, user?.uid);
+      dismissCustomerRequest(request.id);
       setMessage("ยืนยันคำขอและสร้างคิวแล้ว");
     } catch (cause) {
+      if (db && !(await requestIsStillPending(db, request.id))) dismissCustomerRequest(request.id);
       setMessage(cause instanceof Error ? cause.message : "ยืนยันไม่สำเร็จ");
     } finally {
       setBusy(null);
@@ -81,27 +40,17 @@ export default function CustomerRequestsPage() {
     const reason = window.prompt("เหตุผล (ไม่บังคับ)") ?? undefined;
     try {
       setBusy(request.id);
-      await runTransaction(db, async (transaction) => {
-        const ref = doc(db!, "customerOrderRequests", request.id);
-        const current = (await transaction.get(ref)).data() as
-          | CustomerOrderRequest
-          | undefined;
-        if (!current) throw new Error("ไม่พบคำขอ");
-        transaction.set(
-          ref,
-          toFirestoreData(rejectCustomerRequest(current, reason)),
-        );
-      });
+      await rejectCustomerRequestTransaction(db, request.id, reason);
+      dismissCustomerRequest(request.id);
       setMessage("ปฏิเสธคำขอแล้ว");
     } catch (cause) {
+      if (db && !(await requestIsStillPending(db, request.id))) dismissCustomerRequest(request.id);
       setMessage(cause instanceof Error ? cause.message : "ปฏิเสธไม่สำเร็จ");
     } finally {
       setBusy(null);
     }
   };
-  const pending = requests.filter(
-    (request) => request.status === waitingForShop,
-  );
+  const pending = pendingCustomerRequests(requests);
   const seed = async () => {
     if (!db || busy) return;
     try {
@@ -153,7 +102,7 @@ export default function CustomerRequestsPage() {
         <section className="queue-grid">
           {pending.map((request) => (
             <article className="queue-card" key={request.id}>
-              <h2>{request.customerName || "ลูกค้าทั่วไป"}</h2>
+              <h2><Link to={`/customer-requests/${request.id}`}>{request.customerName || "ลูกค้าทั่วไป"}</Link></h2>
               <p>
                 {formatThaiDateTime(request.createdAt)} • {request.itemCount}{" "}
                 รายการ • {money(request.total)}
@@ -169,6 +118,7 @@ export default function CustomerRequestsPage() {
                 </p>
               ))}
               <div className="button-row">
+                <Link className="secondary" to={`/customer-requests/${request.id}`}>ดูรายละเอียด</Link>
                 {customerPaymentMethods.map((method) => (
                   <button
                     className="primary"

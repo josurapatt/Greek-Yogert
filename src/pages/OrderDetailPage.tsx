@@ -6,9 +6,10 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { channelLabels, formatThaiDateTime, money, paymentMethodLabel } from "../lib";
+import { channelLabels, formatThaiDateTime, money, orderPaymentLabel, paymentMethodLabel } from "../lib";
 import { updateOrderStatusAndNavigate } from "../orderActions";
 import { useCart, useData } from "../store";
+import { orderDetailBackPath } from "../routes";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -47,7 +48,7 @@ export default function OrderDetailPage() {
     <div className="page narrow">
       <Link
         className="back-link"
-        to={order.status === "pending" ? "/queue" : "/history"}
+        to={orderDetailBackPath(order.status)}
       >
         <ArrowLeft /> กลับ
       </Link>
@@ -93,7 +94,7 @@ export default function OrderDetailPage() {
           </p>
           <p>
             <span>ชำระเงิน</span>
-            <b>{paymentMethodLabel(order.paymentMethod)}</b>
+            <b>{orderPaymentLabel(order)}</b>
           </p>
           <p>
             <span>เวลาสั่ง</span>
@@ -126,6 +127,7 @@ export default function OrderDetailPage() {
                   </small>
                 )}
                 <small>{money(item.unitPrice)} / ชิ้น</small>
+                {item.paymentMethod && <small>ชำระ {paymentMethodLabel(item.paymentMethod)}</small>}
               </div>
               <strong>
                 {money(item.lineTotal ?? item.unitPrice * item.quantity)}
@@ -174,7 +176,7 @@ export default function OrderDetailPage() {
               disabled={busy}
               onClick={() => void changeStatus("completed")}
             >
-              <CheckCircle2 /> พร้อมส่ง
+              <CheckCircle2 /> พร้อมจัดส่ง
             </button>
           </>
         )}
