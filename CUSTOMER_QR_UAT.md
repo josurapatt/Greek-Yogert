@@ -2,7 +2,23 @@
 
 This feature never targets the production Firebase project. Create a separate Spark-plan Firebase project, for example `greek-yogert-customer-uat`, then create a Web App, Firestore database, and enable Email/Password plus Anonymous Authentication **in that UAT project only**.
 
-Create one authorized UAT staff user in Firebase Console: Authentication → Users → Add user. Do not commit that password.
+## UAT staff authorization bootstrap
+
+Creating an Email/Password account alone does not grant staff access. The UAT rules require the Firebase Authentication UID document `users/{uid}` to contain exactly `role: "staff"` (string) and `active: true` (boolean).
+
+1. Firebase Console → `greek-yogert-customer-uat-2026` → **Authentication** → **Users** → **Add user**.
+2. Create the UAT staff Email/Password account and copy its Firebase Authentication UID. Do not copy its password into Firestore, source control, GitHub secrets, documentation, or PR comments.
+3. Firebase Console → **Firestore Database** → **Data** → **Start collection** (or open `users`).
+4. Set collection ID to `users` and document ID to `<UAT_STAFF_UID>`.
+5. Add only these required fields:
+   - `role` — string — `staff`
+   - `active` — boolean — `true`
+
+The application does not create or update authorization documents. Deleting this document or changing `active` to `false` removes staff access at the next authorization check. Anonymous customer accounts do not need, and cannot use, a `users/{uid}` document.
+
+## Emulator security tests
+
+Run `pnpm test:rules` to test `firestore.customer-uat.rules` locally. Firebase Emulator Suite requires JDK 21 or later; this test never contacts the UAT or Production Firebase projects.
 
 Add these GitHub environment secrets to the `customer-qr-uat` environment:
 

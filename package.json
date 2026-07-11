@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project customer-qr-uat-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.customer-uat.test.ts\"",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.2",

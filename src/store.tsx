@@ -1,15 +1,16 @@
 /* oxlint-disable react/only-export-components -- providers and their typed hooks intentionally share this module */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { collection, deleteField, doc, FieldPath, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
-import { auth, db, firebaseReady } from './firebase'
+import { collection, deleteField, doc, FieldPath, getDoc, onSnapshot, runTransaction, setDoc, updateDoc } from 'firebase/firestore'
+import { auth, customerQrUatEnabled, db, firebaseReady } from './firebase'
 import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './data'
 import { toFirestoreData } from './firestoreData'
+import { isAuthorizedStaffDocument, unauthorizedStaffMessage } from './staffAuthorization'
 import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
 import type { CartItem, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
 interface SessionUser { uid: string; email: string; isAnonymous?: boolean }
-interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; isAnonymous: boolean; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
+interface AuthValue { user: SessionUser | null; loading: boolean; isDemo: boolean; isAnonymous: boolean; authorizationError: string; login(email: string, password: string): Promise<void>; logout(): Promise<void> }
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -18,14 +19,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !firebaseReady && email ? { uid: 'demo-user', email } : null
   })
   const [loading, setLoading] = useState(firebaseReady)
+  const [authorizationError, setAuthorizationError] = useState('')
   useEffect(() => {
     if (!auth) return
-    return onAuthStateChanged(auth, (account) => {
-      setUser(account ? { uid: account.uid, email: account.email ?? '', isAnonymous: account.isAnonymous } : null)
-      setLoading(false)
+    const firebaseAuth = auth
+    return onAuthStateChanged(firebaseAuth, (account) => {
+      void (async () => {
+        if (!account) { setUser(null); setLoading(false); return }
+        if (!customerQrUatEnabled || account.isAnonymous || !db) { setUser({ uid: account.uid, email: account.email ?? '', isAnonymous: account.isAnonymous }); setLoading(false); return }
+        try {
+          const authorization = await getDoc(doc(db, 'users', account.uid))
+          const data = authorization.data()
+          if (isAuthorizedStaffDocument(data)) { setAuthorizationError(''); setUser({ uid: account.uid, email: account.email ?? '', isAnonymous: false }); return }
+          setAuthorizationError(unauthorizedStaffMessage)
+          await signOut(firebaseAuth)
+        } catch {
+          setAuthorizationError('ไม่สามารถตรวจสอบสิทธิ์พนักงานได้')
+          await signOut(firebaseAuth)
+        } finally { setLoading(false) }
+      })()
     })
   }, [])
   const login = async (email: string, password: string) => {
+    setAuthorizationError('')
     if (auth) { await signInWithEmailAndPassword(auth, email, password); return }
     if (!email.trim() || password.length < 6) throw new Error('กรุณากรอกอีเมลและรหัสผ่านอย่างน้อย 6 ตัวอักษร')
     localStorage.setItem('gym-demo-email', email.trim())
@@ -36,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('gym-demo-email')
     setUser(null)
   }
-  return <AuthContext.Provider value={{ user, loading, isDemo: !firebaseReady, isAnonymous: Boolean(user?.isAnonymous), login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, isDemo: !firebaseReady, isAnonymous: Boolean(user?.isAnonymous), authorizationError, login, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() { const value = useContext(AuthContext); if (!value) throw new Error('AuthProvider missing'); return value }
