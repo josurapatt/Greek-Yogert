@@ -12,7 +12,27 @@ Goals:
 - Keep Production, UAT, staff, and customer flows strictly separated.
 - Prefer focused implementation over redesign.
 
-Agents must read this file before inspecting or modifying the repository.
+Agents must read this file and the root-level `ROADMAP.md` before inspecting or modifying the repository.
+
+### Instruction hierarchy and required reading order
+
+Use this authority order:
+
+1. Explicit user instruction in the current task.
+2. `AGENTS.md`.
+3. `ROADMAP.md`.
+4. Existing code and project documentation.
+
+If these sources conflict, stop and report the conflict instead of guessing.
+
+Before any analysis or implementation:
+
+1. Read `AGENTS.md` completely.
+2. Read the root-level `ROADMAP.md` completely.
+3. Inspect only the files needed for the current task.
+4. Verify the repository, branch, HEAD, and working-tree state.
+
+The current task prompt defines the work to perform now. `ROADMAP.md` records current project status and direction, but does not authorize implementation by itself.
 
 ---
 
@@ -139,17 +159,30 @@ Extend existing code
 
 Rules:
 
+- Do only the current approved task.
+- Do not begin adjacent roadmap items.
 - Preserve working architecture and behavior.
 - Reuse existing pricing, availability, order snapshot, queue, and validation logic.
 - Do not recreate working modules.
 - Make the smallest focused change that satisfies the task.
 - Avoid unrelated refactoring.
+- Do not introduce speculative architecture for future phases unless the current task requires it.
 - Avoid mass formatting of legacy files.
 - Do not add speculative features.
 - Do not redesign unless the requested task cannot be completed safely without it.
 - Use Plan Mode only for genuinely ambiguous or architectural work.
 - For normal micro-tasks, inspect, implement, validate, and report directly.
-- Do not update broad roadmap or documentation during normal implementation unless the task requires it.
+- Do not rewrite broad roadmap history during normal feature implementation.
+
+### Roadmap governance
+
+`ROADMAP.md` is the source of truth for changing project status, phase progress, current active work, planned direction, release gates, and deferred ideas.
+
+- Do not automatically implement items labeled **Next**, **Planned**, **Deferred**, or **Future Ideas**.
+- Do not mark a phase complete without implementation evidence and explicit user approval when approval is required.
+- Edit `ROADMAP.md` only when the current task explicitly requests a roadmap update, or when the current task explicitly authorizes synchronized documentation updates for implementation that materially changes roadmap status.
+- For normal micro tasks, report the suggested roadmap impact in the completion report without editing `ROADMAP.md`.
+- The user remains the authority for prioritization, phase approval, and release approval.
 
 ---
 
@@ -558,17 +591,18 @@ When blocked:
 For every task:
 
 1. Read this file.
-2. Inspect repository state.
-3. Verify branch and current head.
-4. Inspect only files relevant to the task.
-5. Preserve existing architecture and invariants.
-6. Make the smallest safe change.
-7. Run validation appropriate to the change.
-8. Review the diff for scope creep and secret exposure.
-9. Commit only when repository files changed.
-10. Push only to the requested feature branch.
-11. Do not merge or deploy unless explicitly requested.
-12. Return a brief completion report.
+2. Read the root-level `ROADMAP.md`.
+3. Inspect only files relevant to the task.
+4. Verify repository state, branch, current head, and working tree.
+5. Confirm that the task prompt, `AGENTS.md`, and `ROADMAP.md` do not conflict.
+6. Preserve existing architecture and invariants.
+7. Make the smallest safe change authorized by the current task.
+8. Run validation appropriate to the change.
+9. Review the diff for scope creep and secret exposure.
+10. Commit only when repository files changed.
+11. Push only to the requested feature branch.
+12. Do not merge or deploy unless explicitly requested.
+13. Return a brief completion report, including suggested roadmap impact when applicable.
 
 Do not restate this entire file in task reports.
 

@@ -1,0 +1,188 @@
+# GreekYogurtOrderApp Roadmap
+
+## 1. Project Purpose
+
+GreekYogurtOrderApp supports Staff ordering, queue and fulfillment, history, reporting, product management, settings, and Customer QR ordering.
+
+Development follows this incremental approach:
+
+```text
+Extend
+→ Integrate
+→ Refactor
+→ Replace only when technically justified
+```
+
+## 2. Current Environment
+
+### Production
+
+- Firebase project: `greek-yogert`
+- Production URL: <https://greek-yogert.firebaseapp.com/>
+- Customer QR changes are not merged or deployed to Production.
+
+### Isolated Customer QR UAT
+
+- Firebase project: `greek-yogert-customer-uat-2026`
+- UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/>
+- UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order>
+- UAT uses Email/Password Authentication for Staff and Anonymous Authentication for customers.
+- Production Authentication and other Production resources remain untouched.
+
+## 3. Current Development Branch
+
+- Branch: `feature/customer-qr-ordering-foundation`
+- Latest known commit: `cd95e30df6d19b6f67a8fa417890c8a16f067bbc`
+- PR: `#4`
+- PR status: **Draft, open, unmerged**
+
+The commit value is a status snapshot. Verify the repository, branch, HEAD, working tree, and PR state before future work.
+
+## 4. Completed Capabilities
+
+### Phase 1 — Staff Ordering Core
+
+- [x] Staff authentication
+- [x] Staff ordering
+- [x] Sales-channel selection: หน้าร้าน, LINE MAN, Grab, and OpenChat
+- [x] Channel-specific pricing and payment rules
+- [x] Queue and History
+- [x] Reports
+- [x] Products and Settings
+- [x] Topping and granola availability
+- [x] Existing Staff-side Production release
+
+### Phase 2 — Customer QR Foundation
+
+- [x] Isolated Firebase UAT
+- [x] Anonymous Customer entry
+- [x] Customer routes `/order` and `/order/status/:requestId`
+- [x] Storefront-only Customer pricing and channel locked to หน้าร้าน
+- [x] No Customer payment selection
+- [x] Sold-out display and stale-selection blocking
+- [x] Optional nickname and note
+- [x] Real-time Customer status
+- [x] `customerOrderRequests` collection
+
+### Phase 3 — Staff Customer Request Processing
+
+- [x] Pending request list and real-time request badge
+- [x] Request detail
+- [x] Confirm and reject actions
+- [x] Atomic queue assignment and active-order creation
+- [x] Duplicate prevention
+- [x] Quick confirmation
+- [x] Per-line payment methods and mixed-payment support
+- [x] Stale-card reconciliation
+
+### Phase 4 — Queue, History, and Compatibility
+
+- [x] Queue detail route `/orders/:id`
+- [x] Back to Queue
+- [x] Ready action and move to History
+- [x] Mixed-payment History labels
+- [x] Payment filtering
+- [x] Legacy single-payment compatibility
+- [x] Excel snapshot compatibility
+
+### Phase 5 — Reporting Enhancement
+
+- [x] Sales summary grouped by sales channel
+- [x] Sales amount and order count
+- [x] Legacy sales-channel spelling support
+- [x] Unknown-channel handling
+- [x] Hourly stacked-column sales chart
+- [x] One column per populated hour with stack segments by sales channel
+- [x] Asia/Bangkok timezone handling
+- [x] Stable legend and responsive chart behavior
+
+### Phase 6 — Stabilization and UAT
+
+- [x] Application tests: 103 passed
+- [x] Firestore Emulator tests: 10 passed
+- [x] Lint: passed
+- [x] TypeScript production build: passed
+- [x] Prettier: passed
+- [x] Diff scan: passed
+- [x] Secret scan: passed
+- [x] Isolated UAT deployment: passed
+- [ ] Final manual regression UAT: Pending
+
+Automated validation and an isolated UAT deployment do not constitute final release approval.
+
+## 5. Current Active Work
+
+**Final manual regression UAT for PR #4**
+
+Validate:
+
+- Authenticated Staff `/order` opens Staff ordering.
+- Anonymous `/order` opens Customer QR ordering.
+- Staff channel selection remains functional.
+- Customer channel remains locked to Storefront.
+- Sales-channel summary totals are correct.
+- The hourly stacked chart is correct.
+- Mixed-payment orders are not double counted.
+- Legacy data remains readable.
+- Existing Queue, History, Customer Request, and Excel flows remain functional.
+
+## 6. Release Gates
+
+- [ ] Final manual regression UAT passed
+- [ ] Any UAT defects fixed and revalidated
+- [ ] PR #4 approved
+- [ ] PR #4 changed from Draft to Ready if required
+- [ ] PR #4 merged to `main`
+- [ ] Production rollout plan approved
+- [ ] Production Authentication decision approved
+- [ ] Production Firestore rules and deployment scope reviewed
+- [ ] Production smoke test passed
+- [ ] Post-release monitoring completed
+
+Production Anonymous Authentication must not be enabled automatically.
+
+## 7. Planned Future Work
+
+These are broad planned areas, not approved implementation tasks:
+
+- Further reporting and analytics
+- Store operations improvements
+- Customer ordering experience improvements
+- Product and availability management
+- Queue and fulfillment improvements
+- Promotion and pricing features
+- Data export and management
+- Security and audit improvements
+- Production hardening
+- Other user-approved feature requests
+
+## 8. Deferred / Future Ideas
+
+Items recorded here are not automatically approved. They must not be implemented without a specific task prompt and may be reordered, removed, or promoted by the user.
+
+No speculative technologies, Cloud Functions, paid Firebase plans, or major rewrites are approved by this section.
+
+## 9. Permanent Restrictions
+
+- Do not modify `main` without explicit instruction.
+- Do not merge PR #4 without explicit approval.
+- Do not deploy Customer QR Ordering to Production without explicit approval.
+- Do not enable Anonymous Authentication in Production automatically.
+- Do not modify Production Firestore rules, indexes, Authentication, or data without explicit approval.
+- Do not copy Production users, orders, or history into UAT.
+- Do not use Cloud Functions.
+- Do not enable Blaze or billing.
+- Do not commit secrets.
+- Do not perform unrelated refactoring.
+- Preserve isolated UAT deployment safeguards.
+- Continue following `AGENTS.md`.
+
+## 10. Roadmap Maintenance Rules
+
+- Completed items require verified implementation evidence.
+- Automated validation and Manual UAT are separate statuses.
+- A deployed UAT build is not the same as a Production release.
+- A Draft PR is not a completed release.
+- Update roadmap status only from verified completion reports and when authorized by the current task.
+- Future prompts may reference `ROADMAP.md` instead of repeating the entire project handoff.
+- The user remains the authority for prioritization and release approval.
