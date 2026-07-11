@@ -30,7 +30,7 @@ jobs:
           for variable in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID; do
             test -n "${!variable}" || { echo "Missing required Customer QR UAT secret: $variable"; exit 1; }
           done
-          test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           pnpm build
       - name: Deploy isolated UAT Firebase resources
         env:
@@ -38,7 +38,7 @@ jobs:
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
         run: |
-          test -n "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" && test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm dlx firebase-tools@latest deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
