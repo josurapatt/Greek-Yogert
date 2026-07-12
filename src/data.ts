@@ -69,6 +69,7 @@ export function normalizeProduct(product: Product): Product {
   prices.Grab = product.channelPrices?.Grab ?? seeded?.channelPrices?.Grab ?? prices.Lineman
   return {
     ...(seeded ?? {}), ...product, price: prices['หน้าร้าน'], channelPrices: prices,
+    supportsSeparatedToppingPackaging: product.supportsSeparatedToppingPackaging !== false,
     channelRules: {
       storefront: {
         ...storefrontRules, ...(seeded?.channelRules?.storefront ?? {}),

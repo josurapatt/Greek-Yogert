@@ -4,7 +4,7 @@ import {
   channelLabels,
   formatThaiDateTime,
   money,
-  paymentMethodLabel,
+  orderPaymentLabel,
 } from "../lib";
 import type { ShopOrder } from "../types";
 import OrderItemSummary from "./OrderItemSummary";
@@ -32,7 +32,7 @@ export default function QueueOrderCard({ order }: { order: ShopOrder }) {
           <Clock /> {orderTime}
         </span>
         <span>{channelLabels[order.channel] ?? order.channel}</span>
-        <span>{paymentMethodLabel(order.paymentMethod)}</span>
+        <span>{orderPaymentLabel(order)}</span>
         <span>{quantity} ถ้วย</span>
         <strong>{money(order.total)}</strong>
       </footer>

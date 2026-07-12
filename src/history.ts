@@ -1,3 +1,4 @@
+import { orderPaymentMethods } from "./lib";
 import type { PaymentMethod, ShopOrder } from "./types";
 
 export type HistoryPaymentFilter = "all" | "missing" | PaymentMethod;
@@ -24,8 +25,8 @@ export function filterHistoryOrders(
       (order) =>
         filters.paymentMethod === "all" ||
         (filters.paymentMethod === "missing"
-          ? !order.paymentMethod
-          : order.paymentMethod === filters.paymentMethod),
+          ? orderPaymentMethods(order).length === 0
+          : orderPaymentMethods(order).includes(filters.paymentMethod)),
     )
     .filter(
       (order) =>

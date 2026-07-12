@@ -8,9 +8,21 @@ import {
   getChannelRules,
   isSelectionAvailable,
   money,
+  normalizeToppingPackaging,
+  packagingSurchargePerUnit,
+  productSupportsSeparatedPackaging,
+  separatedPackagingAvailabilityError,
+  separatedPackagingAvailabilityId,
+  toppingPackagingLabels,
   validateSelection,
 } from "../lib";
-import type { CartItem, OrderChannel, Product, ToppingAvailability } from "../types";
+import type {
+  CartItem,
+  OrderChannel,
+  Product,
+  ToppingAvailability,
+  ToppingPackaging,
+} from "../types";
 
 interface Props {
   product: Product;
@@ -33,12 +45,24 @@ export default function ProductModal({
     initial?.selectedOptionIds ?? [],
   );
   const [quantity, setQuantity] = useState(initial?.quantity ?? 1);
+  const [packaging, setPackaging] = useState<ToppingPackaging>(
+    normalizeToppingPackaging(initial?.toppingPackaging),
+  );
   const rules = getChannelRules(product, channel);
   const isPlatform = getChannelGroup(channel) === "platform";
   const breakdown = useMemo(
     () => calculatePriceBreakdown(product, selected, toppings, channel),
     [product, selected, channel],
   );
+  const packagingSurcharge = packagingSurchargePerUnit(channel, packaging);
+  const unitPrice = breakdown.unitPrice + packagingSurcharge;
+  const globalSeparatedAvailable =
+    availability[separatedPackagingAvailabilityId] !== false;
+  const productSupportsSeparated = productSupportsSeparatedPackaging(product);
+  const packagingError =
+    packaging === "separated"
+      ? separatedPackagingAvailabilityError(product, availability)
+      : null;
   const options = product.availableToppingIds
     .map((id) => toppings.find((item) => item.id === id))
     .filter(Boolean) as typeof toppings;
@@ -46,13 +70,24 @@ export default function ProductModal({
     .map((id) => toppings.find((item) => item.id === id))
     .filter(Boolean) as typeof toppings;
   const includedCount = Math.min(selected.length, product.includedToppings);
-  const availableIncludedCount = options.filter((option) => isSelectionAvailable(product, option.id, availability)).length;
-  const availabilityError = product.optionMode === "granola" && product.granolaOptions.every((name) => !isSelectionAvailable(product, name, availability))
-    ? "รสชาติที่จำเป็นหมดชั่วคราว"
-    : product.optionMode === "toppings" && !rules.allowDuplicateToppings && availableIncludedCount < product.includedToppings
-      ? "ท็อปปิ้งที่เปิดขายไม่พอสำหรับเมนูนี้"
-      : null;
-  const error = availabilityError ?? validateSelection(product, selected, channel, availability);
+  const availableIncludedCount = options.filter((option) =>
+    isSelectionAvailable(product, option.id, availability),
+  ).length;
+  const availabilityError =
+    product.optionMode === "granola" &&
+    product.granolaOptions.every(
+      (name) => !isSelectionAvailable(product, name, availability),
+    )
+      ? "รสชาติที่จำเป็นหมดชั่วคราว"
+      : product.optionMode === "toppings" &&
+          !rules.allowDuplicateToppings &&
+          availableIncludedCount < product.includedToppings
+        ? "ท็อปปิ้งที่เปิดขายไม่พอสำหรับเมนูนี้"
+        : null;
+  const error =
+    availabilityError ??
+    validateSelection(product, selected, channel, availability) ??
+    packagingError;
 
   const addTopping = (id: string) =>
     setSelected((rows) => {
@@ -84,9 +119,13 @@ export default function ProductModal({
       selectedOptionIds: selected,
       selectedChannel: channel,
       quantity,
-      unitPrice: breakdown.unitPrice,
-      lineTotal: breakdown.unitPrice * quantity,
+      unitPrice,
+      lineTotal: unitPrice * quantity,
       priceBreakdown: breakdown,
+      toppingPackaging: packaging,
+      toppingPackagingLabel: toppingPackagingLabels[packaging],
+      packagingSurchargePerUnit: packagingSurcharge,
+      packagingSurchargeTotal: packagingSurcharge * quantity,
     });
   };
   const isPremium = (id: string) =>
@@ -133,9 +172,15 @@ export default function ProductModal({
                   }
                   key={name}
                   disabled={!isSelectionAvailable(product, name, availability)}
-                  onClick={() => isSelectionAvailable(product, name, availability) && setSelected([name])}
+                  onClick={() =>
+                    isSelectionAvailable(product, name, availability) &&
+                    setSelected([name])
+                  }
                 >
-                  {name} {!isSelectionAvailable(product, name, availability) && <small className="sold-out-label">หมด</small>}
+                  {name}{" "}
+                  {!isSelectionAvailable(product, name, availability) && (
+                    <small className="sold-out-label">หมด</small>
+                  )}
                 </button>
               ))}
             </div>
@@ -156,7 +201,11 @@ export default function ProductModal({
             <div className="topping-list">
               {options.map((option) => {
                 const count = selected.filter((id) => id === option.id).length;
-                const soldOut = !isSelectionAvailable(product, option.id, availability);
+                const soldOut = !isSelectionAvailable(
+                  product,
+                  option.id,
+                  availability,
+                );
                 const includedFull =
                   isPlatform && includedCount >= product.includedToppings;
                 return (
@@ -164,7 +213,9 @@ export default function ProductModal({
                     <span>
                       {option.name}
                       {isPremium(option.id) && <small> พรีเมียม</small>}
-                      {soldOut && <small className="sold-out-label"> หมด</small>}
+                      {soldOut && (
+                        <small className="sold-out-label"> หมด</small>
+                      )}
                     </span>
                     <div>
                       <button
@@ -215,7 +266,12 @@ export default function ProductModal({
                       }
                       onClick={() => addTopping(option.id)}
                     >
-                      <Plus /> {option.name} {!isSelectionAvailable(product, option.id, availability) && <small className="sold-out-label">หมด</small>}
+                      <Plus /> {option.name}{" "}
+                      {!isSelectionAvailable(
+                        product,
+                        option.id,
+                        availability,
+                      ) && <small className="sold-out-label">หมด</small>}
                     </button>
                   ))}
                 </div>
@@ -234,6 +290,43 @@ export default function ProductModal({
             </p>
           </div>
         )}
+        <fieldset className="packaging-choice">
+          <legend>รูปแบบท็อปปิ้ง</legend>
+          <label>
+            <input
+              type="radio"
+              name={`packaging-${product.id}`}
+              checked={packaging === "included"}
+              onChange={() => setPackaging("included")}
+            />
+            <span>{toppingPackagingLabels.included}</span>
+          </label>
+          <label
+            className={
+              !globalSeparatedAvailable || !productSupportsSeparated
+                ? "disabled"
+                : ""
+            }
+          >
+            <input
+              type="radio"
+              name={`packaging-${product.id}`}
+              checked={packaging === "separated"}
+              disabled={!globalSeparatedAvailable || !productSupportsSeparated}
+              onChange={() => setPackaging("separated")}
+            />
+            <span>
+              {toppingPackagingLabels.separated}
+              {!globalSeparatedAvailable && (
+                <small className="sold-out-label"> หมด</small>
+              )}
+              {globalSeparatedAvailable && !productSupportsSeparated && (
+                <small className="sold-out-label"> ไม่รองรับ</small>
+              )}
+              {packagingSurcharge > 0 && ` +${money(packagingSurcharge)}/ถ้วย`}
+            </span>
+          </label>
+        </fieldset>
         <div className="price-breakdown">
           <span>ราคาหลัก {money(breakdown.basePrice)}</span>
           {breakdown.premiumIncludedSurcharge > 0 && (
@@ -241,6 +334,9 @@ export default function ProductModal({
           )}
           {breakdown.extraToppingCharges > 0 && (
             <span>เพิ่มพิเศษ +{money(breakdown.extraToppingCharges)}</span>
+          )}
+          {packagingSurcharge > 0 && (
+            <span>ค่าบรรจุภัณฑ์ +{money(packagingSurcharge)}/ถ้วย</span>
           )}
         </div>
         <div className="modal-footer">
@@ -259,7 +355,7 @@ export default function ProductModal({
             onClick={save}
           >
             {initial ? "บันทึกการแก้ไข" : "เพิ่มลงตะกร้า"} •{" "}
-            {money(breakdown.unitPrice * quantity)}
+            {money(unitPrice * quantity)}
           </button>
         </div>
         {error && <p className="validation">{error}</p>}

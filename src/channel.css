@@ -108,6 +108,50 @@
 .selected-channel-summary strong {
   color: var(--purple-dark);
 }
+
+.packaging-choice {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.1rem 0;
+  padding: 0;
+  border: 0;
+}
+
+.packaging-choice legend {
+  margin-bottom: 0.55rem;
+  font-weight: 800;
+}
+
+.packaging-choice label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 13px;
+  background: white;
+  font-weight: 700;
+}
+
+.packaging-choice label:has(input:checked) {
+  border-color: var(--purple);
+  background: var(--lavender);
+  color: var(--purple-dark);
+}
+
+.packaging-choice label.disabled {
+  opacity: 0.65;
+}
+
+.packaging-choice input {
+  width: auto;
+}
+
+.packaging-detail {
+  display: block;
+  margin: 0.2rem 0;
+  color: #676174;
+}
 .invalid-item {
   border: 2px solid #d7586c;
   background: #fffafb;

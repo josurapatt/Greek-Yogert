@@ -11,6 +11,7 @@ import {
   applyCartItemUpdate,
   isSelectionAvailable,
   normalizePaymentMethod,
+  orderPaymentLabel,
   paymentMethodsForChannel,
   prepareOrderItems,
   priceCartItem,
@@ -199,6 +200,26 @@ describe("history payment filters", () => {
         paymentMethod: "สด",
       }).map((entry) => entry.id),
     ).toEqual(["cancelled"]);
+  });
+
+  it("shows and filters mixed line payments while preserving legacy payments", () => {
+    const mixed = order("สด", {
+      id: "mixed",
+      items: [
+        item({ id: "cash-line", paymentMethod: "สด" }),
+        item({ id: "transfer-line", paymentMethod: "โอน" }),
+      ],
+      paymentMethods: ["สด", "โอน"],
+    });
+    expect(orderPaymentLabel(mixed)).toBe("สด + โอน");
+    expect(filterHistoryOrders([mixed], { query: "", date: "", status: "all", paymentMethod: "สด" })).toEqual([mixed]);
+    expect(filterHistoryOrders([mixed], { query: "", date: "", status: "all", paymentMethod: "โอน" })).toEqual([mixed]);
+    expect(filterHistoryOrders([mixed], { query: "", date: "", status: "all", paymentMethod: "โครงการ" })).toEqual([]);
+    expect(buildOrderExportRows([mixed]).map((row) => row["วิธีชำระเงิน"])).toEqual(["สด", "โอน"]);
+
+    const legacy = order("โครงการ", { id: "legacy-project", paymentMethods: undefined, items: [item({ paymentMethod: undefined })] });
+    expect(orderPaymentLabel(legacy)).toBe("โครงการ");
+    expect(filterHistoryOrders([legacy], { query: "", date: "", status: "all", paymentMethod: "โครงการ" })).toEqual([legacy]);
   });
 
   it("keeps payment labels in export without changing completed sales totals", () => {

@@ -14,6 +14,7 @@ const config = {
 // Treat the app as production-connected only when the complete web config exists.
 // A partial config stays in demo mode instead of creating a misleading half-connected app.
 export const firebaseReady = Object.values(config).every((value) => Boolean(value))
+export const customerQrUatEnabled = import.meta.env.VITE_CUSTOMER_QR_UAT === 'true'
 const app = firebaseReady ? initializeApp(config) : null
 export const auth = app ? getAuth(app) : null
 export const db = app ? getFirestore(app) : null

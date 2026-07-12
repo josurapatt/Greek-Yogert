@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
 import CartItemOptions from "../components/CartItemOptions";
+import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import { toppings } from "../data";
 import {
   channelLabels,
@@ -37,7 +38,8 @@ export default function CartPage() {
     changeChannel,
     revalidate,
   } = useCart();
-  const { products, toppingAvailability, submitOrder, replaceOrder } = useData();
+  const { products, toppingAvailability, submitOrder, replaceOrder } =
+    useData();
   const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const [customerName, setCustomerName] = useState(
@@ -185,6 +187,7 @@ export default function CartPage() {
                   <div>
                     <h3>{item.productName}</h3>
                     <CartItemOptions options={item.selectedOptions ?? []} />
+                    <ToppingPackagingDetails item={item} />
                     <strong>{money(item.unitPrice)} / ชิ้น</strong>
                     {item.priceBreakdown && (
                       <small className="snapshot-line">
@@ -270,19 +273,17 @@ export default function CartPage() {
             <fieldset>
               <legend>วิธีชำระเงิน</legend>
               <div className="segmented">
-                {paymentMethodsForChannel(channel).map(
-                  (value) => (
-                    <label key={value}>
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={paymentMethod === value}
-                        onChange={() => setPayment(value)}
-                      />
-                      <span>{value}</span>
-                    </label>
-                  ),
-                )}
+                {paymentMethodsForChannel(channel).map((value) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={paymentMethod === value}
+                      onChange={() => setPayment(value)}
+                    />
+                    <span>{value}</span>
+                  </label>
+                ))}
               </div>
             </fieldset>
             <label>

@@ -1,5 +1,6 @@
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
+import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import { normalizeProduct, toppings } from "../data";
 import { getChannelRules, getProductPrice, money } from "../lib";
 import { useData } from "../store";
@@ -27,14 +28,22 @@ const blankProduct = () =>
     premiumIncludedSurcharge: 5,
     extraNormalPrice: 10,
     extraPremiumPrice: 15,
+    supportsSeparatedToppingPackaging: true,
     active: true,
   });
 
 export default function ProductsPage() {
-  const { products: storedProducts, toppingAvailability, saveProduct, setToppingAvailability } = useData();
+  const {
+    products: storedProducts,
+    toppingAvailability,
+    saveProduct,
+    setToppingAvailability,
+  } = useData();
   const products = [...storedProducts];
   const [editing, setEditing] = useState<Product | null>(null);
   const [saved, setSaved] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const change = <K extends keyof Product>(key: K, value: Product[K]) =>
     setEditing((product) => (product ? { ...product, [key]: value } : product));
   const setPrice = (channel: OrderChannel, value: number) =>
@@ -68,10 +77,24 @@ export default function ProductsPage() {
     });
   const save = async () => {
     if (!editing?.name.trim() || editing.price < 0) return;
-    await saveProduct(editing);
-    setSaved(editing.id);
-    setEditing(null);
-    setTimeout(() => setSaved(""), 1800);
+    try {
+      setSaving(true);
+      setSaveError("");
+      await saveProduct(editing);
+      setSaved(editing.id);
+      setEditing(null);
+      setTimeout(() => setSaved(""), 1800);
+    } catch (cause) {
+      setSaveError(
+        cause instanceof Error ? cause.message : "บันทึกสินค้าไม่สำเร็จ",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+  const openEditor = (product: Product) => {
+    setSaveError("");
+    setEditing(normalizeProduct(product));
   };
 
   return (
@@ -87,6 +110,7 @@ export default function ProductsPage() {
         </button>
       </div>
       <section className="availability-panel">
+        <GlobalPackagingAvailabilityToggle className="global-packaging-summary" />
         <div className="section-heading">
           <h2>สถานะท็อปปิ้งและรสชาติ</h2>
           <p>ใช้ร่วมกันทุกช่องทาง รายการเดิมที่ยังไม่มีสถานะถือว่าเปิดขาย</p>
@@ -95,12 +119,21 @@ export default function ProductsPage() {
           {toppings.map((topping) => {
             const available = toppingAvailability[topping.id] !== false;
             return (
-              <article className={`availability-card ${available ? "available" : "sold-out"}`} key={topping.id}>
+              <article
+                className={`availability-card ${available ? "available" : "sold-out"}`}
+                key={topping.id}
+              >
                 <span>{topping.name}</span>
                 <button
                   aria-pressed={!available}
-                  className={available ? "availability-toggle" : "availability-toggle sold-out"}
-                  onClick={() => void setToppingAvailability(topping.id, !available)}
+                  className={
+                    available
+                      ? "availability-toggle"
+                      : "availability-toggle sold-out"
+                  }
+                  onClick={() =>
+                    void setToppingAvailability(topping.id, !available)
+                  }
                 >
                   {available ? "เปิดขาย" : "หมด"}
                 </button>
@@ -146,10 +179,7 @@ export default function ProductsPage() {
                 />
                 <span />
               </label>
-              <button
-                className="secondary"
-                onClick={() => setEditing(normalizeProduct(product))}
-              >
+              <button className="secondary" onClick={() => openEditor(product)}>
                 แก้ไข
               </button>
             </article>
@@ -241,6 +271,21 @@ export default function ProductsPage() {
                       <option value="granola">เลือกรสกราโนล่า</option>
                       <option value="toppings">เลือกท็อปปิ้ง</option>
                     </select>
+                  </label>
+                  <label className="inline-check">
+                    <input
+                      type="checkbox"
+                      checked={
+                        editing.supportsSeparatedToppingPackaging !== false
+                      }
+                      onChange={(event) =>
+                        change(
+                          "supportsSeparatedToppingPackaging",
+                          event.target.checked,
+                        )
+                      }
+                    />{" "}
+                    รองรับแยกท็อปปิ้ง
                   </label>
                   {editing.optionMode === "toppings" && (
                     <label>
@@ -487,15 +532,21 @@ export default function ProductsPage() {
                     </fieldset>
                   </>
                 )}
+                {saveError && <p className="validation">{saveError}</p>}
                 <div className="modal-footer">
                   <button
                     className="secondary"
+                    disabled={saving}
                     onClick={() => setEditing(null)}
                   >
                     ยกเลิก
                   </button>
-                  <button className="primary" onClick={() => void save()}>
-                    <Save /> บันทึกสินค้า
+                  <button
+                    className="primary"
+                    disabled={saving}
+                    onClick={() => void save()}
+                  >
+                    <Save /> {saving ? "กำลังบันทึก…" : "บันทึกสินค้า"}
                   </button>
                 </div>
               </section>

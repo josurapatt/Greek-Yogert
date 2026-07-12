@@ -1,6 +1,8 @@
 export type OrderStatus = 'pending' | 'completed' | 'cancelled'
 export type OrderChannel = 'หน้าร้าน' | 'Openchat' | 'Lineman' | 'Grab'
 export type PaymentMethod = 'สด' | 'โอน' | 'โครงการ' | 'Platform'
+export type StaffPaymentMethod = Exclude<PaymentMethod, 'Platform'>
+export type ToppingPackaging = 'included' | 'separated'
 export type OptionMode = 'none' | 'granola' | 'toppings'
 export type ChannelGroup = 'storefront' | 'platform'
 
@@ -22,6 +24,7 @@ export interface Product {
   extraNormalPrice: number; extraPremiumPrice: number; active: boolean
   channelPrices?: Partial<Record<OrderChannel, number>>
   channelRules?: Partial<Record<ChannelGroup, ChannelToppingRules>>
+  supportsSeparatedToppingPackaging?: boolean
 }
 
 export interface PriceBreakdown {
@@ -36,6 +39,11 @@ export interface CartItem {
   selectedOptions: string[]; selectedOptionIds: string[]; quantity: number; unitPrice: number
   selectedChannel?: OrderChannel; priceBreakdown?: PriceBreakdown; lineTotal?: number
   validationError?: string
+  paymentMethod?: StaffPaymentMethod
+  toppingPackaging?: ToppingPackaging
+  toppingPackagingLabel?: string
+  packagingSurchargePerUnit?: number
+  packagingSurchargeTotal?: number
 }
 
 export interface ShopOrder {
@@ -43,9 +51,20 @@ export interface ShopOrder {
   channel: OrderChannel; paymentMethod: PaymentMethod; status: OrderStatus
   items: CartItem[]; subtotal: number; discount: number; total: number
   createdAt: string; updatedAt: string; completedAt?: string; cancelledAt?: string; createdBy?: string
+  paymentMethods?: StaffPaymentMethod[]
 }
 
 export interface OrderDraft {
   customerName: string; channel: OrderChannel; paymentMethod: PaymentMethod
   items: CartItem[]; discount?: number
+}
+
+export type CustomerRequestStatus = 'รอร้านยืนยัน' | 'ร้านรับออเดอร์แล้ว' | 'กำลังจัดเตรียม' | 'พร้อมรับ / พร้อมจัดส่ง' | 'ปฏิเสธ' | 'ยกเลิก'
+
+export interface CustomerOrderRequest {
+  id: string; ownerUid: string; status: CustomerRequestStatus; channel: 'หน้าร้าน'
+  customerName?: string; customerNote?: string; items: CartItem[]; subtotal: number; total: number; itemCount: number
+  createdAt: string; updatedAt: string; confirmedOrderId?: string; queueNumber?: string
+  paymentMethod?: StaffPaymentMethod; paymentMethods?: StaffPaymentMethod[]; linePaymentMethods?: Record<string, StaffPaymentMethod>
+  confirmedAt?: string; rejectedAt?: string; rejectionReason?: string
 }

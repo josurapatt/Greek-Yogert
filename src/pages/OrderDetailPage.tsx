@@ -6,9 +6,17 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { channelLabels, formatThaiDateTime, money, paymentMethodLabel } from "../lib";
+import {
+  channelLabels,
+  formatThaiDateTime,
+  money,
+  orderPaymentLabel,
+  paymentMethodLabel,
+} from "../lib";
 import { updateOrderStatusAndNavigate } from "../orderActions";
+import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import { useCart, useData } from "../store";
+import { orderDetailBackPath } from "../routes";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -35,9 +43,16 @@ export default function OrderDetailPage() {
     setBusy(true);
     setError("");
     try {
-      await updateOrderStatusAndNavigate(order.id, status, setOrderStatus, navigate);
+      await updateOrderStatusAndNavigate(
+        order.id,
+        status,
+        setOrderStatus,
+        navigate,
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "อัปเดตสถานะไม่สำเร็จ");
+      setError(
+        reason instanceof Error ? reason.message : "อัปเดตสถานะไม่สำเร็จ",
+      );
     } finally {
       setBusy(false);
     }
@@ -45,10 +60,7 @@ export default function OrderDetailPage() {
 
   return (
     <div className="page narrow">
-      <Link
-        className="back-link"
-        to={order.status === "pending" ? "/queue" : "/history"}
-      >
+      <Link className="back-link" to={orderDetailBackPath(order.status)}>
         <ArrowLeft /> กลับ
       </Link>
       {params.get("created") && (
@@ -93,7 +105,7 @@ export default function OrderDetailPage() {
           </p>
           <p>
             <span>ชำระเงิน</span>
-            <b>{paymentMethodLabel(order.paymentMethod)}</b>
+            <b>{orderPaymentLabel(order)}</b>
           </p>
           <p>
             <span>เวลาสั่ง</span>
@@ -116,6 +128,7 @@ export default function OrderDetailPage() {
                 {(item.selectedOptions?.length ?? 0) > 0 && (
                   <p>{item.selectedOptions.join(" • ")}</p>
                 )}
+                <ToppingPackagingDetails item={item} />
                 {item.priceBreakdown && (
                   <small>
                     ราคาหลัก {money(item.priceBreakdown.basePrice)}
@@ -126,6 +139,9 @@ export default function OrderDetailPage() {
                   </small>
                 )}
                 <small>{money(item.unitPrice)} / ชิ้น</small>
+                {item.paymentMethod && (
+                  <small>ชำระ {paymentMethodLabel(item.paymentMethod)}</small>
+                )}
               </div>
               <strong>
                 {money(item.lineTotal ?? item.unitPrice * item.quantity)}
@@ -174,7 +190,7 @@ export default function OrderDetailPage() {
               disabled={busy}
               onClick={() => void changeStatus("completed")}
             >
-              <CheckCircle2 /> พร้อมส่ง
+              <CheckCircle2 /> พร้อมจัดส่ง
             </button>
           </>
         )}
