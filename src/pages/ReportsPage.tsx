@@ -1,8 +1,9 @@
 import { Download } from "lucide-react";
 import { useState } from "react";
-import { businessDate, channelLabels, money } from "../lib";
+import { businessDate, channelLabels, money, paymentMethodLabel } from "../lib";
 import {
   aggregateSalesChannels,
+  aggregatePaymentMethodSales,
   buildOrderExportRows,
   completedSalesSummary,
   reportChannels,
@@ -52,6 +53,7 @@ export default function ReportsPage() {
     ),
   );
   const channelReport = aggregateSalesChannels(valid);
+  const paymentReport = aggregatePaymentMethodSales(valid);
   const maxHourlySales = Math.max(
     0,
     ...channelReport.hourly.map((entry) => entry.total),
@@ -202,6 +204,33 @@ export default function ReportsPage() {
               แยกรายการช่องทางเดิมที่ไม่รู้จักออกจากยอดของ 4 ช่องทางหลัก
             </p>
           )}
+        </article>
+        <article className="report-card sales-channel-summary">
+          <h2>ยอดขายตามวิธีชำระเงิน</h2>
+          <div className="report-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>วิธีชำระเงิน</th>
+                  <th>ยอดขายรวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentReport.methods.map((entry) => (
+                  <tr key={entry.paymentMethod}>
+                    <td>{paymentMethodLabel(entry.paymentMethod)}</td>
+                    <td>{money(entry.sales)}</td>
+                  </tr>
+                ))}
+                {paymentReport.unknown !== 0 && (
+                  <tr className="unknown-channel-row">
+                    <td>ไม่ระบุ / ไม่รู้จัก</td>
+                    <td>{money(paymentReport.unknown)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </article>
         <article className="report-card hourly-sales-card">
           <div className="chart-heading">

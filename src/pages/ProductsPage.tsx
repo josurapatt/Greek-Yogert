@@ -27,11 +27,17 @@ const blankProduct = () =>
     premiumIncludedSurcharge: 5,
     extraNormalPrice: 10,
     extraPremiumPrice: 15,
+    supportsSeparatedToppingPackaging: true,
     active: true,
   });
 
 export default function ProductsPage() {
-  const { products: storedProducts, toppingAvailability, saveProduct, setToppingAvailability } = useData();
+  const {
+    products: storedProducts,
+    toppingAvailability,
+    saveProduct,
+    setToppingAvailability,
+  } = useData();
   const products = [...storedProducts];
   const [editing, setEditing] = useState<Product | null>(null);
   const [saved, setSaved] = useState("");
@@ -95,12 +101,21 @@ export default function ProductsPage() {
           {toppings.map((topping) => {
             const available = toppingAvailability[topping.id] !== false;
             return (
-              <article className={`availability-card ${available ? "available" : "sold-out"}`} key={topping.id}>
+              <article
+                className={`availability-card ${available ? "available" : "sold-out"}`}
+                key={topping.id}
+              >
                 <span>{topping.name}</span>
                 <button
                   aria-pressed={!available}
-                  className={available ? "availability-toggle" : "availability-toggle sold-out"}
-                  onClick={() => void setToppingAvailability(topping.id, !available)}
+                  className={
+                    available
+                      ? "availability-toggle"
+                      : "availability-toggle sold-out"
+                  }
+                  onClick={() =>
+                    void setToppingAvailability(topping.id, !available)
+                  }
                 >
                   {available ? "เปิดขาย" : "หมด"}
                 </button>
@@ -241,6 +256,21 @@ export default function ProductsPage() {
                       <option value="granola">เลือกรสกราโนล่า</option>
                       <option value="toppings">เลือกท็อปปิ้ง</option>
                     </select>
+                  </label>
+                  <label className="inline-check">
+                    <input
+                      type="checkbox"
+                      checked={
+                        editing.supportsSeparatedToppingPackaging !== false
+                      }
+                      onChange={(event) =>
+                        change(
+                          "supportsSeparatedToppingPackaging",
+                          event.target.checked,
+                        )
+                      }
+                    />{" "}
+                    รองรับแยกท็อปปิ้ง
                   </label>
                   {editing.optionMode === "toppings" && (
                     <label>

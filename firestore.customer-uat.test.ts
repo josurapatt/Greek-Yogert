@@ -57,6 +57,21 @@ describe("Customer QR UAT Firestore authorization", () => {
     await assertFails(
       setDoc(doc(anonymous, "orders/order-a"), { id: "order-a" }),
     );
+    await assertFails(
+      setDoc(doc(anonymous, "publicSettings/toppingAvailability"), {
+        availability: { "separated-topping-packaging": true },
+      }),
+    );
+    await assertFails(
+      setDoc(doc(anonymous, "publicMenu/plain-greek"), {
+        supportsSeparatedToppingPackaging: true,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(anonymous, "products/plain-greek"), {
+        supportsSeparatedToppingPackaging: true,
+      }),
+    );
   });
 
   it("rejects forged owners and all staff access without an explicit document", async () => {
@@ -89,17 +104,20 @@ describe("Customer QR UAT Firestore authorization", () => {
     { paymentMethod: "สด" },
     { paymentMethods: ["สด", "โอน"] },
     { linePaymentMethods: { "line-1": "สด" } },
-  ])("rejects customer-controlled payment allocation: %o", async (paymentFields) => {
-    const customer = environment
-      .authenticatedContext("customer-a", anonymousToken)
-      .firestore();
-    await assertFails(
-      setDoc(doc(customer, "customerOrderRequests/request-a"), {
-        ...request(),
-        ...paymentFields,
-      }),
-    );
-  });
+  ])(
+    "rejects customer-controlled payment allocation: %o",
+    async (paymentFields) => {
+      const customer = environment
+        .authenticatedContext("customer-a", anonymousToken)
+        .firestore();
+      await assertFails(
+        setDoc(doc(customer, "customerOrderRequests/request-a"), {
+          ...request(),
+          ...paymentFields,
+        }),
+      );
+    },
+  );
 
   it.each([
     undefined,

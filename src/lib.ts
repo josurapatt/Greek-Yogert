@@ -1,5 +1,5 @@
 import { granolaFlavorIdsByName, platformExtraToppingIds } from './data'
-import type { CartItem, ChannelGroup, ChannelToppingRules, OrderChannel, OrderDraft, PaymentMethod, PriceBreakdown, Product, ShopOrder, Topping, ToppingAvailability } from './types'
+import type { CartItem, ChannelGroup, ChannelToppingRules, OrderChannel, OrderDraft, PaymentMethod, PriceBreakdown, Product, ShopOrder, Topping, ToppingAvailability, ToppingPackaging } from './types'
 
 const bangkokDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -15,6 +15,34 @@ export function formatThaiDateTime(value?: string): string {
 export const orderChannels: OrderChannel[] = ['หน้าร้าน', 'Openchat', 'Lineman', 'Grab']
 export const channelLabels: Record<OrderChannel, string> = { 'หน้าร้าน': 'หน้าร้าน', Openchat: 'OpenChat', Lineman: 'LINE MAN', Grab: 'Grab' }
 export const paymentMethodLabels: Record<PaymentMethod, string> = { สด: 'สด', โอน: 'โอน', โครงการ: 'โครงการ', Platform: 'Platform' }
+export const separatedPackagingAvailabilityId = 'separated-topping-packaging'
+export const toppingPackagingLabels: Record<ToppingPackaging, string> = { included: 'ใส่ท็อปปิ้งเลย', separated: 'แยกท็อปปิ้ง' }
+
+export function normalizeToppingPackaging(value?: unknown): ToppingPackaging {
+  return value === 'separated' ? 'separated' : 'included'
+}
+
+export function isValidToppingPackaging(value?: unknown): boolean {
+  return value === undefined || value === 'included' || value === 'separated'
+}
+
+export function toppingPackagingLabel(item: Pick<CartItem, 'toppingPackaging' | 'toppingPackagingLabel'>): string {
+  return item.toppingPackagingLabel ?? toppingPackagingLabels[normalizeToppingPackaging(item.toppingPackaging)]
+}
+
+export function productSupportsSeparatedPackaging(product: Product): boolean {
+  return product.supportsSeparatedToppingPackaging !== false
+}
+
+export function separatedPackagingAvailabilityError(product: Product, availability: ToppingAvailability = {}): string | null {
+  if (availability[separatedPackagingAvailabilityId] === false) return 'แยกท็อปปิ้งหมดชั่วคราว'
+  if (!productSupportsSeparatedPackaging(product)) return 'สินค้านี้ไม่รองรับแยกท็อปปิ้ง'
+  return null
+}
+
+export function packagingSurchargePerUnit(channel: OrderChannel, packaging: ToppingPackaging): number {
+  return packaging === 'separated' && getChannelGroup(channel) === 'platform' ? 5 : 0
+}
 
 export function paymentMethodLabel(value?: string): string {
   return value && value in paymentMethodLabels ? paymentMethodLabels[value as PaymentMethod] : 'ไม่ระบุ'
@@ -116,12 +144,20 @@ export function validateSelection(product: Product, selectedIds: string[], chann
 
 export function priceCartItem(item: CartItem, product: Product, channel: OrderChannel, available: Topping[], availability: ToppingAvailability = {}): CartItem {
   const priceBreakdown = calculatePriceBreakdown(product, item.selectedOptionIds, available, channel)
+  const packaging = normalizeToppingPackaging(item.toppingPackaging)
+  const packagingValueError = isValidToppingPackaging(item.toppingPackaging) ? null : 'รูปแบบท็อปปิ้งไม่ถูกต้อง'
+  const packagingError = packaging === 'separated' ? separatedPackagingAvailabilityError(product, availability) : null
+  const packagingSurcharge = packagingSurchargePerUnit(channel, packaging)
   const unavailable = item.selectedOptionIds.flatMap((id, index) => isSelectionAvailable(product, id, availability) ? [] : [item.selectedOptions[index] ?? available.find((entry) => entry.id === id)?.name ?? id])
-  const validationError = unavailable.length ? `หมด: ${unavailable.join(', ')}` : validateSelection(product, item.selectedOptionIds, channel, availability)
+  const validationError = unavailable.length ? `หมด: ${unavailable.join(', ')}` : validateSelection(product, item.selectedOptionIds, channel, availability) ?? packagingValueError ?? packagingError
+  const unitPrice = priceBreakdown.unitPrice + packagingSurcharge
   const priced: CartItem = {
     ...item, productName: product.name, basePrice: priceBreakdown.basePrice,
-    selectedChannel: channel, priceBreakdown, unitPrice: priceBreakdown.unitPrice,
-    lineTotal: priceBreakdown.unitPrice * item.quantity,
+    selectedChannel: channel, priceBreakdown, unitPrice,
+    toppingPackaging: packaging, toppingPackagingLabel: toppingPackagingLabels[packaging],
+    packagingSurchargePerUnit: packagingSurcharge,
+    packagingSurchargeTotal: packagingSurcharge * item.quantity,
+    lineTotal: unitPrice * item.quantity,
   }
   if (validationError) priced.validationError = validationError
   else delete priced.validationError
@@ -129,10 +165,14 @@ export function priceCartItem(item: CartItem, product: Product, channel: OrderCh
 }
 
 export function applyCartItemUpdate(item: CartItem, patch: Partial<CartItem>): CartItem {
+  const quantity = patch.quantity ?? item.quantity
+  const unitPrice = patch.unitPrice ?? item.unitPrice
+  const packagingSurcharge = patch.packagingSurchargePerUnit ?? item.packagingSurchargePerUnit ?? 0
   const updated: CartItem = {
     ...item,
     ...patch,
-    lineTotal: (patch.unitPrice ?? item.unitPrice) * (patch.quantity ?? item.quantity),
+    lineTotal: unitPrice * quantity,
+    packagingSurchargeTotal: packagingSurcharge * quantity,
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'validationError') && !patch.validationError) delete updated.validationError
   return updated
@@ -150,7 +190,7 @@ export function prepareOrderItems(items: CartItem[], products: Product[], channe
   const invalid = priced.find((item) => item.validationError)
   if (invalid) throw new Error(`${invalid.productName}: ${invalid.validationError}`)
   return priced.map((item) => {
-    const prepared = { ...item, selectedChannel: channel, lineTotal: item.unitPrice * item.quantity }
+    const prepared = { ...item, selectedChannel: channel, lineTotal: item.unitPrice * item.quantity, packagingSurchargeTotal: (item.packagingSurchargePerUnit ?? 0) * item.quantity }
     delete prepared.validationError
     return prepared
   })
@@ -172,7 +212,9 @@ export function nextLocalQueue(orders: ShopOrder[], date = businessDate()): { se
 export function createOrder(draft: OrderDraft, id: string, queueNumber: string, userId?: string): ShopOrder {
   const now = new Date().toISOString()
   const items = draft.items.map((item) => {
-    const snapshot = { ...item, selectedChannel: item.selectedChannel ?? draft.channel, lineTotal: item.unitPrice * item.quantity }
+    const packaging = normalizeToppingPackaging(item.toppingPackaging)
+    const packagingSurcharge = item.packagingSurchargePerUnit ?? packagingSurchargePerUnit(draft.channel, packaging)
+    const snapshot = { ...item, selectedChannel: item.selectedChannel ?? draft.channel, toppingPackaging: packaging, toppingPackagingLabel: item.toppingPackagingLabel ?? toppingPackagingLabels[packaging], packagingSurchargePerUnit: packagingSurcharge, packagingSurchargeTotal: packagingSurcharge * item.quantity, lineTotal: item.unitPrice * item.quantity }
     delete snapshot.validationError
     if (snapshot.priceBreakdown === undefined) delete snapshot.priceBreakdown
     return snapshot

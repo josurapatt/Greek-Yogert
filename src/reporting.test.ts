@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateSalesChannels,
+  aggregatePaymentMethodSales,
   bangkokHour,
   normalizeSalesChannel,
 } from "./reporting";
@@ -102,6 +103,86 @@ describe("sales-channel reporting", () => {
     expect(filtered.channels.find((entry) => entry.channel === "Grab")).toEqual(
       { channel: "Grab", sales: 120, orderCount: 1 },
     );
+  });
+});
+
+describe("payment-method reporting", () => {
+  it("aggregates completed single-payment and legacy orders", () => {
+    const cash = order("cash", "หน้าร้าน", 100);
+    const platform = {
+      ...order("platform", "Grab", 200),
+      paymentMethod: "Platform" as const,
+      items: [{ ...item(), paymentMethod: undefined }],
+    };
+    const report = aggregatePaymentMethodSales([cash, platform]);
+    expect(report.methods).toEqual([
+      { paymentMethod: "สด", sales: 100 },
+      { paymentMethod: "โอน", sales: 0 },
+      { paymentMethod: "โครงการ", sales: 0 },
+      { paymentMethod: "Platform", sales: 200 },
+    ]);
+  });
+
+  it("splits mixed payments by payable line amount without duplication", () => {
+    const mixed = {
+      ...order("mixed", "หน้าร้าน", 180),
+      items: [
+        { ...item("สด"), unitPrice: 100, lineTotal: 100 },
+        { ...item("โอน"), unitPrice: 80, lineTotal: 80 },
+      ],
+    };
+    const report = aggregatePaymentMethodSales([mixed]);
+    expect(
+      report.methods.find((entry) => entry.paymentMethod === "สด")?.sales,
+    ).toBe(100);
+    expect(
+      report.methods.find((entry) => entry.paymentMethod === "โอน")?.sales,
+    ).toBe(80);
+    expect(report.methods.reduce((sum, entry) => sum + entry.sales, 0)).toBe(
+      180,
+    );
+  });
+
+  it("attributes packaging surcharge to its line payment and reconciles discounts", () => {
+    const mixed = {
+      ...order("packaging", "Lineman", 171),
+      items: [
+        {
+          ...item("สด"),
+          unitPrice: 105,
+          lineTotal: 105,
+          packagingSurchargePerUnit: 5,
+          packagingSurchargeTotal: 5,
+        },
+        { ...item("โอน"), unitPrice: 85, lineTotal: 85 },
+      ],
+      subtotal: 190,
+      discount: 19,
+    };
+    const report = aggregatePaymentMethodSales([mixed]);
+    expect(
+      report.methods.find((entry) => entry.paymentMethod === "สด")?.sales,
+    ).toBeCloseTo(94.5);
+    expect(
+      report.methods.find((entry) => entry.paymentMethod === "โอน")?.sales,
+    ).toBeCloseTo(76.5);
+    expect(
+      report.methods.reduce((sum, entry) => sum + entry.sales, 0),
+    ).toBeCloseTo(171);
+  });
+
+  it("keeps unknown methods separate and uses the supplied filtered set", () => {
+    const unknown = {
+      ...order("unknown-payment", "หน้าร้าน", 90),
+      paymentMethod: "Voucher" as ShopOrder["paymentMethod"],
+      items: [{ ...item(), paymentMethod: undefined }],
+    };
+    const excluded = order("excluded", "หน้าร้าน", 500);
+    const report = aggregatePaymentMethodSales(
+      [unknown, excluded].filter((entry) => entry.id === "unknown-payment"),
+    );
+    expect(report.unknown).toBe(90);
+    expect(report.methods.every((entry) => entry.sales === 0)).toBe(true);
   });
 });
 

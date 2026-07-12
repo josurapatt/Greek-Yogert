@@ -2,6 +2,7 @@ import { ShoppingBasket } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
+import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import { money, orderTotals, repriceCartItems } from "../lib";
 import { toppings } from "../data";
 import { customerStorefrontChannel } from "../customerOrder";
@@ -85,11 +86,14 @@ export default function CustomerOrderPage() {
           )
         </h2>
         {priced.map((item) => (
-          <p key={item.id}>
-            {item.productName} × {item.quantity} —{" "}
-            {money(item.lineTotal ?? item.unitPrice * item.quantity)}{" "}
-            {item.validationError && <em>{item.validationError}</em>}
-          </p>
+          <div className="customer-cart-line" key={item.id}>
+            <p>
+              {item.productName} × {item.quantity} —{" "}
+              {money(item.lineTotal ?? item.unitPrice * item.quantity)}{" "}
+              {item.validationError && <em>{item.validationError}</em>}
+            </p>
+            <ToppingPackagingDetails item={item} />
+          </div>
         ))}
         <input
           value={name}

@@ -7,7 +7,8 @@ import { defaultProducts, mergeProducts, normalizeProduct, toppings } from './da
 import { toFirestoreData } from './firestoreData'
 import { isAuthorizedStaffDocument, unauthorizedStaffMessage } from './staffAuthorization'
 import { removeCustomerRequest } from './customerRequests'
-import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
+import { toCustomerPublicProduct } from './customerOrder'
+import { applyCartItemUpdate, businessDate, createOrder, nextLocalQueue, normalizeToppingPackaging, orderTotals, prepareOrderItems, repriceCartItems, validatePaymentMethod } from './lib'
 import type { CartItem, CustomerOrderRequest, OrderChannel, OrderDraft, Product, ShopOrder, ToppingAvailability } from './types'
 
 interface SessionUser { uid: string; email: string; isAnonymous?: boolean }
@@ -161,17 +162,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const saveProduct = async (product: Product) => {
     const normalized = normalizeProduct(product)
-    if (db) await setDoc(doc(db, 'products', normalized.id), normalized)
+    if (db) {
+      await Promise.all([
+        setDoc(doc(db, 'products', normalized.id), normalized),
+        ...(customerQrUatEnabled ? [setDoc(doc(db, 'publicMenu', normalized.id), toCustomerPublicProduct(normalized))] : []),
+      ])
+    }
     else setProducts((rows) => [...rows.filter((entry) => entry.id !== normalized.id), normalized])
   }
 
   const setToppingAvailability = async (id: string, available: boolean) => {
     if (db) {
-      await setDoc(
-        doc(db, 'settings', 'toppingAvailability'),
-        { availability: { [id]: available }, updatedAt: new Date().toISOString() },
-        { mergeFields: [new FieldPath('availability', id), 'updatedAt'] },
-      )
+      const data = { availability: { [id]: available }, updatedAt: new Date().toISOString() }
+      const options = { mergeFields: [new FieldPath('availability', id), 'updatedAt'] }
+      await Promise.all([
+        setDoc(doc(db, 'settings', 'toppingAvailability'), data, options),
+        ...(customerQrUatEnabled ? [setDoc(doc(db, 'publicSettings', 'toppingAvailability'), data, options)] : []),
+      ])
     } else setAvailability((current) => ({ ...current, [id]: available }))
   }
 
@@ -208,12 +215,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     else localStorage.setItem('gym-cart-v1', JSON.stringify(items))
   }, [items])
   const add = (item: CartItem) => setItems((rows) => {
-    const exact = rows.find((entry) => entry.productId === item.productId && JSON.stringify(entry.selectedOptionIds) === JSON.stringify(item.selectedOptionIds))
-    return exact ? rows.map((entry) => entry.id === exact.id ? { ...entry, quantity: entry.quantity + item.quantity, lineTotal: entry.unitPrice * (entry.quantity + item.quantity) } : entry) : [...rows, item]
+    const exact = rows.find((entry) => entry.productId === item.productId && normalizeToppingPackaging(entry.toppingPackaging) === normalizeToppingPackaging(item.toppingPackaging) && JSON.stringify(entry.selectedOptionIds) === JSON.stringify(item.selectedOptionIds))
+    return exact ? rows.map((entry) => entry.id === exact.id ? applyCartItemUpdate(entry, { quantity: entry.quantity + item.quantity }) : entry) : [...rows, item]
   })
   const update = (id: string, patch: Partial<CartItem>) => setItems((rows) => rows.map((item) => item.id === id ? applyCartItemUpdate(item, patch) : item))
   const remove = (id: string) => setItems((rows) => rows.filter((item) => item.id !== id))
-  const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, { ...item, id: crypto.randomUUID(), quantity: 1, lineTotal: item.unitPrice }] : rows })
+  const duplicate = (id: string) => setItems((rows) => { const item = rows.find((entry) => entry.id === id); return item ? [...rows, applyCartItemUpdate({ ...item, id: crypto.randomUUID() }, { quantity: 1 })] : rows })
   const clear = () => { setItems([]); setEditingOrder(null); setChannel(null) }
   const editOrder = (order: ShopOrder, products: Product[], availability: ToppingAvailability = {}) => { setItems(repriceCartItems(order.items.map((item) => ({ ...item, id: crypto.randomUUID(), selectedChannel: order.channel })), products, order.channel, toppings, availability)); setEditingOrder(order); setChannel(order.channel) }
   const changeChannel = (nextChannel: OrderChannel, products: Product[], availability: ToppingAvailability = {}) => { setItems((rows) => repriceCartItems(rows, products, nextChannel, toppings, availability)); setChannel(nextChannel) }

@@ -9,9 +9,14 @@ import {
 import { formatThaiDateTime, money } from "../lib";
 import { defaultProducts } from "../data";
 import { useAuth, useData } from "../store";
-import { confirmCustomerRequestTransaction, rejectCustomerRequestTransaction, requestIsStillPending } from "../customerRequestActions";
+import {
+  confirmCustomerRequestTransaction,
+  rejectCustomerRequestTransaction,
+  requestIsStillPending,
+} from "../customerRequestActions";
 import type { CustomerOrderRequest, StaffPaymentMethod } from "../types";
 import { pendingCustomerRequests } from "../customerRequests";
+import OrderItemSummary from "../components/OrderItemSummary";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
@@ -25,11 +30,17 @@ export default function CustomerRequestsPage() {
     if (!db || busy) return;
     try {
       setBusy(request.id);
-      await confirmCustomerRequestTransaction(db, request.id, paymentMethod, user?.uid);
+      await confirmCustomerRequestTransaction(
+        db,
+        request.id,
+        paymentMethod,
+        user?.uid,
+      );
       dismissCustomerRequest(request.id);
       setMessage("ยืนยันคำขอและสร้างคิวแล้ว");
     } catch (cause) {
-      if (db && !(await requestIsStillPending(db, request.id))) dismissCustomerRequest(request.id);
+      if (db && !(await requestIsStillPending(db, request.id)))
+        dismissCustomerRequest(request.id);
       setMessage(cause instanceof Error ? cause.message : "ยืนยันไม่สำเร็จ");
     } finally {
       setBusy(null);
@@ -44,7 +55,8 @@ export default function CustomerRequestsPage() {
       dismissCustomerRequest(request.id);
       setMessage("ปฏิเสธคำขอแล้ว");
     } catch (cause) {
-      if (db && !(await requestIsStillPending(db, request.id))) dismissCustomerRequest(request.id);
+      if (db && !(await requestIsStillPending(db, request.id)))
+        dismissCustomerRequest(request.id);
       setMessage(cause instanceof Error ? cause.message : "ปฏิเสธไม่สำเร็จ");
     } finally {
       setBusy(null);
@@ -102,23 +114,26 @@ export default function CustomerRequestsPage() {
         <section className="queue-grid">
           {pending.map((request) => (
             <article className="queue-card" key={request.id}>
-              <h2><Link to={`/customer-requests/${request.id}`}>{request.customerName || "ลูกค้าทั่วไป"}</Link></h2>
+              <h2>
+                <Link to={`/customer-requests/${request.id}`}>
+                  {request.customerName || "ลูกค้าทั่วไป"}
+                </Link>
+              </h2>
               <p>
                 {formatThaiDateTime(request.createdAt)} • {request.itemCount}{" "}
                 รายการ • {money(request.total)}
               </p>
               {request.customerNote && <p>หมายเหตุ: {request.customerNote}</p>}
               {request.items.map((item) => (
-                <p key={item.id}>
-                  <strong>
-                    {item.productName} × {item.quantity}
-                  </strong>
-                  <br />
-                  {item.selectedOptions.join(", ")}
-                </p>
+                <OrderItemSummary item={item} key={item.id} />
               ))}
               <div className="button-row">
-                <Link className="secondary" to={`/customer-requests/${request.id}`}>ดูรายละเอียด</Link>
+                <Link
+                  className="secondary"
+                  to={`/customer-requests/${request.id}`}
+                >
+                  ดูรายละเอียด
+                </Link>
                 {customerPaymentMethods.map((method) => (
                   <button
                     className="primary"

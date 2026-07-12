@@ -2,6 +2,7 @@ export type OrderStatus = 'pending' | 'completed' | 'cancelled'
 export type OrderChannel = 'หน้าร้าน' | 'Openchat' | 'Lineman' | 'Grab'
 export type PaymentMethod = 'สด' | 'โอน' | 'โครงการ' | 'Platform'
 export type StaffPaymentMethod = Exclude<PaymentMethod, 'Platform'>
+export type ToppingPackaging = 'included' | 'separated'
 export type OptionMode = 'none' | 'granola' | 'toppings'
 export type ChannelGroup = 'storefront' | 'platform'
 
@@ -23,6 +24,7 @@ export interface Product {
   extraNormalPrice: number; extraPremiumPrice: number; active: boolean
   channelPrices?: Partial<Record<OrderChannel, number>>
   channelRules?: Partial<Record<ChannelGroup, ChannelToppingRules>>
+  supportsSeparatedToppingPackaging?: boolean
 }
 
 export interface PriceBreakdown {
@@ -38,6 +40,10 @@ export interface CartItem {
   selectedChannel?: OrderChannel; priceBreakdown?: PriceBreakdown; lineTotal?: number
   validationError?: string
   paymentMethod?: StaffPaymentMethod
+  toppingPackaging?: ToppingPackaging
+  toppingPackagingLabel?: string
+  packagingSurchargePerUnit?: number
+  packagingSurchargeTotal?: number
 }
 
 export interface ShopOrder {

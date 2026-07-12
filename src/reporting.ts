@@ -1,5 +1,76 @@
-import { channelLabels, orderPaymentLabel, paymentMethodLabel } from "./lib";
-import type { OrderChannel, ShopOrder } from "./types";
+import {
+  channelLabels,
+  orderPaymentLabel,
+  paymentMethodLabel,
+  toppingPackagingLabel,
+} from "./lib";
+import type { OrderChannel, PaymentMethod, ShopOrder } from "./types";
+
+export const reportPaymentMethods: PaymentMethod[] = [
+  "สด",
+  "โอน",
+  "โครงการ",
+  "Platform",
+];
+
+export interface PaymentMethodSalesValue {
+  paymentMethod: PaymentMethod;
+  sales: number;
+}
+
+export function normalizeReportPaymentMethod(
+  value: unknown,
+): PaymentMethod | null {
+  return typeof value === "string" &&
+    reportPaymentMethods.includes(value as PaymentMethod)
+    ? (value as PaymentMethod)
+    : null;
+}
+
+export function aggregatePaymentMethodSales(orders: ShopOrder[]) {
+  const summary = Object.fromEntries(
+    reportPaymentMethods.map((paymentMethod) => [
+      paymentMethod,
+      { paymentMethod, sales: 0 },
+    ]),
+  ) as Record<PaymentMethod, PaymentMethodSalesValue>;
+  let unknown = 0;
+
+  orders
+    .filter((order) => order.status === "completed")
+    .forEach((order) => {
+      const total = Number.isFinite(order.total) ? order.total : 0;
+      const hasLinePayments = order.items.some((item) => item.paymentMethod);
+      if (!hasLinePayments) {
+        const method = normalizeReportPaymentMethod(order.paymentMethod);
+        if (method) summary[method].sales += total;
+        else unknown += total;
+        return;
+      }
+
+      const grossAmounts = order.items.map((item) =>
+        Number.isFinite(item.lineTotal)
+          ? (item.lineTotal as number)
+          : item.unitPrice * item.quantity,
+      );
+      const grossTotal = grossAmounts.reduce((sum, amount) => sum + amount, 0);
+      if (grossTotal === 0) {
+        unknown += total;
+        return;
+      }
+      order.items.forEach((item, index) => {
+        const payableAmount = (grossAmounts[index] / grossTotal) * total;
+        const method = normalizeReportPaymentMethod(item.paymentMethod);
+        if (method) summary[method].sales += payableAmount;
+        else unknown += payableAmount;
+      });
+    });
+
+  return {
+    methods: reportPaymentMethods.map((method) => summary[method]),
+    unknown,
+  };
+}
 
 export const reportChannels: OrderChannel[] = [
   "หน้าร้าน",
@@ -135,6 +206,11 @@ export function buildOrderExportRows(orders: ShopOrder[]) {
         ราคาหลัก: item.priceBreakdown?.basePrice ?? item.basePrice,
         ค่าพรีเมียม: item.priceBreakdown?.premiumIncludedSurcharge ?? 0,
         ค่าเพิ่มพิเศษ: item.priceBreakdown?.extraToppingCharges ?? 0,
+        รูปแบบท็อปปิ้ง: toppingPackagingLabel(item),
+        ค่าบรรจุภัณฑ์ต่อถ้วย: item.packagingSurchargePerUnit ?? 0,
+        ค่าบรรจุภัณฑ์รวม:
+          item.packagingSurchargeTotal ??
+          (item.packagingSurchargePerUnit ?? 0) * item.quantity,
         ราคาต่อชิ้น: item.unitPrice,
         ยอดรวมรายการ: item.lineTotal ?? item.unitPrice * item.quantity,
         ส่วนลดทั้งออเดอร์: order.discount,

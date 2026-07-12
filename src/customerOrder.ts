@@ -40,9 +40,7 @@ export function applyCustomerLinePayments(
     const paymentMethod =
       typeof allocation === "string" ? allocation : allocation[item.id];
     if (!customerPaymentMethods.includes(paymentMethod as StaffPaymentMethod))
-      throw new Error(
-        `กรุณาเลือกวิธีชำระเงินสำหรับ ${item.productName}`,
-      );
+      throw new Error(`กรุณาเลือกวิธีชำระเงินสำหรับ ${item.productName}`);
     return { ...item, paymentMethod: paymentMethod as StaffPaymentMethod };
   });
 }
@@ -52,9 +50,7 @@ export function uniqueLinePaymentMethods(
 ): StaffPaymentMethod[] {
   return [
     ...new Set(
-      items.flatMap((item) =>
-        item.paymentMethod ? [item.paymentMethod] : [],
-      ),
+      items.flatMap((item) => (item.paymentMethod ? [item.paymentMethod] : [])),
     ),
   ];
 }
@@ -76,6 +72,8 @@ export function toCustomerPublicProduct(product: Product): Product {
     premiumIncludedSurcharge: product.premiumIncludedSurcharge,
     extraNormalPrice: product.extraNormalPrice,
     extraPremiumPrice: product.extraPremiumPrice,
+    supportsSeparatedToppingPackaging:
+      product.supportsSeparatedToppingPackaging !== false,
     active: product.active,
     channelPrices: { [customerStorefrontChannel]: price },
   };
