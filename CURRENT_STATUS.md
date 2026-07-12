@@ -8,7 +8,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Verified by: Codex, using the local repository and portable GitHub CLI
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Branch: `feature/customer-qr-ordering-foundation`
-- Verified implementation baseline HEAD: `39b76f1fa8ad5054f98966ae4d05769c10445381`
+- Verified implementation baseline HEAD: `dc8790d4957abe09425a80324c02836eafec5aa3`
 - Working tree after implementation push: Clean
 - Remote synchronization after implementation push: Local implementation HEAD and `origin/feature/customer-qr-ordering-foundation` matched; ahead 0, behind 0
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the implementation baseline above. Verify actual HEAD with Git before relying on it.
@@ -19,13 +19,14 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - State: Open and unmerged
 - Draft status: Draft
 - Merge status: GitHub reported `CLEAN`; this is not merge approval
-- Latest Customer QR UAT check: Passed for implementation commit `39b76f1`
+- Latest Customer QR UAT check: Passed for implementation commit `dc8790d`
 
 ## Latest Completed Work
 
 - Work Package 1 implementation exists on the PR branch.
 - Manual UAT reported four defects: the product editor remained open after save, Customer QR cart lines could not be modified, global separated-packaging availability was not clearly exposed, and Customer QR could retain stale per-product packaging support.
 - Stabilization commit `39b76f1fa8ad5054f98966ae4d05769c10445381` fixes all four defects in code.
+- Coverage completion commit `dc8790d4957abe09425a80324c02836eafec5aa3` adds explicit Customer quantity-decrease and topping-edit regression assertions and renders the selected options in the Customer cart.
 - Product and public-menu updates now use one atomic Firestore batch, and public projections omit undefined optional fields.
 - Product editing now closes only after successful persistence, remains open with an error on failure, and prevents duplicate save actions while saving.
 - Customer QR cart lines now support quantity increase/decrease, configuration editing, packaging changes, and removal before explicit submission.
@@ -36,14 +37,14 @@ This document is the latest operational snapshot, not a changelog. Git history i
 
 Validation was run locally against implementation commit content before commit and also exercised by the isolated UAT workflow where applicable:
 
-- Application tests: 129 passed across 11 test files
+- Application tests: 130 passed across 11 test files
 - Firestore Emulator security tests: 10 passed
 - Lint: Passed
 - TypeScript production build: Passed
 - Prettier: Passed for every changed and new implementation file using pinned Prettier 3.6.2
 - Focused diff scan: Passed; no workflow, Production Firebase configuration, Firestore rule, or index changes
 - Secret scan: Passed
-- Workflow: [29181186525](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181186525) completed successfully for `39b76f1fa8ad5054f98966ae4d05769c10445381`
+- Workflow: [29181301438](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181301438) completed successfully for `dc8790d4957abe09425a80324c02836eafec5aa3`
 
 ## Deployment Status
 
@@ -51,7 +52,7 @@ Validation was run locally against implementation commit content before commit a
 
 - Firebase project: `greek-yogert-customer-uat-2026`
 - Deployment status: Safeguarded isolated UAT workflow succeeded
-- Latest workflow run: [29181186525](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181186525)
+- Latest workflow run: [29181301438](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181301438)
 - Workflow target safeguard: Build and deployment both require the exact project ID `greek-yogert-customer-uat-2026`
 - UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/> — HTTP 200 verified
 - UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
