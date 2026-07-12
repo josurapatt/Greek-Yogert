@@ -135,6 +135,11 @@ export default function CustomerOrderPage() {
                 </button>
               </div>
             </div>
+            {item.selectedOptions.length > 0 && (
+              <p className="customer-cart-options">
+                {item.selectedOptions.join(" • ")}
+              </p>
+            )}
             <ToppingPackagingDetails item={item} />
             <div className="customer-cart-quantity" aria-label="จำนวนสินค้า">
               <button

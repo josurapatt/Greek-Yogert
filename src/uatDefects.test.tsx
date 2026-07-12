@@ -29,6 +29,9 @@ vi.mock("./store", () => ({
 afterEach(cleanup);
 
 const product = defaultProducts.find((entry) => entry.id === "plain-greek")!;
+const configurableProduct = defaultProducts.find(
+  (entry) => entry.id === "apple-ohlala",
+)!;
 
 describe("manual UAT defect regressions", () => {
   beforeEach(() => {
@@ -127,6 +130,10 @@ describe("manual UAT defect regressions", () => {
     expect(
       container.querySelector(".customer-cart-quantity b")?.textContent,
     ).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: /ลดจำนวน/ }));
+    expect(
+      container.querySelector(".customer-cart-quantity b")?.textContent,
+    ).toBe("1");
     fireEvent.click(screen.getByRole("button", { name: /แก้ไข/ }));
     const packaging = container.querySelectorAll(
       ".packaging-choice input[type='radio']",
@@ -142,6 +149,47 @@ describe("manual UAT defect regressions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /ลบ/ }));
     expect(container.querySelectorAll(".customer-cart-line")).toHaveLength(0);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("edits customer topping options in place and renders the updated configuration", () => {
+    const submit = vi.fn();
+    mocks.useCustomer.mockReturnValue({
+      products: [configurableProduct],
+      availability: {},
+      loading: false,
+      submit,
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <CustomerOrderPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(configurableProduct.name),
+      }),
+    );
+    const initialFlavor = configurableProduct.granolaOptions[0];
+    const replacementFlavor = configurableProduct.granolaOptions[1];
+    fireEvent.click(screen.getByRole("button", { name: initialFlavor }));
+    fireEvent.click(container.querySelector(".modal-card .primary")!);
+    expect(
+      container.querySelector(".customer-cart-options")?.textContent,
+    ).toContain(initialFlavor);
+
+    fireEvent.click(screen.getByRole("button", { name: /แก้ไข/ }));
+    fireEvent.click(screen.getByRole("button", { name: replacementFlavor }));
+    fireEvent.click(container.querySelector(".modal-card .primary")!);
+
+    expect(container.querySelectorAll(".customer-cart-line")).toHaveLength(1);
+    expect(
+      container.querySelector(".customer-cart-options")?.textContent,
+    ).toContain(replacementFlavor);
+    expect(
+      container.querySelector(".customer-cart-options")?.textContent,
+    ).not.toContain(initialFlavor);
     expect(submit).not.toHaveBeenCalled();
   });
 });
