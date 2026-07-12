@@ -113,31 +113,30 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Targeted Manual UAT defect retest: Passed
 - [x] Excel export manual validation: Passed
 - [x] Products-page inline global-toggle adjustment implemented and deployed to isolated UAT
-- [ ] Final targeted Products-page toggle UX retest: Pending
-- [ ] Final manual regression UAT: Pending
+- [x] Final targeted Products-page toggle UX retest: Passed
+- [x] Final manual regression UAT: Passed
 
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Final targeted Products-page global-toggle UX retest and PR #4 sign-off decision**
+**Release preparation and PR #4 merge decision**
 
-Validate:
+Prepare:
 
-- The actual global `แยกท็อปปิ้ง` toggle is visible directly on Products.
-- Its enabled/disabled state matches Settings.
-- Disabling and re-enabling from Products updates Staff ordering and Customer QR through the existing shared setting.
-- Per-product support, `หมด`/`ไม่รองรับ` precedence, surcharge pricing, cart behavior, snapshots, operational views, reports, and Excel remain unchanged.
+- Preserve the approved PR head checkpoint and required checks before any merge.
+- Decide whether to merge PR #4 into `main` in a separately authorized operation.
+- Keep Production rollout, Authentication, Firestore deployment, smoke testing, and monitoring pending until explicitly approved.
 
 ## 6. Release Gates
 
-- [ ] Final manual regression UAT passed
+- [x] Final manual regression UAT passed
 - [x] Reported Work Package 1 UAT defects fixed and automated-revalidated
 - [x] Targeted Manual UAT defect retest passed
 - [x] Excel export manual validation passed
-- [ ] Final targeted Products-page toggle UX retest passed
-- [ ] PR #4 approved
-- [ ] PR #4 changed from Draft to Ready if required
+- [x] Final targeted Products-page toggle UX retest passed
+- [x] PR #4 approved
+- [x] PR #4 changed from Draft to Ready
 - [ ] PR #4 merged to `main`
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved

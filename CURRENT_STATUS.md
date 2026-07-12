@@ -9,6 +9,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Branch: `feature/customer-qr-ordering-foundation`
 - Verified implementation baseline HEAD: `de5478fff3fa2c938bdf2d390ada7633f39a660c`
+- User-approved PR head before final status commit: `f65a273cf1b4179974d9537cf88a015f8f6c7406`
 - Working tree after implementation push: Clean
 - Remote synchronization after implementation push: Local implementation HEAD and `origin/feature/customer-qr-ordering-foundation` matched; ahead 0, behind 0
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the implementation baseline above. Verify actual HEAD with Git before relying on it.
@@ -17,7 +18,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 
 - PR: [#4 — Add customer QR ordering UAT foundation](https://github.com/josurapatt/Greek-Yogert/pull/4)
 - State: Open and unmerged
-- Draft status: Draft
+- Review status: Ready for review
 - Merge status: GitHub reported `CLEAN`; this is not merge approval
 - Latest Customer QR UAT check: Passed for implementation commit `de5478f`
 
@@ -68,25 +69,25 @@ Validation was run locally against implementation commit content before commit a
 
 ## Manual UAT
 
-- Overall status: **Functional checks passed; final targeted UX retest pending**
+- Overall status: **Passed**
 - User-confirmed passed: product dialog save behavior; Customer cart editing and removal; global packaging behavior; per-product synchronization; stale-cart blocking; Staff and Customer regression
+- Final targeted Products-page toggle UX retest: Passed
+- Products toggle visibility, disable/enable synchronization, per-product precedence, shared Products/Settings state, pricing, and Customer QR regression: Passed
 - Excel manual validation: Passed
-- Remaining targeted retest: confirm the actual global toggle is visible and usable directly on Products, accurately reflects current state, and stays synchronized with Settings, Staff ordering, and Customer QR
-- PR #4 approval remains a separate user-controlled gate
+- Observed remaining UAT bugs: None
 
 ## Known Bugs and Blockers
 
-- No remaining implementation blocker is known
-- The Products-page toggle adjustment is deployed but awaits its final targeted UX retest
+- No known remaining UAT bugs or implementation blockers
 
 ## Immediate Next Action
 
-- Run the final targeted Products-page global-toggle UX retest, then decide PR #4 approval separately.
+- Prepare the release decision and decide whether to merge PR #4. Production rollout remains a separate unapproved action.
 
 ## Release Status
 
-- PR #4 approval: Not approved
-- PR #4 Draft-to-Ready transition: Not approved
+- PR #4 approval: Approved by the user for review/merge decision
+- PR #4 Draft-to-Ready transition: Approved and completed
 - Merge to `main`: Not approved
 - Production rollout: Not approved
 - Production Anonymous Authentication: Not approved
@@ -95,5 +96,5 @@ Validation was run locally against implementation commit content before commit a
 ## Documentation Consistency
 
 - `AGENTS.md`: Unchanged; no missing stable governance rule was discovered
-- `ROADMAP.md`: Records functional UAT and Excel as passed while preserving the final Products-toggle UX retest, PR approval, merge, and release as pending
-- `CURRENT_STATUS.md`: Distinguishes reported defects, implemented fixes, automated validation, deployment, and pending manual acceptance
+- `ROADMAP.md`: Records final Manual UAT and PR approval while preserving merge and every Production release gate as pending
+- `CURRENT_STATUS.md`: Records the approved PR checkpoint, completed UAT, readiness state, and remaining release decisions
