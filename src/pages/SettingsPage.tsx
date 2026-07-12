@@ -1,17 +1,12 @@
 import { Download, FileJson, Upload } from "lucide-react";
 import { useRef, useState } from "react";
+import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import { firebaseReady } from "../firebase";
-import { formatThaiDateTime, separatedPackagingAvailabilityId } from "../lib";
+import { formatThaiDateTime } from "../lib";
 import { useAuth, useData } from "../store";
 
 export default function SettingsPage() {
-  const {
-    products,
-    orders,
-    toppingAvailability,
-    setToppingAvailability,
-    importBackup,
-  } = useData();
+  const { products, orders, importBackup } = useData();
   const { user } = useAuth();
   const input = useRef<HTMLInputElement>(null);
   const [lastBackup, setLastBackup] = useState(
@@ -66,27 +61,7 @@ export default function SettingsPage() {
       {message && <div className="notice success">{message}</div>}
       <section className="settings-card">
         <div className="settings-icon pink">🥄</div>
-        <div>
-          <h2>แยกท็อปปิ้ง</h2>
-          <p>เปิดหรือปิดตัวเลือกแยกท็อปปิ้งสำหรับสินค้าทั้งหมด</p>
-          <small>ใส่ท็อปปิ้งเลยยังเลือกได้เสมอ</small>
-        </div>
-        <label className="switch">
-          <input
-            aria-label="แยกท็อปปิ้งพร้อมขาย"
-            type="checkbox"
-            checked={
-              toppingAvailability[separatedPackagingAvailabilityId] !== false
-            }
-            onChange={(event) =>
-              void setToppingAvailability(
-                separatedPackagingAvailabilityId,
-                event.target.checked,
-              )
-            }
-          />
-          <span />
-        </label>
+        <GlobalPackagingAvailabilityToggle className="settings-global-packaging-control" />
       </section>
       <section className="settings-card">
         <div className="settings-icon">

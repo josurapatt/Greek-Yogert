@@ -1,13 +1,8 @@
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import { normalizeProduct, toppings } from "../data";
-import {
-  getChannelRules,
-  getProductPrice,
-  money,
-  separatedPackagingAvailabilityId,
-} from "../lib";
+import { getChannelRules, getProductPrice, money } from "../lib";
 import { useData } from "../store";
 import type {
   ChannelGroup,
@@ -115,19 +110,7 @@ export default function ProductsPage() {
         </button>
       </div>
       <section className="availability-panel">
-        <div className="global-packaging-summary">
-          <div>
-            <strong>แยกท็อปปิ้งสำหรับทุกสินค้า</strong>
-            <span>
-              {toppingAvailability[separatedPackagingAvailabilityId] !== false
-                ? "เปิดใช้งาน"
-                : "หมด"}
-            </span>
-          </div>
-          <Link className="secondary" to="/settings">
-            ตั้งค่ารวม
-          </Link>
-        </div>
+        <GlobalPackagingAvailabilityToggle className="global-packaging-summary" />
         <div className="section-heading">
           <h2>สถานะท็อปปิ้งและรสชาติ</h2>
           <p>ใช้ร่วมกันทุกช่องทาง รายการเดิมที่ยังไม่มีสถานะถือว่าเปิดขาย</p>

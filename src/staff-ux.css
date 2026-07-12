@@ -81,25 +81,51 @@
   color: #777185;
 }
 
-.global-packaging-summary {
+.global-packaging-control {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.global-packaging-summary {
   margin-bottom: 1.2rem;
   padding: 0.9rem 1rem;
   border-radius: 16px;
   background: var(--lavender);
 }
 
-.global-packaging-summary div {
+.global-packaging-control > div {
   display: grid;
   gap: 0.2rem;
 }
 
-.global-packaging-summary span {
+.global-packaging-control p {
+  margin: 0;
+  color: #6f6978;
+}
+
+.global-packaging-control > div > span {
+  width: max-content;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
   color: var(--purple-dark);
   font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.global-packaging-control > div > span.available {
+  background: var(--green);
+  color: #397144;
+}
+
+.global-packaging-control > div > span.sold-out {
+  background: #f9dde2;
+  color: #a53d52;
+}
+
+.settings-global-packaging-control {
+  grid-column: 2 / -1;
 }
 
 .availability-grid {

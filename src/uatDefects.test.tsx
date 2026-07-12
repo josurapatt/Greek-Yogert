@@ -106,6 +106,61 @@ describe("manual UAT defect regressions", () => {
     );
   });
 
+  it("uses the shared global packaging toggle directly on Products", () => {
+    const products: Product[] = [
+      { ...product, supportsSeparatedToppingPackaging: false },
+    ];
+    const saveProduct = vi.fn();
+    const setToppingAvailability = vi.fn();
+    const state = {
+      products,
+      toppingAvailability: {} as Record<string, boolean>,
+      saveProduct,
+      setToppingAvailability,
+    };
+    mocks.useData.mockImplementation(() => state);
+
+    const view = render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>,
+    );
+    let toggle = screen.getByLabelText(
+      "แยกท็อปปิ้งพร้อมขาย",
+    ) as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+    expect(
+      view.container.querySelector(".global-packaging-summary a"),
+    ).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(setToppingAvailability).toHaveBeenLastCalledWith(
+      separatedPackagingAvailabilityId,
+      false,
+    );
+
+    state.toppingAvailability[separatedPackagingAvailabilityId] = false;
+    view.rerender(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>,
+    );
+    toggle = screen.getByLabelText("แยกท็อปปิ้งพร้อมขาย") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    expect(
+      view.container.querySelector(".global-packaging-summary .sold-out")
+        ?.textContent,
+    ).toBe("หมด");
+
+    fireEvent.click(toggle);
+    expect(setToppingAvailability).toHaveBeenLastCalledWith(
+      separatedPackagingAvailabilityId,
+      true,
+    );
+    expect(saveProduct).not.toHaveBeenCalled();
+    expect(products[0].supportsSeparatedToppingPackaging).toBe(false);
+  });
+
   it("lets a customer change quantity, edit packaging, and remove a cart line without submitting", () => {
     const submit = vi.fn();
     mocks.useCustomer.mockReturnValue({
