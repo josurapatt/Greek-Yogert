@@ -21,6 +21,11 @@ Every approval in this plan is independent. Approval of PR #4, UAT, or this docu
 - Isolated UAT project: `greek-yogert-customer-uat-2026`
 - Latest observed Production deployment remains the pre-Customer-QR Hosting deployment for SHA `4d5b6547cc02b83be821c90d2cfb473bc65b2a12`
 - Production rollout: Not approved or performed
+- Production Hardening Work Package 1 branch: `feature/production-rollout-hardening`
+- Hardening implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
+- Draft PR: `#5`, open, unapproved, and unmerged
+- Latest isolated hardening UAT workflow: `29189257511`, successful
+- Targeted hardening Manual UAT: Pending
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -32,17 +37,17 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Requires prerequisite architecture and release-hardening changes.**
+**Not ready for Production deployment. Production Hardening Work Package 1 is implemented on Draft PR #5, but targeted Manual UAT and all remaining prerequisites and approvals are pending.**
 
-The merged implementation is intentionally UAT-gated. A Production build currently leaves Customer QR disabled. Setting the UAT flag in Production is not acceptable because it also enables UAT labels/actions and couples Customer routing, public synchronization, request subscriptions, and explicit staff authorization to one UAT-specific switch.
+The hardening branch replaces the UAT-only switch with a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. These changes are not merged or deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Replace the UAT-only feature switch with separate Production-safe controls:
+1. Complete targeted Manual UAT and obtain explicit approval/merge authorization for Draft PR #5, which implements separate Production-safe controls:
    - a neutral Customer QR enablement flag;
    - an environment/display mode that never shows `ทดลอง`, `Demo/UAT`, or the UAT seed action in Production;
    - explicit staff-authorization enforcement independent of UAT naming.
-2. Add an exact Production project guard to the Production workflow: `FIREBASE_PROJECT_ID == greek-yogert`.
+2. Preserve the implemented exact Production project guard: `FIREBASE_PROJECT_ID == greek-yogert`; do not run it before separate Production Hosting approval.
 3. Create and Emulator-test a Production-specific Firestore rules merge.
 4. Inventory every legitimate Production Staff Auth UID and provision its authorization document administratively.
 5. Create a reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
@@ -51,19 +56,19 @@ The merged implementation is intentionally UAT-gated. A Production build current
 
 ## 4. Production and UAT configuration comparison
 
-| Area                    | Production now                                          | Customer QR UAT                                          | Release implication                                                                          |
-| ----------------------- | ------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Firebase project        | `greek-yogert`                                          | `greek-yogert-customer-uat-2026`                         | Identity must be verified at every step.                                                     |
-| Hosting workflow        | Manual `workflow_dispatch`; Hosting only                | PR/manual workflow; Hosting plus UAT rules/indexes       | Production workflow must remain manual and Hosting-only.                                     |
-| Customer feature flag   | Production workflow does not set `VITE_CUSTOMER_QR_UAT` | Sets `VITE_CUSTOMER_QR_UAT=true`                         | Current Production build cannot expose Customer QR; do not reuse the UAT flag.               |
-| Customer labels/actions | Customer features disabled                              | `ทดลอง`, `Demo/UAT`, and `Seed เมนู UAT` visible         | Production-safe environment separation is required.                                          |
-| Staff Auth provider     | Existing Email/Password behavior must remain            | Email/Password plus explicit `users/{uid}` authorization | Provider stays enabled; every Staff UID needs an authorization document before rules change. |
-| Customer Auth provider  | Current live state must be verified; approval is absent | Anonymous enabled                                        | Anonymous is required but must be enabled only after safe rules are live.                    |
-| Firestore rules source  | `firestore.rules`                                       | `firestore.customer-uat.rules`                           | UAT rules require a Production-specific merge, not blind promotion.                          |
-| Firestore indexes       | Live CLI check: no indexes/overrides                    | Live CLI check: no indexes/overrides                     | No index deployment is currently required.                                                   |
-| Public menu             | Not used by current Production build                    | `publicMenu/{productId}`                                 | Must be projected from current Production products before Hosting exposure.                  |
-| Public availability     | Not used by current Production build                    | `publicSettings/toppingAvailability`                     | Must be initialized from current private settings.                                           |
-| Customer requests       | Not used by current Production build                    | `customerOrderRequests/{requestId}`                      | Rules, staff subscription, and monitoring must be ready first.                               |
+| Area                    | Production now                                                 | Customer QR UAT                                          | Release implication                                                                               |
+| ----------------------- | -------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Firebase project        | `greek-yogert`                                                 | `greek-yogert-customer-uat-2026`                         | Identity must be verified at every step.                                                          |
+| Hosting workflow        | Manual `workflow_dispatch`; Hosting only                       | PR/manual workflow; Hosting plus UAT rules/indexes       | Production workflow must remain manual and Hosting-only.                                          |
+| Customer feature flag   | Hardening workflow build sets `VITE_CUSTOMER_QR_ENABLED=false` | Hardening workflow sets `VITE_CUSTOMER_QR_ENABLED=true`  | Neutral fail-closed flag is implemented on Draft PR #5; Production activation remains unapproved. |
+| Customer labels/actions | Production environment mode removes UAT labels/actions         | `ทดลอง`, `Demo/UAT`, and `Seed เมนู UAT` remain visible  | Environment/display separation is implemented on Draft PR #5.                                     |
+| Staff Auth provider     | Existing Email/Password behavior must remain                   | Email/Password plus explicit `users/{uid}` authorization | Provider stays enabled; every Staff UID needs an authorization document before rules change.      |
+| Customer Auth provider  | Current live state must be verified; approval is absent        | Anonymous enabled                                        | Anonymous is required but must be enabled only after safe rules are live.                         |
+| Firestore rules source  | `firestore.rules`                                              | `firestore.customer-uat.rules`                           | UAT rules require a Production-specific merge, not blind promotion.                               |
+| Firestore indexes       | Live CLI check: no indexes/overrides                           | Live CLI check: no indexes/overrides                     | No index deployment is currently required.                                                        |
+| Public menu             | Not used by current Production build                           | `publicMenu/{productId}`                                 | Must be projected from current Production products before Hosting exposure.                       |
+| Public availability     | Not used by current Production build                           | `publicSettings/toppingAvailability`                     | Must be initialized from current private settings.                                                |
+| Customer requests       | Not used by current Production build                           | `customerOrderRequests/{requestId}`                      | Rules, staff subscription, and monitoring must be ready first.                                    |
 
 ## 5. Production Authentication
 
@@ -222,13 +227,13 @@ No Production users, orders, history, requests, reports, or authorization docume
 - Firestore rules/indexes: not deployed
 - Authentication/data: not modified
 
-### Required workflow hardening
+### Implemented workflow hardening on Draft PR #5
 
-Before using the workflow for Customer QR:
+The hardening branch now:
 
 1. hard-check `FIREBASE_PROJECT_ID == greek-yogert`;
-2. set the approved neutral Customer QR Production feature flag;
-3. set a Production environment/display flag that removes all UAT/demo labels and seed controls;
+2. explicitly sets the neutral Customer QR flag to `false` for the safe Production build;
+3. sets Production environment/display mode so UAT/demo labels and seed controls are unavailable;
 4. keep deployment scope Hosting-only;
 5. retain concurrency protection and explicit Production environment usage.
 
@@ -236,18 +241,18 @@ Before using the workflow for Customer QR:
 
 Hosting must be last. A Customer-enabled Hosting build deployed before rules, Staff authorization, Anonymous Auth, and public projections are ready would expose a broken or unsafe `/order` experience.
 
-Deploying the current `main` Hosting build without a new neutral flag would not release Customer QR at all. Setting `VITE_CUSTOMER_QR_UAT=true` in Production is prohibited by this plan.
+Draft PR #5 must pass targeted hardening UAT and receive explicit merge approval before these workflow safeguards reach `main`. Production deployment and Customer QR activation remain separately prohibited without their own approvals.
 
 ## 10. Responsibility matrix and release sequence
 
 ### Prerequisite engineering cycle — before rollout approval
 
-| Owner                     | Action                                                                                                                                        | Expected result                                                         | Stop condition                                                                                   | Rollback                                                  |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| Codex, with User approval | Separate Customer QR enablement, explicit Staff authorization, and UAT/Production display/seed behavior; add exact Production workflow guard. | Production-safe build configuration without UAT labels/actions.         | Any Production behavior still depends on `VITE_CUSTOMER_QR_UAT`.                                 | Do not merge prerequisite changes; retain current `main`. |
-| Codex, with User approval | Create Production-specific rules merge and expanded Emulator tests.                                                                           | Anonymous isolation plus preserved Production order validation.         | Any anonymous access to private data or Staff lockout path.                                      | Do not deploy; revise rules/tests.                        |
-| Codex/User                | Define reviewed current-product projection procedure and Staff confirmation repricing decision.                                               | Idempotent public configuration and trusted authoritative order totals. | Procedure uses hard-coded defaults or trusts forged customer prices without explicit acceptance. | Do not execute or deploy Hosting.                         |
-| User                      | Repeat isolated UAT for prerequisite changes.                                                                                                 | Production-mode build behavior validated without touching Production.   | Any regression or unresolved security test.                                                      | Reject release candidate.                                 |
+| Owner                     | Action                                                                                                                                                                                                                  | Expected result                                                          | Stop condition                                                                                   | Rollback                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Codex, with User approval | Complete targeted hardening UAT and obtain explicit approval for Draft PR #5, which separates Customer QR enablement, Staff authorization enforcement, UAT/Production display/seed behavior, and exact workflow guards. | Approved Production-safe build configuration without UAT labels/actions. | Targeted hardening UAT or approval is incomplete, or the approved PR head differs.               | Do not merge; retain current `main`. |
+| Codex, with User approval | Create Production-specific rules merge and expanded Emulator tests.                                                                                                                                                     | Anonymous isolation plus preserved Production order validation.          | Any anonymous access to private data or Staff lockout path.                                      | Do not deploy; revise rules/tests.   |
+| Codex/User                | Define reviewed current-product projection procedure and Staff confirmation repricing decision.                                                                                                                         | Idempotent public configuration and trusted authoritative order totals.  | Procedure uses hard-coded defaults or trusts forged customer prices without explicit acceptance. | Do not execute or deploy Hosting.    |
+| User                      | Repeat isolated UAT for prerequisite changes.                                                                                                                                                                           | Production-mode build behavior validated without touching Production.    | Any regression or unresolved security test.                                                      | Reject release candidate.            |
 
 ### Production rollout sequence
 
@@ -370,7 +375,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 15. Unresolved decisions
 
-1. Approve a neutral Production Customer QR feature/environment design and removal of all UAT-only labels/actions.
+1. Complete targeted hardening Manual UAT and explicitly approve or reject Draft PR #5; do not infer Production rollout approval from that decision.
 2. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
 3. Approve the Production-specific rules merge and exact Emulator/live denial tests.
 4. Identify and approve every Production Staff UID authorization document.

@@ -124,12 +124,16 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production rollout plan review and prerequisite hardening — not yet approved**
+**Production Hardening Work Package 1 targeted UAT**
 
-Prepare:
+Current state:
 
-- Review and approve `PRODUCTION_ROLLOUT_PLAN.md`.
-- Authorize a separate prerequisite hardening cycle for Production-safe feature flags, rules, Staff authorization, projections, workflow safeguards, and price-integrity handling.
+- [x] Implement neutral, fail-closed Customer QR enablement and separate UAT display mode on `feature/production-rollout-hardening`.
+- [x] Harden the Production Hosting workflow for exact project identity and an explicitly disabled Customer QR build.
+- [x] Explicitly enable the isolated Customer QR UAT workflow and complete automated validation/deployment.
+- [ ] Complete targeted Production hardening Manual UAT.
+- [ ] Obtain explicit approval for Draft PR #5 and any merge decision.
+- [ ] Authorize a separate Production security-rules Work Package after hardening UAT.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -143,6 +147,10 @@ Prepare:
 - [x] PR #4 approved
 - [x] PR #4 changed from Draft to Ready
 - [x] PR #4 merged to `main`
+- [x] Production Hardening Work Package 1 implemented and automated-revalidated
+- [x] Production Hardening Work Package 1 deployed to isolated Customer QR UAT only
+- [ ] Production Hardening Work Package 1 targeted Manual UAT passed
+- [ ] Draft PR #5 approved and merged
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed
