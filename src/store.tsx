@@ -24,7 +24,8 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
-import { auth, customerQrUatEnabled, db, firebaseReady } from "./firebase";
+import { auth, db, firebaseReady } from "./firebase";
+import { runtimeConfig } from "./runtimeConfig";
 import {
   defaultProducts,
   mergeProducts,
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-        if (!customerQrUatEnabled || account.isAnonymous || !db) {
+        if (!runtimeConfig.customerQrEnabled || account.isAnonymous || !db) {
           setUser({
             uid: account.uid,
             email: account.email ?? "",
@@ -245,7 +246,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         );
       },
     );
-    const stopCustomerRequests = customerQrUatEnabled
+    const stopCustomerRequests = runtimeConfig.customerQrEnabled
       ? onSnapshot(collection(db, "customerOrderRequests"), (snapshot) => {
           setCustomerRequests(
             snapshot.docs
@@ -385,7 +386,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (db) {
       const batch = writeBatch(db);
       batch.set(doc(db, "products", normalized.id), normalized);
-      if (customerQrUatEnabled)
+      if (runtimeConfig.customerQrEnabled)
         batch.set(
           doc(db, "publicMenu", normalized.id),
           toCustomerPublicProduct(normalized),
@@ -409,7 +410,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       };
       const batch = writeBatch(db);
       batch.set(doc(db, "settings", "toppingAvailability"), data, options);
-      if (customerQrUatEnabled)
+      if (runtimeConfig.customerQrEnabled)
         batch.set(
           doc(db, "publicSettings", "toppingAvailability"),
           data,

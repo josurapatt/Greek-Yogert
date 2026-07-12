@@ -12,6 +12,7 @@ import {
 import { toppings } from "../data";
 import { customerStorefrontChannel } from "../customerOrder";
 import { useCustomer } from "../customerFirebase";
+import { runtimeConfig } from "../runtimeConfig";
 import type { CartItem, Product } from "../types";
 
 export default function CustomerOrderPage() {
@@ -78,7 +79,9 @@ export default function CustomerOrderPage() {
   return (
     <main className="customer-page">
       <header>
-        <span className="demo-pill">โหมดทดลอง</span>
+        {runtimeConfig.isCustomerQrUat && (
+          <span className="demo-pill">โหมดทดลอง</span>
+        )}
         <h1>สั่ง Greek &amp; More</h1>
         <p>คำสั่งซื้อจะรอร้านยืนยันก่อนรับเลขคิว</p>
       </header>

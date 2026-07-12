@@ -5,6 +5,7 @@ import OrderItemSummary from "../components/OrderItemSummary";
 import { formatThaiDateTime, money } from "../lib";
 import { db } from "../firebase";
 import { useCustomer } from "../customerFirebase";
+import { runtimeConfig } from "../runtimeConfig";
 import type { CustomerOrderRequest } from "../types";
 
 export default function CustomerStatusPage() {
@@ -51,7 +52,9 @@ export default function CustomerStatusPage() {
     );
   return (
     <main className="customer-page">
-      <span className="demo-pill">โหมดทดลอง</span>
+      {runtimeConfig.isCustomerQrUat && (
+        <span className="demo-pill">โหมดทดลอง</span>
+      )}
       <h1>{request.status}</h1>
       {request.queueNumber ? (
         <p>

@@ -10,6 +10,7 @@ import {
 import {
   isCustomerRoute,
   orderDetailBackPath,
+  shouldShowCustomerUnavailable,
   shouldUseCustomerOrdering,
   staffOrderPath,
 } from "./routes";
@@ -81,6 +82,28 @@ describe("staff route boundaries", () => {
         isAnonymous: false,
       }),
     ).toBe(true);
+  });
+  it("blocks anonymous ordering and every status route when Customer QR is disabled", () => {
+    expect(shouldUseCustomerOrdering("/order", false, null)).toBe(false);
+    expect(shouldShowCustomerUnavailable("/order", false, null)).toBe(true);
+    expect(
+      shouldShowCustomerUnavailable("/order", false, {
+        isAnonymous: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowCustomerUnavailable("/order/status/request-1", false, {
+        isAnonymous: false,
+      }),
+    ).toBe(true);
+  });
+  it("preserves authenticated Staff ordering when Customer QR is disabled", () => {
+    const staff = { isAnonymous: false };
+    expect(shouldUseCustomerOrdering(staffOrderPath, false, staff)).toBe(false);
+    expect(shouldShowCustomerUnavailable(staffOrderPath, false, staff)).toBe(
+      false,
+    );
+    expect(shouldShowCustomerUnavailable("/queue", false, staff)).toBe(false);
   });
   it("opens a queue card on the staff detail route, never the customer order route", () => {
     render(
