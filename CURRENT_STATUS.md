@@ -5,13 +5,13 @@ This document is the latest operational snapshot, not a changelog. Git history i
 ## Status Metadata
 
 - Last verified date: 2026-07-12 (Asia/Bangkok)
-- Verified by: Codex, using the local repository and GitHub CLI
+- Verified by: Codex, using the local repository and portable GitHub CLI
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Branch: `feature/customer-qr-ordering-foundation`
-- Verified implementation baseline HEAD: `bef73239cafc49a5aaa29775ddd51aad8492405a`
-- Working tree at verification: Clean
-- Remote synchronization at verification: Local HEAD and `origin/feature/customer-qr-ordering-foundation` matched; ahead 0, behind 0
-- Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the baseline above. Verify actual HEAD with Git before relying on it.
+- Verified implementation baseline HEAD: `39b76f1fa8ad5054f98966ae4d05769c10445381`
+- Working tree after implementation push: Clean
+- Remote synchronization after implementation push: Local implementation HEAD and `origin/feature/customer-qr-ordering-foundation` matched; ahead 0, behind 0
+- Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the implementation baseline above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
 
@@ -19,68 +19,73 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - State: Open and unmerged
 - Draft status: Draft
 - Merge status: GitHub reported `CLEAN`; this is not merge approval
-- Checks: Customer QR UAT check succeeded on `bef7323`; two unrelated preview checks were skipped
+- Latest Customer QR UAT check: Passed for implementation commit `39b76f1`
 
 ## Latest Completed Work
 
-- Documentation governance foundation commit `42508eb9baab3dfd0c3900c10210e894eef0ab92` exists on the branch.
-- Work Package 1 implementation commit `bef73239cafc49a5aaa29775ddd51aad8492405a` exists locally and on the PR branch.
-- Work Package 1 implemented packaging snapshots, packaging availability, channel surcharge pricing, per-line packaging choice, global and per-product controls, channel repricing, mixed-payment reporting, Customer QR request/confirmation persistence, operational displays, Excel compatibility, and legacy handling.
-- Implementation scope is supported by the branch commit and the latest completion report. Feature behavior was not manually re-tested during this documentation-only task.
+- Work Package 1 implementation exists on the PR branch.
+- Manual UAT reported four defects: the product editor remained open after save, Customer QR cart lines could not be modified, global separated-packaging availability was not clearly exposed, and Customer QR could retain stale per-product packaging support.
+- Stabilization commit `39b76f1fa8ad5054f98966ae4d05769c10445381` fixes all four defects in code.
+- Product and public-menu updates now use one atomic Firestore batch, and public projections omit undefined optional fields.
+- Product editing now closes only after successful persistence, remains open with an error on failure, and prevents duplicate save actions while saving.
+- Customer QR cart lines now support quantity increase/decrease, configuration editing, packaging changes, and removal before explicit submission.
+- The existing global separated-packaging setting is clearly reachable from Products and the Staff home page and continues to preserve per-product values.
+- Customer submission re-reads the latest public product and availability configuration and blocks stale invalid packaging without silently changing it.
 
-## Latest Validation
+## Latest Automated Validation
 
-The following results are retained from the latest completion report and were **not re-run during this documentation task**:
+Validation was run locally against implementation commit content before commit and also exercised by the isolated UAT workflow where applicable:
 
-- Application tests: 124 passed
-- Firestore Emulator tests: 10 passed
-- Lint: Passed without warnings
+- Application tests: 129 passed across 11 test files
+- Firestore Emulator security tests: 10 passed
+- Lint: Passed
 - TypeScript production build: Passed
-- Prettier: Passed for new and feature-related files
-- Workflow validation: No workflow changes; safeguarded UAT workflow passed
-- Diff scan: Passed
+- Prettier: Passed for every changed and new implementation file using pinned Prettier 3.6.2
+- Focused diff scan: Passed; no workflow, Production Firebase configuration, Firestore rule, or index changes
 - Secret scan: Passed
-
-Independently verified now from GitHub: workflow `29179396233` completed successfully on `bef73239cafc49a5aaa29775ddd51aad8492405a`. The workflow ran application tests, lint, the isolated UAT build, and the isolated UAT deployment. Exact local test counts were not independently re-run in this task.
+- Workflow: [29181186525](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181186525) completed successfully for `39b76f1fa8ad5054f98966ae4d05769c10445381`
 
 ## Deployment Status
 
 ### Customer QR UAT
 
 - Firebase project: `greek-yogert-customer-uat-2026`
-- Deployment status: Latest safeguarded UAT workflow succeeded
-- Latest workflow run: [29179396233](https://github.com/josurapatt/Greek-Yogert/actions/runs/29179396233)
-- UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/>
-- UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order>
+- Deployment status: Safeguarded isolated UAT workflow succeeded
+- Latest workflow run: [29181186525](https://github.com/josurapatt/Greek-Yogert/actions/runs/29181186525)
+- Workflow target safeguard: Build and deployment both require the exact project ID `greek-yogert-customer-uat-2026`
+- UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/> — HTTP 200 verified
+- UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
 
 ### Production
 
 - Firebase project: `greek-yogert`
-- Production changes: None reported; no Production configuration change is part of the verified implementation commit
-- Production deployment status: Not approved and not performed for Customer QR Ordering
+- Production impact: None
+- Production configuration, Authentication, Firestore rules, indexes, data, and Hosting were not modified
+- Production deployment: Not approved and not performed
 
 ## Manual UAT
 
-- Status: **Pending**
-- Scope still pending: Final PR #4 regression, including Staff and Customer routes, channel selection, packaging choice and availability, surcharge pricing, payment/channel reports, legacy data, Customer Requests, Queue, History, status, and Excel
-- Last verified manual result: No completed manual regression result has been provided
+- Overall status: **Pending**
+- Previously reported as passed: initial UAT smoke/routing, channel surcharge and repricing, Customer QR end-to-end flow overall, quick and per-line payment confirmation, Queue and History, Reports, and legacy compatibility
+- User-reported defects: Fixed in code and automated-validated; targeted manual retest remains pending
+- Targeted retest required: product save dialog behavior; Customer cart quantity/edit/remove; global packaging disable/re-enable; per-product support synchronization; refreshed and stale-cart submission behavior; Staff packaging regression; Customer Storefront pricing
+- Excel manual validation: Pending and intentionally deferred until after the targeted defect retest
+- Previously passed areas were not claimed as manually revalidated during this automated stabilization task
 
-## Known Bugs
+## Known Bugs and Blockers
 
-- None recorded from verified evidence
-
-## Blockers
-
-- No implementation blocker recorded
-- No documentation-publication blocker recorded; documentation-only commits must suppress pull-request workflows when the current task prohibits deployment
+- No remaining implementation blocker is known for the four reported defects
+- The four fixes are not manually passed until the user completes the targeted retest
+- Excel export manual validation remains pending
 
 ## Immediate Next Action
 
-- Complete and document final manual regression UAT for PR #4.
+- Run the targeted Manual UAT defect retest, then complete the separate Excel export validation.
 
 ## Release Status
 
 - PR #4 approval: Not approved
+- PR #4 Draft-to-Ready transition: Not approved
 - Merge to `main`: Not approved
 - Production rollout: Not approved
 - Production Anonymous Authentication: Not approved
@@ -88,7 +93,6 @@ Independently verified now from GitHub: workflow `29179396233` completed success
 
 ## Documentation Consistency
 
-- `AGENTS.md`: Defines stable operating, safety, validation, and documentation-governance rules
-- `ROADMAP.md`: Defines direction, completed capabilities, active work, future areas, and release gates without volatile SHA or test-count claims
-- `CURRENT_STATUS.md`: Defines the latest verified operational snapshot and evidence distinctions
-- Known documentation mismatches corrected: Removed stale roadmap HEAD `cd95e30`; replaced stale fixed test counts with a pointer to this snapshot; recorded Work Package 1 as implemented while preserving Manual UAT and all release approvals as pending
+- `AGENTS.md`: Unchanged; no missing stable governance rule was discovered
+- `ROADMAP.md`: Records the completed stabilization/fix cycle while preserving targeted Manual UAT, Excel validation, PR approval, merge, and release as pending
+- `CURRENT_STATUS.md`: Distinguishes reported defects, implemented fixes, automated validation, deployment, and pending manual acceptance

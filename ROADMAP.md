@@ -108,16 +108,25 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 
 - [x] Automated application, security, formatting, build, diff, and secret validation completed for the latest implementation
 - [x] Isolated UAT deployment: passed
+- [x] Four defects identified during Work Package 1 Manual UAT
+- [x] Stabilization/fix cycle implemented, automated-revalidated, and redeployed to isolated UAT
+- [ ] Targeted Manual UAT defect retest: Pending
+- [ ] Excel export manual validation: Pending
 - [ ] Final manual regression UAT: Pending
 
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Final manual regression UAT for PR #4, including Work Package 1**
+**Targeted Work Package 1 defect retest, followed by Excel validation and final manual regression UAT for PR #4**
 
 Validate:
 
+- Product editor closes only after a successful save and preserves failure retry behavior.
+- Customer cart quantity, line editing, packaging/options, recalculation, and removal work before submission.
+- Global and per-product separated-packaging disable/re-enable behavior stays consistent across Staff and Customer QR.
+- Refreshed Customer configuration and stale cart submission use the latest effective availability rule.
+- Customer QR remains Storefront-only and separated-packaging surcharge-free.
 - Authenticated Staff `/order` opens Staff ordering.
 - Anonymous `/order` opens Customer QR ordering.
 - Staff channel selection remains functional.
@@ -126,13 +135,16 @@ Validate:
 - The hourly stacked chart is correct.
 - Mixed-payment orders are not double counted.
 - Legacy data remains readable.
-- Existing Queue, History, Customer Request, and Excel flows remain functional.
+- Existing Queue, History, and Customer Request flows remain functional.
 - Packaging choice, availability, channel surcharge, snapshots, and payment-method totals remain correct.
+- Complete Excel export manual validation as the separate final pending step.
 
 ## 6. Release Gates
 
 - [ ] Final manual regression UAT passed
-- [ ] Any UAT defects fixed and revalidated
+- [x] Reported Work Package 1 UAT defects fixed and automated-revalidated
+- [ ] Targeted Manual UAT defect retest passed
+- [ ] Excel export manual validation passed
 - [ ] PR #4 approved
 - [ ] PR #4 changed from Draft to Ready if required
 - [ ] PR #4 merged to `main`
