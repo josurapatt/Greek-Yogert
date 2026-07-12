@@ -12,7 +12,7 @@ Goals:
 - Keep Production, UAT, staff, and customer flows strictly separated.
 - Prefer focused implementation over redesign.
 
-Agents must read this file and the root-level `ROADMAP.md` before inspecting or modifying the repository.
+Agents must read this file, the root-level `CURRENT_STATUS.md`, and the root-level `ROADMAP.md` before inspecting or modifying the repository.
 
 ### Instruction hierarchy and required reading order
 
@@ -20,19 +20,23 @@ Use this authority order:
 
 1. Explicit user instruction in the current task.
 2. `AGENTS.md`.
-3. `ROADMAP.md`.
-4. Existing code and project documentation.
+3. `CURRENT_STATUS.md`.
+4. `ROADMAP.md`.
+5. Existing code and project documentation.
 
-If these sources conflict, stop and report the conflict instead of guessing.
+If these sources or the actual repository and connected GitHub state conflict materially, stop and report the conflict instead of guessing. Do not perform implementation work until the conflict is resolved.
 
 Before any analysis or implementation:
 
 1. Read `AGENTS.md` completely.
-2. Read the root-level `ROADMAP.md` completely.
-3. Inspect only the files needed for the current task.
-4. Verify the repository, branch, HEAD, and working-tree state.
+2. Read the root-level `CURRENT_STATUS.md` completely.
+3. Read the root-level `ROADMAP.md` completely.
+4. Inspect only the files needed for the current task.
+5. Verify the repository, branch, HEAD, working tree, remote synchronization, and applicable PR state.
 
-The current task prompt defines the work to perform now. `ROADMAP.md` records current project status and direction, but does not authorize implementation by itself.
+The current task prompt defines the work to perform now. `CURRENT_STATUS.md` records the latest verified operational snapshot. `ROADMAP.md` records project direction and high-level progress. Neither status nor roadmap content authorizes implementation by itself.
+
+The actual repository and connected GitHub state are authoritative for factual Git and PR state. They do not imply Manual UAT, business acceptance, PR approval, Production approval, or feature priority; those decisions remain user-controlled.
 
 ---
 
@@ -183,6 +187,20 @@ Rules:
 - Edit `ROADMAP.md` only when the current task explicitly requests a roadmap update, or when the current task explicitly authorizes synchronized documentation updates for implementation that materially changes roadmap status.
 - For normal micro tasks, report the suggested roadmap impact in the completion report without editing `ROADMAP.md`.
 - The user remains the authority for prioritization, phase approval, and release approval.
+
+### Current-status governance
+
+`CURRENT_STATUS.md` is the current operational snapshot, not a changelog. Git history remains the source for historical changes.
+
+- Verify repository and GitHub facts before relying on the snapshot. If it is stale, update it only with verified facts.
+- Update `CURRENT_STATUS.md` after work that materially changes branch HEAD, PR state, validation state, deployment state, UAT state, blockers, or the immediate next action.
+- Normal micro tasks update `CURRENT_STATUS.md` only when the operational snapshot materially changes.
+- Do not mark Manual UAT passed without explicit verified evidence.
+- Do not mark PR approval, merge approval, Production approval, or release approval without explicit user authorization.
+- `ROADMAP.md` changes only when a phase, capability, priority, release gate, or high-level direction changes.
+- Completion reports must state whether `CURRENT_STATUS.md` and `ROADMAP.md` were updated or intentionally left unchanged.
+- Status documents must not contain secrets, credentials, private UIDs, passwords, or service-account JSON.
+- A status-only commit necessarily follows the HEAD it records. Record the verified implementation baseline and require agents to verify the actual current HEAD rather than trying to embed a commit hash that contains itself.
 
 ---
 
@@ -591,18 +609,20 @@ When blocked:
 For every task:
 
 1. Read this file.
-2. Read the root-level `ROADMAP.md`.
-3. Inspect only files relevant to the task.
-4. Verify repository state, branch, current head, and working tree.
-5. Confirm that the task prompt, `AGENTS.md`, and `ROADMAP.md` do not conflict.
-6. Preserve existing architecture and invariants.
-7. Make the smallest safe change authorized by the current task.
-8. Run validation appropriate to the change.
-9. Review the diff for scope creep and secret exposure.
-10. Commit only when repository files changed.
-11. Push only to the requested feature branch.
-12. Do not merge or deploy unless explicitly requested.
-13. Return a brief completion report, including suggested roadmap impact when applicable.
+2. Read the root-level `CURRENT_STATUS.md`.
+3. Read the root-level `ROADMAP.md`.
+4. Inspect only files relevant to the task.
+5. Verify repository state, branch, current head, working tree, remote synchronization, and applicable PR state.
+6. Confirm that the task prompt, `AGENTS.md`, `CURRENT_STATUS.md`, `ROADMAP.md`, and actual state do not conflict materially.
+7. Preserve existing architecture and invariants.
+8. Make the smallest safe change authorized by the current task.
+9. Run validation appropriate to the change.
+10. Review the diff for scope creep and secret exposure.
+11. Update current status or roadmap only under their governance rules.
+12. Commit only when repository files changed.
+13. Push only to the requested feature branch.
+14. Do not merge or deploy unless explicitly requested.
+15. Return a brief completion report stating whether `CURRENT_STATUS.md` and `ROADMAP.md` changed or were intentionally unchanged.
 
 Do not restate this entire file in task reports.
 

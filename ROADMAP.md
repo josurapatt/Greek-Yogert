@@ -32,11 +32,10 @@ Extend
 ## 3. Current Development Branch
 
 - Branch: `feature/customer-qr-ordering-foundation`
-- Latest known commit: `cd95e30df6d19b6f67a8fa417890c8a16f067bbc`
 - PR: `#4`
 - PR status: **Draft, open, unmerged**
 
-The commit value is a status snapshot. Verify the repository, branch, HEAD, working tree, and PR state before future work.
+Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
 
 ## 4. Completed Capabilities
 
@@ -96,23 +95,26 @@ The commit value is a status snapshot. Verify the repository, branch, HEAD, work
 - [x] Asia/Bangkok timezone handling
 - [x] Stable legend and responsive chart behavior
 
-### Phase 6 — Stabilization and UAT
+### Phase 6 — Work Package 1
 
-- [x] Application tests: 103 passed
-- [x] Firestore Emulator tests: 10 passed
-- [x] Lint: passed
-- [x] TypeScript production build: passed
-- [x] Prettier: passed
-- [x] Diff scan: passed
-- [x] Secret scan: passed
+- [x] Per-line normal and separated topping packaging
+- [x] Channel-based separated-packaging surcharge
+- [x] Global and per-product packaging availability
+- [x] Durable packaging snapshots and legacy compatibility
+- [x] Payment-method sales summary with mixed-payment allocation
+- [x] Customer request, Queue, History, status, and Excel compatibility
+
+### Phase 7 — Stabilization and UAT
+
+- [x] Automated application, security, formatting, build, diff, and secret validation completed for the latest implementation
 - [x] Isolated UAT deployment: passed
 - [ ] Final manual regression UAT: Pending
 
-Automated validation and an isolated UAT deployment do not constitute final release approval.
+Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Final manual regression UAT for PR #4**
+**Final manual regression UAT for PR #4, including Work Package 1**
 
 Validate:
 
@@ -125,6 +127,7 @@ Validate:
 - Mixed-payment orders are not double counted.
 - Legacy data remains readable.
 - Existing Queue, History, Customer Request, and Excel flows remain functional.
+- Packaging choice, availability, channel surcharge, snapshots, and payment-method totals remain correct.
 
 ## 6. Release Gates
 
