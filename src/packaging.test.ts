@@ -82,6 +82,15 @@ describe("topping packaging defaults and compatibility", () => {
       toCustomerPublicProduct(legacy).supportsSeparatedToppingPackaging,
     ).toBe(true);
   });
+  it("omits undefined optional fields from the public menu projection", () => {
+    const projected = toCustomerPublicProduct({
+      ...product,
+      premiumToppingIds: undefined,
+      supportsSeparatedToppingPackaging: false,
+    });
+    expect(Object.hasOwn(projected, "premiumToppingIds")).toBe(false);
+    expect(projected.supportsSeparatedToppingPackaging).toBe(false);
+  });
 });
 
 describe("channel packaging pricing", () => {
@@ -151,6 +160,28 @@ describe("packaging availability and durable snapshots", () => {
         { [separatedPackagingAvailabilityId]: false },
       ),
     ).toThrow("หมด");
+  });
+
+  it("blocks a stale customer request when current product support is disabled", () => {
+    const separated = priced("หน้าร้าน", "separated");
+    expect(() =>
+      createCustomerRequest(
+        "request",
+        "customer",
+        [separated],
+        [{ ...product, supportsSeparatedToppingPackaging: false }],
+        {},
+      ),
+    ).toThrow("ไม่รองรับ");
+
+    const request = createCustomerRequest(
+      "request",
+      "customer",
+      [separated],
+      [{ ...product, supportsSeparatedToppingPackaging: true }],
+      {},
+    );
+    expect(request.items[0].packagingSurchargePerUnit).toBe(0);
   });
 
   it("blocks forged packaging values instead of silently normalizing them", () => {

@@ -1,9 +1,14 @@
-import { ShoppingBasket } from "lucide-react";
+import { Minus, Pencil, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
 import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
-import { money, orderTotals, repriceCartItems } from "../lib";
+import {
+  applyCartItemUpdate,
+  money,
+  orderTotals,
+  repriceCartItems,
+} from "../lib";
 import { toppings } from "../data";
 import { customerStorefrontChannel } from "../customerOrder";
 import { useCustomer } from "../customerFirebase";
@@ -14,6 +19,7 @@ export default function CustomerOrderPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<CartItem[]>([]);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -27,7 +33,26 @@ export default function CustomerOrderPage() {
   );
   const invalid = priced.find((item) => item.validationError);
   const totals = orderTotals(priced);
-  const add = (item: CartItem) => setItems((rows) => [...rows, item]);
+  const updateQuantity = (id: string, quantity: number) =>
+    setItems((rows) =>
+      rows.map((item) =>
+        item.id === id
+          ? applyCartItemUpdate(item, { quantity: Math.max(1, quantity) })
+          : item,
+      ),
+    );
+  const remove = (id: string) =>
+    setItems((rows) => rows.filter((item) => item.id !== id));
+  const edit = (item: CartItem) => {
+    const product = products.find((entry) => entry.id === item.productId);
+    if (!product) return;
+    setEditingItem(item);
+    setSelected(product);
+  };
+  const closeEditor = () => {
+    setEditingItem(null);
+    setSelected(null);
+  };
   const send = async () => {
     try {
       setSending(true);
@@ -87,14 +112,53 @@ export default function CustomerOrderPage() {
         </h2>
         {priced.map((item) => (
           <div className="customer-cart-line" key={item.id}>
-            <p>
-              {item.productName} × {item.quantity} —{" "}
-              {money(item.lineTotal ?? item.unitPrice * item.quantity)}{" "}
-              {item.validationError && <em>{item.validationError}</em>}
-            </p>
+            <div className="customer-cart-line-heading">
+              <p>
+                <strong>{item.productName}</strong> —{" "}
+                {money(item.lineTotal ?? item.unitPrice * item.quantity)}{" "}
+                {item.validationError && <em>{item.validationError}</em>}
+              </p>
+              <div className="customer-cart-actions">
+                <button
+                  type="button"
+                  onClick={() => edit(item)}
+                  aria-label={`แก้ไข ${item.productName}`}
+                >
+                  <Pencil />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(item.id)}
+                  aria-label={`ลบ ${item.productName}`}
+                >
+                  <Trash2 />
+                </button>
+              </div>
+            </div>
             <ToppingPackagingDetails item={item} />
+            <div className="customer-cart-quantity" aria-label="จำนวนสินค้า">
+              <button
+                type="button"
+                disabled={item.quantity <= 1}
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                aria-label={`ลดจำนวน ${item.productName}`}
+              >
+                <Minus />
+              </button>
+              <b>{item.quantity}</b>
+              <button
+                type="button"
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                aria-label={`เพิ่มจำนวน ${item.productName}`}
+              >
+                <Plus />
+              </button>
+            </div>
           </div>
         ))}
+        {!priced.length && (
+          <p className="customer-cart-empty">ยังไม่มีสินค้าในตะกร้า</p>
+        )}
         <input
           value={name}
           maxLength={40}
@@ -121,11 +185,16 @@ export default function CustomerOrderPage() {
         <ProductModal
           product={selected}
           channel={customerStorefrontChannel}
+          initial={editingItem ?? undefined}
           availability={availability}
-          onClose={() => setSelected(null)}
+          onClose={closeEditor}
           onSave={(item) => {
-            add(item);
-            setSelected(null);
+            setItems((rows) =>
+              editingItem
+                ? rows.map((row) => (row.id === editingItem.id ? item : row))
+                : [...rows, item],
+            );
+            closeEditor();
           }}
         />
       )}

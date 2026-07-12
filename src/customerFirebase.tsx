@@ -7,7 +7,14 @@ import {
   type ReactNode,
 } from "react";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  setDoc,
+} from "firebase/firestore";
 import { defaultProducts, mergeProducts } from "./data";
 import { toFirestoreData } from "./firestoreData";
 import { customerQrUatEnabled, auth, db, firebaseReady } from "./firebase";
@@ -75,6 +82,23 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     input: { customerName?: string; customerNote?: string },
   ) => {
     if (!uid) throw new Error("กำลังเชื่อมต่อระบบ กรุณาลองใหม่");
+    let latestProducts = products;
+    let latestAvailability = availability;
+    if (db) {
+      const [menuSnapshot, availabilitySnapshot] = await Promise.all([
+        getDocs(collection(db, "publicMenu")),
+        getDoc(doc(db, "publicSettings", "toppingAvailability")),
+      ]);
+      latestProducts = mergeProducts(
+        menuSnapshot.docs.map((row) => row.data() as Product),
+      );
+      latestAvailability =
+        (availabilitySnapshot.data()?.availability as
+          | ToppingAvailability
+          | undefined) ?? {};
+      setProducts(latestProducts);
+      setAvailability(latestAvailability);
+    }
     const id = db
       ? doc(collection(db, "customerOrderRequests")).id
       : crypto.randomUUID();
@@ -82,8 +106,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       id,
       uid,
       items,
-      products,
-      availability,
+      latestProducts,
+      latestAvailability,
       input,
     );
     if (db)

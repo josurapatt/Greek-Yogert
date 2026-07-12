@@ -81,6 +81,27 @@
   color: #777185;
 }
 
+.global-packaging-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: var(--lavender);
+}
+
+.global-packaging-summary div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.global-packaging-summary span {
+  color: var(--purple-dark);
+  font-size: 0.85rem;
+}
+
 .availability-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

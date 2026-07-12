@@ -1,7 +1,13 @@
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { normalizeProduct, toppings } from "../data";
-import { getChannelRules, getProductPrice, money } from "../lib";
+import {
+  getChannelRules,
+  getProductPrice,
+  money,
+  separatedPackagingAvailabilityId,
+} from "../lib";
 import { useData } from "../store";
 import type {
   ChannelGroup,
@@ -41,6 +47,8 @@ export default function ProductsPage() {
   const products = [...storedProducts];
   const [editing, setEditing] = useState<Product | null>(null);
   const [saved, setSaved] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const change = <K extends keyof Product>(key: K, value: Product[K]) =>
     setEditing((product) => (product ? { ...product, [key]: value } : product));
   const setPrice = (channel: OrderChannel, value: number) =>
@@ -74,10 +82,24 @@ export default function ProductsPage() {
     });
   const save = async () => {
     if (!editing?.name.trim() || editing.price < 0) return;
-    await saveProduct(editing);
-    setSaved(editing.id);
-    setEditing(null);
-    setTimeout(() => setSaved(""), 1800);
+    try {
+      setSaving(true);
+      setSaveError("");
+      await saveProduct(editing);
+      setSaved(editing.id);
+      setEditing(null);
+      setTimeout(() => setSaved(""), 1800);
+    } catch (cause) {
+      setSaveError(
+        cause instanceof Error ? cause.message : "บันทึกสินค้าไม่สำเร็จ",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+  const openEditor = (product: Product) => {
+    setSaveError("");
+    setEditing(normalizeProduct(product));
   };
 
   return (
@@ -93,6 +115,19 @@ export default function ProductsPage() {
         </button>
       </div>
       <section className="availability-panel">
+        <div className="global-packaging-summary">
+          <div>
+            <strong>แยกท็อปปิ้งสำหรับทุกสินค้า</strong>
+            <span>
+              {toppingAvailability[separatedPackagingAvailabilityId] !== false
+                ? "เปิดใช้งาน"
+                : "หมด"}
+            </span>
+          </div>
+          <Link className="secondary" to="/settings">
+            ตั้งค่ารวม
+          </Link>
+        </div>
         <div className="section-heading">
           <h2>สถานะท็อปปิ้งและรสชาติ</h2>
           <p>ใช้ร่วมกันทุกช่องทาง รายการเดิมที่ยังไม่มีสถานะถือว่าเปิดขาย</p>
@@ -161,10 +196,7 @@ export default function ProductsPage() {
                 />
                 <span />
               </label>
-              <button
-                className="secondary"
-                onClick={() => setEditing(normalizeProduct(product))}
-              >
+              <button className="secondary" onClick={() => openEditor(product)}>
                 แก้ไข
               </button>
             </article>
@@ -517,15 +549,21 @@ export default function ProductsPage() {
                     </fieldset>
                   </>
                 )}
+                {saveError && <p className="validation">{saveError}</p>}
                 <div className="modal-footer">
                   <button
                     className="secondary"
+                    disabled={saving}
                     onClick={() => setEditing(null)}
                   >
                     ยกเลิก
                   </button>
-                  <button className="primary" onClick={() => void save()}>
-                    <Save /> บันทึกสินค้า
+                  <button
+                    className="primary"
+                    disabled={saving}
+                    onClick={() => void save()}
+                  >
+                    <Save /> {saving ? "กำลังบันทึก…" : "บันทึกสินค้า"}
                   </button>
                 </div>
               </section>

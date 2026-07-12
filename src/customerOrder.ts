@@ -68,7 +68,9 @@ export function toCustomerPublicProduct(product: Product): Product {
     includedToppings: product.includedToppings,
     granolaOptions: product.granolaOptions,
     availableToppingIds: product.availableToppingIds,
-    premiumToppingIds: product.premiumToppingIds,
+    ...(product.premiumToppingIds
+      ? { premiumToppingIds: product.premiumToppingIds }
+      : {}),
     premiumIncludedSurcharge: product.premiumIncludedSurcharge,
     extraNormalPrice: product.extraNormalPrice,
     extraPremiumPrice: product.extraPremiumPrice,
