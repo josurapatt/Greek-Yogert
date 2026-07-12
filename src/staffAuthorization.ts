@@ -10,4 +10,4 @@ export function isAuthorizedStaffDocument(
 }
 
 export const unauthorizedStaffMessage =
-  "บัญชีนี้ยังไม่ได้รับสิทธิ์พนักงานสำหรับระบบทดลอง";
+  "บัญชีนี้ยังไม่ได้รับสิทธิ์พนักงานสำหรับระบบนี้";

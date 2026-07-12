@@ -17,6 +17,7 @@ import {
 import type { CustomerOrderRequest, StaffPaymentMethod } from "../types";
 import { pendingCustomerRequests } from "../customerRequests";
 import OrderItemSummary from "../components/OrderItemSummary";
+import { runtimeConfig } from "../runtimeConfig";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
@@ -95,17 +96,23 @@ export default function CustomerRequestsPage() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Customer QR Demo/UAT</p>
+          <p className="eyebrow">
+            {runtimeConfig.isCustomerQrUat
+              ? "Customer QR Demo/UAT"
+              : "Customer QR"}
+          </p>
           <h1>คำขอจากลูกค้า</h1>
           <p>คำขอจะได้รับเลขคิวเมื่อร้านยืนยันเท่านั้น</p>
         </div>
-        <button
-          className="secondary"
-          disabled={busy === "seed"}
-          onClick={() => void seed()}
-        >
-          Seed เมนู UAT
-        </button>
+        {runtimeConfig.isCustomerQrUat && (
+          <button
+            className="secondary"
+            disabled={busy === "seed"}
+            onClick={() => void seed()}
+          >
+            Seed เมนู UAT
+          </button>
+        )}
       </div>
       {message && <p className="notice">{message}</p>}
       {!pending.length ? (

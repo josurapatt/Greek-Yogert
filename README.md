@@ -38,6 +38,19 @@ pnpm install
 pnpm dev
 ```
 
+Customer QR Ordering ใช้ค่าคอนฟิกแบบ fail-closed สองค่าใน `.env.local`:
+
+```text
+VITE_APP_ENVIRONMENT=local
+VITE_CUSTOMER_QR_ENABLED=false
+```
+
+- Local development: ต้องกำหนด `local` และเลือก `true` หรือ `false` อย่างชัดเจน ค่าที่หายไปหรือไม่ถูกต้องจะปิด Customer QR
+- Customer QR UAT: workflow กำหนด `customer-qr-uat` และ `true` อย่างชัดเจน พร้อมใช้ Firebase configuration ของ UAT
+- Production: workflow กำหนด `production` และ `false`; การเปิดใช้งานในอนาคตต้องผ่านการอนุมัติ Production แยกต่างหาก
+
+ห้าม commit `.env.local` หรือ Firebase credentials จริง
+
 เปิด URL ที่ Vite แสดง หากยังไม่มี `.env.local` ระบบจะเข้าโหมดทดลองและเก็บข้อมูลใน `localStorage` ใช้ `shop@example.com` / `123456` เพื่อทดลองได้ โหมดนี้ไม่ซิงก์ข้ามอุปกรณ์และไม่ควรใช้เป็นฐานข้อมูลร้านจริง
 
 ตรวจสอบก่อนส่งขึ้นระบบ:

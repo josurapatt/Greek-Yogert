@@ -17,7 +17,8 @@ import {
 } from "firebase/firestore";
 import { defaultProducts, mergeProducts } from "./data";
 import { toFirestoreData } from "./firestoreData";
-import { customerQrUatEnabled, auth, db, firebaseReady } from "./firebase";
+import { auth, db, firebaseReady } from "./firebase";
+import { runtimeConfig } from "./runtimeConfig";
 import { createCustomerRequest } from "./customerOrder";
 import type {
   CartItem,
@@ -38,7 +39,20 @@ interface CustomerValue {
 }
 const CustomerContext = createContext<CustomerValue | null>(null);
 
-export function CustomerProvider({ children }: { children: ReactNode }) {
+export function shouldInitializeCustomerFirebase(
+  enabled: boolean,
+  hasAuth: boolean,
+): boolean {
+  return enabled && hasAuth;
+}
+
+export function CustomerProvider({
+  children,
+  enabled = runtimeConfig.customerQrEnabled,
+}: {
+  children: ReactNode;
+  enabled?: boolean;
+}) {
   const [uid, setUid] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>(() =>
     firebaseReady ? [] : defaultProducts,
@@ -46,7 +60,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const [availability, setAvailability] = useState<ToppingAvailability>({});
   const [loading, setLoading] = useState(Boolean(firebaseReady));
   useEffect(() => {
-    if (!customerQrUatEnabled || !auth) {
+    if (!shouldInitializeCustomerFirebase(enabled, Boolean(auth)) || !auth) {
       setLoading(false);
       return;
     }
@@ -56,7 +70,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       } else if (auth) void signInAnonymously(auth);
     });
-  }, []);
+  }, [enabled]);
   useEffect(() => {
     if (!db || !uid) return;
     const stopMenu = onSnapshot(collection(db, "publicMenu"), (snapshot) =>
