@@ -118,19 +118,20 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Final targeted Products-page toggle UX retest: Passed
 - [x] Final manual regression UAT: Passed
 - [x] PR #4 squash-merged into `main`
+- [x] Production rollout plan drafted and verified; approval pending
 
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Production rollout planning — not yet approved**
+**Production rollout plan review and prerequisite hardening — not yet approved**
 
 Prepare:
 
-- Define the approved Production deployment scope before running any workflow.
-- Decide whether Production Authentication will change; Anonymous Authentication remains unapproved.
-- Review Production Firestore rules/index scope separately from Hosting.
-- Keep Production deployment, smoke testing, and monitoring pending until explicitly approved.
+- Review and approve `PRODUCTION_ROLLOUT_PLAN.md`.
+- Authorize a separate prerequisite hardening cycle for Production-safe feature flags, rules, Staff authorization, projections, workflow safeguards, and price-integrity handling.
+- Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
+- Keep every Production change pending until explicitly approved.
 
 ## 6. Release Gates
 

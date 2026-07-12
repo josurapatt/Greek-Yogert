@@ -82,16 +82,18 @@ Validation was run locally against implementation commit content before commit a
 ## Known Bugs and Blockers
 
 - No known remaining UAT bugs or implementation blockers
+- Production rollout is blocked pending approval and completion of the prerequisite hardening recorded in `PRODUCTION_ROLLOUT_PLAN.md`: Production-safe feature/environment separation, exact project workflow guard, Production-specific rules, Staff authorization bootstrap, current-product public projection, and customer price revalidation/risk decision.
 
 ## Immediate Next Action
 
-- Plan the Production rollout as a separate approval-controlled task, including explicit Authentication and Firestore scope decisions before any deployment.
+- Review and approve `PRODUCTION_ROLLOUT_PLAN.md`, then separately authorize the prerequisite hardening cycle. Production remains No-Go until all independent approval gates are complete.
 
 ## Release Status
 
 - PR #4 approval: Approved by the user for review/merge decision
 - PR #4 Draft-to-Ready transition: Approved and completed
 - Merge to `main`: Completed by squash merge
+- Production rollout plan: Drafted and verified; not approved
 - Production rollout: Not approved
 - Production Anonymous Authentication: Not approved
 - Production Firestore deployment: Not approved
@@ -99,5 +101,6 @@ Validation was run locally against implementation commit content before commit a
 ## Documentation Consistency
 
 - `AGENTS.md`: Unchanged; no missing stable governance rule was discovered
+- `PRODUCTION_ROLLOUT_PLAN.md`: Defines the verified prerequisites, approvals, sequence, smoke test, rollback, and risks for a future Production release
 - `ROADMAP.md`: Records PR #4 as merged while preserving every Production release gate as pending
 - `CURRENT_STATUS.md`: Records the approved PR checkpoint, squash merge, completed UAT, and unchanged Production status
