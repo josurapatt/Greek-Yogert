@@ -19,7 +19,7 @@ Extend
 
 - Firebase project: `greek-yogert`
 - Production URL: <https://greek-yogert.firebaseapp.com/>
-- Customer QR changes are not merged or deployed to Production.
+- Customer QR changes are merged into `main` but are not deployed to Production.
 
 ### Isolated Customer QR UAT
 
@@ -29,11 +29,13 @@ Extend
 - UAT uses Email/Password Authentication for Staff and Anonymous Authentication for customers.
 - Production Authentication and other Production resources remain untouched.
 
-## 3. Current Development Branch
+## 3. Current Integration State
 
-- Branch: `feature/customer-qr-ordering-foundation`
+- Integrated branch: `main`
+- Squash-merge commit: `4bd879e7d0f5e5aff85ad675103d74700780e347`
+- Retained feature branch: `feature/customer-qr-ordering-foundation`
 - PR: `#4`
-- PR status: **Draft, open, unmerged**
+- PR status: **Merged and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
 
@@ -115,18 +117,20 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Products-page inline global-toggle adjustment implemented and deployed to isolated UAT
 - [x] Final targeted Products-page toggle UX retest: Passed
 - [x] Final manual regression UAT: Passed
+- [x] PR #4 squash-merged into `main`
 
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Release preparation and PR #4 merge decision**
+**Production rollout planning — not yet approved**
 
 Prepare:
 
-- Preserve the approved PR head checkpoint and required checks before any merge.
-- Decide whether to merge PR #4 into `main` in a separately authorized operation.
-- Keep Production rollout, Authentication, Firestore deployment, smoke testing, and monitoring pending until explicitly approved.
+- Define the approved Production deployment scope before running any workflow.
+- Decide whether Production Authentication will change; Anonymous Authentication remains unapproved.
+- Review Production Firestore rules/index scope separately from Hosting.
+- Keep Production deployment, smoke testing, and monitoring pending until explicitly approved.
 
 ## 6. Release Gates
 
@@ -137,7 +141,7 @@ Prepare:
 - [x] Final targeted Products-page toggle UX retest passed
 - [x] PR #4 approved
 - [x] PR #4 changed from Draft to Ready
-- [ ] PR #4 merged to `main`
+- [x] PR #4 merged to `main`
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed
@@ -170,7 +174,6 @@ No speculative technologies, Cloud Functions, paid Firebase plans, or major rewr
 ## 9. Permanent Restrictions
 
 - Do not modify `main` without explicit instruction.
-- Do not merge PR #4 without explicit approval.
 - Do not deploy Customer QR Ordering to Production without explicit approval.
 - Do not enable Anonymous Authentication in Production automatically.
 - Do not modify Production Firestore rules, indexes, Authentication, or data without explicit approval.

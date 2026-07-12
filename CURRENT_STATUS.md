@@ -7,19 +7,21 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Last verified date: 2026-07-12 (Asia/Bangkok)
 - Verified by: Codex, using the local repository and portable GitHub CLI
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Branch: `feature/customer-qr-ordering-foundation`
-- Verified implementation baseline HEAD: `de5478fff3fa2c938bdf2d390ada7633f39a660c`
-- User-approved PR head before final status commit: `f65a273cf1b4179974d9537cf88a015f8f6c7406`
-- Working tree after implementation push: Clean
-- Remote synchronization after implementation push: Local implementation HEAD and `origin/feature/customer-qr-ordering-foundation` matched; ahead 0, behind 0
-- Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the implementation baseline above. Verify actual HEAD with Git before relying on it.
+- Current branch: `main`
+- Verified squash-merge commit on `main`: `4bd879e7d0f5e5aff85ad675103d74700780e347`
+- Approved PR head before merge: `52662b84fe7427e56004397a8ab5acca378c637f`
+- Retained feature branch: `feature/customer-qr-ordering-foundation` at `52662b84fe7427e56004397a8ab5acca378c637f`
+- Working tree after merge verification: Clean
+- Remote synchronization after merge verification: Local `main` and `origin/main` matched; ahead 0, behind 0
+- Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the merge commit above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
 
 - PR: [#4 — Add customer QR ordering UAT foundation](https://github.com/josurapatt/Greek-Yogert/pull/4)
-- State: Open and unmerged
-- Review status: Ready for review
-- Merge status: GitHub reported `CLEAN`; this is not merge approval
+- State: Merged and closed
+- Final review status before merge: Ready for review and user-approved
+- Merge method: Squash merge
+- Resulting `main` commit: `4bd879e7d0f5e5aff85ad675103d74700780e347`
 - Latest Customer QR UAT check: Passed for implementation commit `de5478f`
 
 ## Latest Completed Work
@@ -35,6 +37,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Customer QR cart lines now support quantity increase/decrease, configuration editing, packaging changes, and removal before explicit submission.
 - The existing global separated-packaging setting is directly editable on Products and remains available in Settings through the same shared state and persistence function.
 - Customer submission re-reads the latest public product and availability configuration and blocks stale invalid packaging without silently changing it.
+- PR #4 was squash-merged into `main` as `4bd879e7d0f5e5aff85ad675103d74700780e347`; the resulting tree exactly matched the approved PR head.
 
 ## Latest Automated Validation
 
@@ -82,13 +85,13 @@ Validation was run locally against implementation commit content before commit a
 
 ## Immediate Next Action
 
-- Prepare the release decision and decide whether to merge PR #4. Production rollout remains a separate unapproved action.
+- Plan the Production rollout as a separate approval-controlled task, including explicit Authentication and Firestore scope decisions before any deployment.
 
 ## Release Status
 
 - PR #4 approval: Approved by the user for review/merge decision
 - PR #4 Draft-to-Ready transition: Approved and completed
-- Merge to `main`: Not approved
+- Merge to `main`: Completed by squash merge
 - Production rollout: Not approved
 - Production Anonymous Authentication: Not approved
 - Production Firestore deployment: Not approved
@@ -96,5 +99,5 @@ Validation was run locally against implementation commit content before commit a
 ## Documentation Consistency
 
 - `AGENTS.md`: Unchanged; no missing stable governance rule was discovered
-- `ROADMAP.md`: Records final Manual UAT and PR approval while preserving merge and every Production release gate as pending
-- `CURRENT_STATUS.md`: Records the approved PR checkpoint, completed UAT, readiness state, and remaining release decisions
+- `ROADMAP.md`: Records PR #4 as merged while preserving every Production release gate as pending
+- `CURRENT_STATUS.md`: Records the approved PR checkpoint, squash merge, completed UAT, and unchanged Production status
