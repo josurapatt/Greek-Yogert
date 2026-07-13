@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project production-security-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.production.test.ts\"",
     "projection:public": "node scripts/runPublicProjection.mjs",
+    "uat:wp3": "node scripts/runWp3UatValidation.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
