@@ -15,7 +15,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Production Hardening Work Package 2 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Production Hardening Work Package 3 branch: `feature/trusted-customer-boundary`
 - Production Hardening Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
-- Production Hardening Work Package 3 latest verified implementation head: `9273113577530cfb9ce3e75c6cd50ad7b5049f60`
+- Production Hardening Work Package 3 latest verified implementation head: `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
 - Verified hardening starting commit: `36fff5fb983688bf668707efc5a983558fdcf134`
 - Production Hardening Work Package 1 implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
 - Approved PR #5 head before merge: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
@@ -24,7 +24,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Approved PR #4 head before merge: `52662b84fe7427e56004397a8ab5acca378c637f`
 - Retained feature branch: `feature/customer-qr-ordering-foundation` at `52662b84fe7427e56004397a8ab5acca378c637f`
 - Working tree before this documentation update: Clean after WP3 implementation, projection, automated UAT, defect fixes, and isolated-UAT deployment
-- Remote synchronization before this documentation update: implementation head `9273113577530cfb9ce3e75c6cd50ad7b5049f60` is pushed to `origin/feature/trusted-customer-boundary`
+- Remote synchronization before this documentation update: implementation head `2c75b197a3892712f1b11d37944359f6ad6cb3ab` is pushed to `origin/feature/trusted-customer-boundary`
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the merge commit above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
@@ -137,7 +137,7 @@ Production Hardening Work Package 3 validation:
 - Canonical Production-candidate Firestore Emulator tests: 15 passed
 - Lint, Production-disabled build, UAT-enabled build, Prettier, workflow YAML parsing, diff review, and secret scan: Passed
 - Firestore Emulator harness startup defect fixed without changing rules or assertions; the final 15-test rerun passed
-- Isolated UAT deployment: [29243389577](https://github.com/josurapatt/Greek-Yogert/actions/runs/29243389577) succeeded for `9273113577530cfb9ce3e75c6cd50ad7b5049f60`
+- Isolated UAT deployment: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420) succeeded for `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
 - Projection dry-run: [29241851162](https://github.com/josurapatt/Greek-Yogert/actions/runs/29241851162) validated 6 private products; planned 4 creates, 2 whitelist replacements, 0 stale removals, availability/control updates, and 0 dry-run writes
 - Projection apply: [29241980849](https://github.com/josurapatt/Greek-Yogert/actions/runs/29241980849) atomically committed 8 writes at fingerprint `wp3-7fc7b4c5be82c3da`
 - Projection idempotency: [29242037737](https://github.com/josurapatt/Greek-Yogert/actions/runs/29242037737) reported all 6 menu documents, availability, and control current with 0 planned writes
@@ -150,7 +150,7 @@ Production Hardening Work Package 3 validation:
 
 - Firebase project: `greek-yogert-customer-uat-2026`
 - Deployment status: Safeguarded isolated UAT workflow succeeded
-- Latest workflow run: [29243389577](https://github.com/josurapatt/Greek-Yogert/actions/runs/29243389577)
+- Latest workflow run: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420)
 - Workflow target safeguard: Build and deployment both require the exact project ID `greek-yogert-customer-uat-2026`
 - UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/> — HTTP 200 verified
 - UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
@@ -162,7 +162,7 @@ Production Hardening Work Package 3 validation:
 - WP2 UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
 - Corrected WP2 UAT workflow: [29218624822](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218624822) — succeeded
 - Corrected WP2 UAT Staff and Customer URLs: HTTP 200 verified
-- WP3 UAT workflow: [29243389577](https://github.com/josurapatt/Greek-Yogert/actions/runs/29243389577) — succeeded for implementation head `9273113577530cfb9ce3e75c6cd50ad7b5049f60`
+- WP3 UAT workflow: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420) — succeeded for implementation head `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
 - WP3 UAT projection: Applied and idempotent at `wp3-7fc7b4c5be82c3da`; writes were restricted to `publicMenu/*`, `publicSettings/toppingAvailability`, and `publicProjectionControl/current`
 
 ### Production
