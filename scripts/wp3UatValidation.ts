@@ -79,6 +79,7 @@ const users: User[] = [];
 const authorizationPaths: string[] = [];
 let validationResult: Record<string, unknown> | undefined;
 let validationFailure: unknown;
+let cleanupFailure: Error | undefined;
 let removedIdentities = 0;
 let removedAuthorizationDocuments = 0;
 
@@ -481,12 +482,13 @@ try {
     (entry) => entry.status === "rejected",
   );
   if (cleanupFailures.length)
-    throw new Error(
+    cleanupFailure = new Error(
       `UAT validation cleanup failed for ${cleanupFailures.length} temporary identities or authorization documents`,
       { cause: validationFailure },
     );
 }
 
+if (cleanupFailure) throw cleanupFailure;
 if (validationFailure) throw validationFailure;
 console.log(
   JSON.stringify({
