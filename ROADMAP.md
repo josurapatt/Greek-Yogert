@@ -147,6 +147,7 @@ Current state:
 - [x] Explicit Staff authorization checks made unconditional for Firebase-backed non-anonymous Staff sessions.
 - [x] Blank Staff authorization inventory/provisioning procedure prepared without Production access or data.
 - [x] Candidate rules deployed only to isolated Customer QR UAT and both UAT URLs verified.
+- [x] Public menu/settings identity boundary corrected and revalidated: only Anonymous Customers and exact active Staff can read candidate public resources.
 - [ ] Complete targeted WP2 Manual UAT and obtain explicit PR #6 approval before merge.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.

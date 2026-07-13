@@ -73,7 +73,7 @@ The repository, not the live Production data, was inspected for application beha
 ### Required behavior
 
 - Customer `/order` calls `signInAnonymously` and uses the Firebase Auth UID as `ownerUid`.
-- Public menu/settings reads require a signed-in account; anonymous customers satisfy that requirement.
+- Public menu/settings reads require either an Anonymous Customer session or an exact active Staff authorization; unauthorized Email/Password accounts are denied.
 - Request create/get authorization depends on matching `request.auth.uid` to `ownerUid`.
 - Customer status access depends on the same anonymous session persisting in the browser.
 - Existing Staff login remains Email/Password.

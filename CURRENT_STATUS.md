@@ -10,6 +10,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Current branch: `feature/production-security-authorization`
 - Verified WP2 starting baseline: `e8b16c8e05c30cbcc5bedebe73a96966a56b5ff8`
 - Production Hardening Work Package 2 implementation commit: `8da6f45bd12b2015754613371a5419f2b810659a`
+- Production Hardening Work Package 2 public-read security correction: `79421683d531c3337db06d1bab4b26666476ceff`
 - Verified hardening starting commit: `36fff5fb983688bf668707efc5a983558fdcf134`
 - Production Hardening Work Package 1 implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
 - Approved PR #5 head before merge: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
@@ -36,7 +37,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - PR #5 squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
 - Production security rules PR: [#6 — Harden Production security rules and Staff authorization](https://github.com/josurapatt/Greek-Yogert/pull/6)
 - PR #6 state: Open Draft; unapproved and unmerged
-- PR #6 implementation head: `8da6f45bd12b2015754613371a5419f2b810659a`
+- PR #6 latest implementation head: `79421683d531c3337db06d1bab4b26666476ceff`
 
 ## Latest Completed Work
 
@@ -52,6 +53,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Firebase-backed non-anonymous Staff sessions now verify the explicit Staff document even when Customer QR is disabled and fail closed if verification cannot complete.
 - The isolated UAT configuration validates and deploys the same canonical candidate rules; the legacy duplicate UAT rules/test source was removed.
 - A manual-only Production Firestore-rules workflow artifact and blank Staff authorization inventory template were added. Neither was executed or populated with Production data.
+- A pre-Manual-UAT security-consistency review found that public menu/settings reads were too broad because they used `signedIn()`. The candidate rules now allow those reads only to Anonymous Customers or exact active Staff; unauthorized, inactive, and malformed Email/Password identities are denied.
 - The approved PR tree was squash-merged as `4145a554ff428311a3c7e37b7c069a614fb77b3f`; the resulting `main` tree exactly matched the approved PR head.
 
 - Work Package 1 implementation exists on the PR branch.
@@ -104,6 +106,11 @@ Production Hardening Work Package 2 validation:
 - Prettier: Passed for all supported changed files; Firestore rules were compiled and exercised by the Emulator suite
 - Workflow YAML validation, focused diff review, and secret scan: Passed
 - Isolated UAT workflow: [29218201189](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218201189) succeeded for `8da6f45bd12b2015754613371a5419f2b810659a`
+- Focused public-resource identity checks: covered unauthenticated, Anonymous Customer, unauthorized Email/Password, inactive/malformed Staff, and authorized Staff behavior for both public collections
+- Corrected canonical Production-candidate Firestore Emulator tests: 15 passed
+- Affected Staff and Customer QR tests: 28 passed
+- Full application suite after the rules correction: 144 passed across 14 test files
+- Corrected isolated UAT workflow: [29218624822](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218624822) succeeded for `79421683d531c3337db06d1bab4b26666476ceff`
 
 ## Deployment Status
 
@@ -121,6 +128,8 @@ Production Hardening Work Package 2 validation:
 - WP2 UAT workflow: [29218201189](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218201189) — succeeded for the canonical candidate rules
 - WP2 UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/> — HTTP 200 verified
 - WP2 UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
+- Corrected WP2 UAT workflow: [29218624822](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218624822) — succeeded
+- Corrected WP2 UAT Staff and Customer URLs: HTTP 200 verified
 
 ### Production
 
@@ -147,7 +156,7 @@ Production Hardening Work Package 2 validation:
 
 ## Known Bugs and Blockers
 
-- No known automated-validation or isolated-UAT deployment blocker
+- No known automated-validation or isolated-UAT deployment blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
 - Production rollout is blocked pending WP2 targeted Manual UAT, PR #6 approval/merge, Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, Hosting, smoke-test, and monitoring gates.
 
 ## Immediate Next Action
