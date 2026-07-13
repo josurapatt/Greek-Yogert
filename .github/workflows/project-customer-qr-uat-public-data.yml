@@ -1,6 +1,14 @@
 name: Project Customer QR UAT Public Data
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/project-customer-qr-uat-public-data.yml"
+      - "scripts/projectPublicData.ts"
+      - "scripts/runPublicProjection.mjs"
+      - "src/publicProjection.ts"
   workflow_dispatch:
     inputs:
       mode:
@@ -32,10 +40,13 @@ concurrency:
 
 jobs:
   project-uat-public-data:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/trusted-customer-boundary'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/action-setup@v4
         with: { version: 11.7.0 }
       - uses: actions/setup-node@v4
@@ -58,5 +69,9 @@ jobs:
       - name: Run guarded UAT public projection
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+          PROJECTION_MODE: ${{ github.event_name == 'pull_request' && 'dry-run' || inputs.mode }}
+          EXPECTED_FINGERPRINT: ${{ inputs.expected_fingerprint }}
+          APPLY_CONFIRMATION: ${{ inputs.confirmation }}
+          ALLOW_STALE_DELETE: ${{ inputs.allow_stale_delete }}
         run: |
-          pnpm projection:public -- --project greek-yogert-customer-uat-2026 --mode "${{ inputs.mode }}" --expected-fingerprint "${{ inputs.expected_fingerprint }}" --confirm "${{ inputs.confirmation }}" --allow-stale-delete "${{ inputs.allow_stale_delete }}"
+          pnpm projection:public -- --project greek-yogert-customer-uat-2026 --mode "$PROJECTION_MODE" --expected-fingerprint "$EXPECTED_FINGERPRINT" --confirm "$APPLY_CONFIRMATION" --allow-stale-delete "$ALLOW_STALE_DELETE"

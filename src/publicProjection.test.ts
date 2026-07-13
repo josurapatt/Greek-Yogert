@@ -48,6 +48,21 @@ describe("public Customer projection", () => {
     );
   });
 
+  it("rejects ambiguous private product identities", () => {
+    expect(() =>
+      buildPublicProjection(
+        [
+          defaultProducts[0],
+          { ...defaultProducts[1], id: defaultProducts[0].id },
+        ],
+        {},
+      ),
+    ).toThrow("duplicate product IDs");
+    expect(() =>
+      buildPublicProjection([{ ...defaultProducts[0], id: "" }], {}),
+    ).toThrow("empty product ID");
+  });
+
   it("reports create, current, update, and stale public IDs without mutation", () => {
     const projection = buildPublicProjection(defaultProducts.slice(0, 2), {});
     const current = projection.menu["apple-ohlala"];
@@ -64,6 +79,7 @@ describe("public Customer projection", () => {
     expect(diff.current).toEqual(["apple-ohlala"]);
     expect(diff.update).toEqual(["healthy-banana"]);
     expect(diff.stale).toEqual(["stale"]);
+    expect(diff.create).toEqual([]);
     expect(existing.stale).toEqual({ id: "stale" });
   });
 });

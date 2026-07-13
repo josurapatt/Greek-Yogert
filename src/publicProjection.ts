@@ -54,6 +54,11 @@ export function buildPublicProjection(
   products: Product[],
   availability: ToppingAvailability,
 ): PublicProjection {
+  const productIds = products.map((product) => product.id);
+  if (productIds.some((id) => !id))
+    throw new Error("Public projection source contains an empty product ID");
+  if (new Set(productIds).size !== productIds.length)
+    throw new Error("Public projection source contains duplicate product IDs");
   const menu = Object.fromEntries(
     products
       .map(normalizeProduct)
