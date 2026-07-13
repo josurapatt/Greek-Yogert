@@ -137,7 +137,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — pending separate authorization**
+**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — implementation complete; isolated projection execution blocked**
 
 Current state:
 
@@ -150,7 +150,9 @@ Current state:
 - [x] Public menu/settings identity boundary corrected and revalidated: only Anonymous Customers and exact active Staff can read candidate public resources.
 - [x] Targeted WP2 Manual UAT passed with no observed bugs.
 - [x] PR #6 approved by the user and squash-merged into `main`.
-- [ ] Authorize Work Package 3 — Trusted Customer Data Boundary and Public Projection.
+- [x] Work Package 3 trusted confirmation and public projection implementation completed, automated-validated, and deployed only to isolated Customer QR UAT on Draft PR #7.
+- [ ] Authorize the required isolated-UAT service-account data access, then complete projection dry-run, reviewed apply, and idempotency re-run.
+- [ ] Targeted WP3 Manual UAT and PR approval.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 

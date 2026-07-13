@@ -2,7 +2,7 @@
 
 ## 1. Purpose and authority
 
-This document is a verified release-readiness plan for the Customer QR Ordering and Work Package 1 changes merged into `main`. It does not approve or perform a Production change.
+This document is a verified release-readiness plan for Customer QR Ordering and the completed Work Package 1 and Work Package 2 changes merged into `main`. It does not approve or perform a Production change.
 
 Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or this document does not approve Authentication, Firestore, data/configuration, Hosting, smoke testing, or Production rollout.
 
@@ -32,6 +32,10 @@ Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or th
 - PR #6: Approved, squash-merged, and closed
 - Latest isolated WP2 UAT workflow: `29218624822`, successful
 - WP2 Targeted Manual UAT: Passed with no observed bugs
+- Work Package 3 branch: `feature/trusted-customer-boundary`
+- Work Package 3 Draft PR: #7
+- Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
+- Work Package 3 latest implementation head: `833da7ec05b2713d24f8aced82aa4bfa9b8abcff`
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -43,7 +47,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Production Hardening Work Package 2 passed isolated UAT and targeted Manual UAT and is squash-merged into `main`. Every Production prerequisite and approval remains pending.**
+**Not ready for Production deployment. Work Package 3 is implemented on a Draft PR and deployed only to isolated UAT; its data-projection execution and targeted Manual UAT remain pending. Every Production prerequisite and approval remains pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
@@ -51,8 +55,8 @@ The repository, not the live Production data, was inspected for application beha
 
 1. Separately approve and deploy the merged Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
-3. Create a reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
-4. Decide how untrusted customer prices/items are revalidated before staff confirmation creates an order.
+3. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
+4. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.
 5. Preserve the merged exact Production project guard and disabled Customer QR build until separate Hosting and activation approvals are granted.
 6. Obtain every separate approval listed in section 11.
 
@@ -219,6 +223,14 @@ The projection must use current Production private product/settings values, be r
 
 - `publicMenu/*`
 - `publicSettings/toppingAvailability`
+
+### Work Package 3 trusted confirmation and projection design
+
+- Staff confirmation re-reads every referenced private product and the private availability setting in its existing atomic transaction, reconstructs Storefront-only lines, and rejects any product, option, label, availability, packaging, quantity, subtotal, item-count, or total mismatch.
+- Rejection leaves the Customer request pending and creates no order or queue allocation. Confirmed historical snapshots are not repriced.
+- `PublicCustomerProduct` contains only Customer-required identity, display, active state, Storefront price, option/topping/granola configuration, approved Storefront surcharge fields, and separated-packaging support. Platform pricing, channel rules, Staff rules, authorization data, and internal metadata are excluded.
+- The projection runner has deterministic fingerprints, dry-run diff output, explicit stale-ID handling, atomic writes limited to `publicMenu/*`, `publicSettings/toppingAvailability`, and `publicProjectionControl/current`, and refuses apply without an exact reviewed fingerprint and typed confirmation.
+- The Production projection workflow is manual-only, source-SHA-bound, exact-project-guarded, and has not run. UAT projection execution is currently blocked before any read or write because its existing deployment service account lacks Firestore data permission; no IAM or Firebase change was made.
 
 ### UAT seed decision
 
