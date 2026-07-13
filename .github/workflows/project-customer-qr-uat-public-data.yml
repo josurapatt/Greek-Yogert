@@ -1,17 +1,12 @@
 name: Project Customer QR UAT Public Data
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-    paths:
-      - ".github/workflows/project-customer-qr-uat-public-data.yml"
-      - ".github/uat-public-projection-apply-fingerprint"
-      - "scripts/projectPublicData.ts"
-      - "scripts/runPublicProjection.mjs"
-      - "src/publicProjection.ts"
   workflow_dispatch:
     inputs:
+      source_sha:
+        description: Exact 40-character source SHA to project
+        required: true
+        type: string
       mode:
         description: Dry-run is read-only; apply writes only approved UAT public projection documents
         required: true
@@ -41,13 +36,13 @@ concurrency:
 
 jobs:
   project-uat-public-data:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/trusted-customer-boundary'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
       - uses: pnpm/action-setup@v4
         with: { version: 11.7.0 }
       - uses: actions/setup-node@v4
@@ -56,7 +51,10 @@ jobs:
       - name: Verify isolated UAT target
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
+          test "${#SOURCE_SHA}" -eq 40
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
       - name: Prepare isolated UAT credentials
@@ -70,16 +68,9 @@ jobs:
       - name: Run guarded UAT public projection
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
-          PROJECTION_MODE: ${{ github.event_name == 'pull_request' && 'dry-run' || inputs.mode }}
+          PROJECTION_MODE: ${{ inputs.mode }}
           EXPECTED_FINGERPRINT: ${{ inputs.expected_fingerprint }}
           APPLY_CONFIRMATION: ${{ inputs.confirmation }}
           ALLOW_STALE_DELETE: ${{ inputs.allow_stale_delete }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ -f .github/uat-public-projection-apply-fingerprint ]; then
-            PROJECTION_MODE=apply
-            EXPECTED_FINGERPRINT="$(tr -d '\r\n' < .github/uat-public-projection-apply-fingerprint)"
-            APPLY_CONFIRMATION=APPLY_PUBLIC_PROJECTION
-            ALLOW_STALE_DELETE=false
-            test "$EXPECTED_FINGERPRINT" = "wp3-7fc7b4c5be82c3da"
-          fi
           pnpm projection:public -- --project greek-yogert-customer-uat-2026 --mode "$PROJECTION_MODE" --expected-fingerprint "$EXPECTED_FINGERPRINT" --confirm "$APPLY_CONFIRMATION" --allow-stale-delete "$ALLOW_STALE_DELETE"
