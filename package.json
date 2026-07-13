@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project customer-qr-uat-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.customer-uat.test.ts\"",
+    "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project production-security-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.production.test.ts\"",
     "test:watch": "vitest"
   },
   "dependencies": {
