@@ -6,6 +6,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - ".github/workflows/project-customer-qr-uat-public-data.yml"
+      - ".github/uat-public-projection-apply-fingerprint"
       - "scripts/projectPublicData.ts"
       - "scripts/runPublicProjection.mjs"
       - "src/publicProjection.ts"
@@ -74,4 +75,11 @@ jobs:
           APPLY_CONFIRMATION: ${{ inputs.confirmation }}
           ALLOW_STALE_DELETE: ${{ inputs.allow_stale_delete }}
         run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -f .github/uat-public-projection-apply-fingerprint ]; then
+            PROJECTION_MODE=apply
+            EXPECTED_FINGERPRINT="$(tr -d '\r\n' < .github/uat-public-projection-apply-fingerprint)"
+            APPLY_CONFIRMATION=APPLY_PUBLIC_PROJECTION
+            ALLOW_STALE_DELETE=false
+            test "$EXPECTED_FINGERPRINT" = "wp3-7fc7b4c5be82c3da"
+          fi
           pnpm projection:public -- --project greek-yogert-customer-uat-2026 --mode "$PROJECTION_MODE" --expected-fingerprint "$EXPECTED_FINGERPRINT" --confirm "$APPLY_CONFIRMATION" --allow-stale-delete "$ALLOW_STALE_DELETE"
