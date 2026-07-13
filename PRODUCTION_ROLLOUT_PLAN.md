@@ -39,13 +39,13 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Production Hardening Work Package 2 has an isolated-UAT-validated candidate on Draft PR #6, but targeted Manual UAT, PR approval/merge, and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Production Hardening Work Package 2 passed isolated UAT and targeted Manual UAT, and PR #6 is approved for merge. The merge and every Production prerequisite and approval remain pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Complete WP2 targeted Manual UAT, review, and merge of the Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
+1. Squash-merge the approved Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
 3. Create a reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Decide how untrusted customer prices/items are revalidated before staff confirmation creates an order.
@@ -382,7 +382,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 15. Unresolved decisions
 
-1. Complete WP2 targeted Manual UAT and obtain explicit review/merge approval for the Production-candidate security rules; do not deploy them without separate approval.
+1. Complete the authorized WP2 squash merge for the Production-candidate security rules; do not deploy them without separate approval.
 2. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
 3. Approve the Production-specific rules merge and exact Emulator/live denial tests.
 4. Identify and approve every Production Staff UID authorization document.

@@ -38,6 +38,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Production security rules PR: [#6 — Harden Production security rules and Staff authorization](https://github.com/josurapatt/Greek-Yogert/pull/6)
 - PR #6 state: Open Draft; unapproved and unmerged
 - PR #6 latest implementation head: `79421683d531c3337db06d1bab4b26666476ceff`
+- PR #6 Targeted Manual UAT: Passed; approved by the user for Ready-for-review and squash merge
 
 ## Latest Completed Work
 
@@ -152,16 +153,18 @@ Production Hardening Work Package 2 validation:
 - Production hardening targeted Manual UAT: **Passed**
 - Disabled local `/order` and status routing, absence of Anonymous Authentication/public-menu reads/customer-bundle loading, authenticated Staff `/order`, enabled UAT storefront, UAT request/status flow, Staff synchronization, and Production workflow guards: Passed
 - Observed hardening bugs: None
-- Production Hardening Work Package 2 targeted Manual UAT: **Pending**
+- Production Hardening Work Package 2 targeted Manual UAT: **Passed**
+- WP2 Manual UAT passed: authorized Staff access; unauthorized/inactive/malformed Staff denial; Anonymous public menu access; owned-request isolation; request-update denial; Staff confirmation/rejection and duplicate protection; Queue, History, Reports, and Excel regression
+- WP2 Manual UAT observed bugs: None
 
 ## Known Bugs and Blockers
 
-- No known automated-validation or isolated-UAT deployment blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
-- Production rollout is blocked pending WP2 targeted Manual UAT, PR #6 approval/merge, Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, Hosting, smoke-test, and monitoring gates.
+- No known automated-validation, isolated-UAT deployment, or WP2 Manual UAT blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
+- Production rollout is blocked pending the authorized PR #6 merge, Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, Hosting, smoke-test, and monitoring gates.
 
 ## Immediate Next Action
 
-- Complete the targeted WP2 Manual UAT checklist and obtain explicit PR #6 review/merge approval. Production remains No-Go.
+- Change approved PR #6 from Draft to Ready, verify the final head, and safely squash merge WP2. Production remains No-Go.
 
 ## Release Status
 
@@ -179,6 +182,7 @@ Production Hardening Work Package 2 validation:
 - Production Hosting activation and deployment: Not approved and not performed
 - Production Staff authorization provisioning, public projection, and smoke testing: Not approved and not performed
 - Production Hardening Work Package 2: Implemented, locally validated, and deployed only to isolated UAT; Manual UAT, PR approval, merge, and every Production action remain pending
+- PR #6 Manual UAT approval: Approved by the user; merge is authorized but not yet performed
 
 ## Documentation Consistency
 

@@ -137,7 +137,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 2 — Production Security Rules and Explicit Staff Authorization — targeted Manual UAT and PR review pending**
+**Production Hardening Work Package 2 — Production Security Rules and Explicit Staff Authorization — approved for merge**
 
 Current state:
 
@@ -148,7 +148,8 @@ Current state:
 - [x] Blank Staff authorization inventory/provisioning procedure prepared without Production access or data.
 - [x] Candidate rules deployed only to isolated Customer QR UAT and both UAT URLs verified.
 - [x] Public menu/settings identity boundary corrected and revalidated: only Anonymous Customers and exact active Staff can read candidate public resources.
-- [ ] Complete targeted WP2 Manual UAT and obtain explicit PR #6 approval before merge.
+- [x] Targeted WP2 Manual UAT passed with no observed bugs.
+- [x] PR #6 approved by the user for squash merge.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -169,7 +170,8 @@ Current state:
 - [x] PR #5 squash-merged into `main`
 - [x] Production release isolation completed
 - [x] Production Hardening Work Package 2 implemented, automated-validated, and deployed only to isolated Customer QR UAT
-- [ ] Production Hardening Work Package 2 targeted Manual UAT, approval, and merge complete
+- [x] Production Hardening Work Package 2 targeted Manual UAT and approval complete
+- [ ] Production Hardening Work Package 2 squash merge complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed
