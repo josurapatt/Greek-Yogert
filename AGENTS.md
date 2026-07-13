@@ -130,9 +130,13 @@ Web App ID: 1:595147478182:web:f8cfb2a7103557ef791067
 Dedicated UAT files:
 
 ```text
-firestore.customer-uat.rules
+firestore.production.rules
 firebase.customer-uat.json
 ```
+
+`firebase.customer-uat.json` intentionally points to the reviewed canonical
+Production-candidate rules during authorized hardening work. This isolated UAT
+use does not authorize a Production rules deployment.
 
 UAT deployments must explicitly target:
 
@@ -224,14 +228,9 @@ Rules:
   - generated local caches
 - Keep Customer QR Ordering changes separate from unrelated staff-side work.
 
-Current active Customer QR work:
-
-```text
-Branch: feature/customer-qr-ordering-foundation
-Draft PR: #4
-```
-
-Treat commit hashes as task-specific and verify them from Git instead of trusting stale documentation.
+Do not record a current branch, PR number, or approved SHA here. Treat those as
+task-specific and verify them from Git, GitHub, and `CURRENT_STATUS.md` instead
+of trusting stale documentation.
 
 ---
 
@@ -394,10 +393,11 @@ Do not add Cloud Functions unless the user explicitly changes project scope.
 
 ## 9. Firestore Security Rules
 
-Customer QR UAT rules must use:
+The isolated Customer QR UAT configuration must use the reviewed canonical
+candidate rules source:
 
 ```text
-firestore.customer-uat.rules
+firestore.production.rules
 ```
 
 Minimum rule guarantees:
@@ -414,7 +414,9 @@ Minimum rule guarantees:
 - Unauthorized Email/Password users have no staff privileges.
 - Only explicit `users/{uid}` staff authorization grants staff access.
 - Authorization documents cannot be self-created or self-modified by clients.
-- Production rules are never used as a substitute for UAT rules.
+- Isolated UAT may validate the canonical Production-candidate rules only when
+  the UAT configuration still has an explicit UAT project target and explicit
+  Production exclusion. This never authorizes a Production deployment.
 
 Do not weaken rules merely to make a test pass.
 
@@ -489,7 +491,11 @@ Rules:
 - Use the exact secret names already defined by the workflow.
 - Do not rename secrets without proving the workflow is defective.
 - Validate that workflows explicitly target UAT.
-- Production release workflow must remain Hosting-only unless an approved task says otherwise.
+- The existing Production Hosting workflow must remain Hosting-only.
+- A separate Production Firestore-rules workflow is permitted only when an
+  approved task requires it; it must be manual-only, require an exact approved
+  SHA and exact `greek-yogert` project, reject the UAT project, and deploy only
+  `firestore:rules`.
 - Customer QR UAT workflow may deploy only the explicitly configured UAT resources.
 
 ---

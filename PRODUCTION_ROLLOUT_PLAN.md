@@ -1,4 +1,4 @@
-# Customer QR Ordering and Work Package 1 — Production Rollout Plan
+# Customer QR Ordering and Production Hardening — Production Rollout Plan
 
 ## 1. Purpose and authority
 
@@ -39,13 +39,13 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Production Hardening Work Package 1 is merged and manually validated, but Work Package 2 and all remaining Production prerequisites and approvals are pending.**
+**Not ready for Production deployment. Production Hardening Work Package 2 has an isolated-UAT-validated candidate on Draft PR #6, but targeted Manual UAT, PR approval/merge, and every Production prerequisite and approval remain pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Create and Emulator-test a Production-specific Firestore rules merge in separately authorized Work Package 2.
+1. Complete WP2 targeted Manual UAT, review, and merge of the Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
 3. Create a reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Decide how untrusted customer prices/items are revalidated before staff confirmation creates an order.
@@ -62,7 +62,7 @@ The repository, not the live Production data, was inspected for application beha
 | Customer labels/actions | Production environment mode removes UAT labels/actions          | `ทดลอง`, `Demo/UAT`, and `Seed เมนู UAT` remain visible  | Environment/display separation is merged into `main`.                                        |
 | Staff Auth provider     | Existing Email/Password behavior must remain                    | Email/Password plus explicit `users/{uid}` authorization | Provider stays enabled; every Staff UID needs an authorization document before rules change. |
 | Customer Auth provider  | Current live state must be verified; approval is absent         | Anonymous enabled                                        | Anonymous is required but must be enabled only after safe rules are live.                    |
-| Firestore rules source  | `firestore.rules`                                               | `firestore.customer-uat.rules`                           | UAT rules require a Production-specific merge, not blind promotion.                          |
+| Firestore rules source  | `firestore.rules`                                               | `firestore.production.rules` candidate via UAT config     | UAT validates the reviewed canonical candidate; Production deployment remains separately gated. |
 | Firestore indexes       | Live CLI check: no indexes/overrides                            | Live CLI check: no indexes/overrides                     | No index deployment is currently required.                                                   |
 | Public menu             | Not used by current Production build                            | `publicMenu/{productId}`                                 | Must be projected from current Production products before Hosting exposure.                  |
 | Public availability     | Not used by current Production build                            | `publicSettings/toppingAvailability`                     | Must be initialized from current private settings.                                           |
@@ -151,7 +151,7 @@ Required invariants include:
 
 ### Promotion decision
 
-**Do not promote the UAT rules as-is. Use a Production-specific merge.**
+**Do not deploy a ruleset merely because it passed UAT. Use the reviewed canonical Production-candidate rules at an exact approved SHA.**
 
 The merged ruleset must:
 
@@ -189,6 +189,15 @@ Do not include `firestore:indexes` in a release command merely for symmetry. Rei
 2. `publicMenu/{productId}` for every current active/inactive Production product, projected through the approved public projection.
 3. `publicSettings/toppingAvailability` containing the approved availability map, including the global separated-packaging key when an explicit state is desired.
 4. Private `products/{productId}` may optionally receive explicit `supportsSeparatedToppingPackaging`; a missing value safely defaults to supported.
+
+### Staff authorization inventory and provisioning
+
+`PRODUCTION_STAFF_AUTHORIZATION_INVENTORY.template.md` is the blank, non-sensitive
+procedure for a future separately approved Production authorization action. It
+requires independently verified Staff Firebase Auth UIDs, exact `role: "staff"`
+and boolean `active: true`, a second review, and storage of completed inventory
+outside Git. WP2 did not read Production identities or create any authorization
+documents.
 
 ### Compatibility defaults
 
@@ -373,7 +382,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 15. Unresolved decisions
 
-1. Authorize and implement Production Hardening Work Package 2 for Production-specific security rules and explicit Staff authorization; do not deploy it without separate approval.
+1. Complete WP2 targeted Manual UAT and obtain explicit review/merge approval for the Production-candidate security rules; do not deploy them without separate approval.
 2. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
 3. Approve the Production-specific rules merge and exact Emulator/live denial tests.
 4. Identify and approve every Production Staff UID authorization document.

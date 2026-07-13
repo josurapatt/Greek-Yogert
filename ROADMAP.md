@@ -137,14 +137,17 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 2 — Production Security Rules and Explicit Staff Authorization — pending separate authorization**
+**Production Hardening Work Package 2 — Production Security Rules and Explicit Staff Authorization — targeted Manual UAT and PR review pending**
 
 Current state:
 
 - [x] Production release isolation Work Package 1 implemented, automated-revalidated, manually validated, approved, and squash-merged into `main`.
-- [ ] Authorize Work Package 2 implementation.
-- [ ] Design and Emulator-test Production security rules while preserving existing Production order validation.
-- [ ] Prepare explicit Production Staff authorization provisioning for separate approval; do not write Production data in the implementation task.
+- [x] Work Package 2 implementation authorized, completed, and pushed on its dedicated Draft PR.
+- [x] Canonical Production-candidate rules designed and Emulator-tested while preserving existing Production order validation.
+- [x] Explicit Staff authorization checks made unconditional for Firebase-backed non-anonymous Staff sessions.
+- [x] Blank Staff authorization inventory/provisioning procedure prepared without Production access or data.
+- [x] Candidate rules deployed only to isolated Customer QR UAT and both UAT URLs verified.
+- [ ] Complete targeted WP2 Manual UAT and obtain explicit PR #6 approval before merge.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -164,7 +167,8 @@ Current state:
 - [x] PR #5 approved by the user
 - [x] PR #5 squash-merged into `main`
 - [x] Production release isolation completed
-- [ ] Production Hardening Work Package 2 implemented and approved
+- [x] Production Hardening Work Package 2 implemented, automated-validated, and deployed only to isolated Customer QR UAT
+- [ ] Production Hardening Work Package 2 targeted Manual UAT, approval, and merge complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed
