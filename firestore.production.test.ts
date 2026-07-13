@@ -79,7 +79,7 @@ beforeAll(async () => {
   });
 });
 beforeEach(async () => environment.clearFirestore());
-afterAll(async () => environment.cleanup());
+afterAll(async () => environment?.cleanup());
 
 describe("Production candidate Firestore authorization", () => {
   it("denies unauthenticated access, including public data", async () => {
