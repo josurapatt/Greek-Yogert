@@ -32,10 +32,12 @@ Extend
 ## 3. Current Integration State
 
 - Integrated branch: `main`
-- Squash-merge commit: `4bd879e7d0f5e5aff85ad675103d74700780e347`
+- Customer QR foundation squash-merge commit: `4bd879e7d0f5e5aff85ad675103d74700780e347`
+- Production release isolation squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
 - Retained feature branch: `feature/customer-qr-ordering-foundation`
-- PR: `#4`
-- PR status: **Merged and closed**
+- Retained hardening branch: `feature/production-rollout-hardening`
+- PR #4: **Merged and closed**
+- PR #5: **Approved, squash-merged, and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
 
@@ -120,20 +122,29 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] PR #4 squash-merged into `main`
 - [x] Production rollout plan drafted and verified; approval pending
 
+### Phase 8 — Production Release Isolation
+
+- [x] Neutral fail-closed Customer QR enablement
+- [x] Separate UAT/Production environment display behavior
+- [x] Disabled Customer Firebase initialization and Anonymous Authentication isolation
+- [x] Exact Production project workflow guard with Hosting-only scope
+- [x] Explicit isolated UAT enablement
+- [x] Automated validation and isolated UAT deployment
+- [x] Targeted Hardening Manual UAT passed with no observed bugs
+- [x] PR #5 approved and squash-merged into `main`
+
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 1 targeted UAT**
+**Production Hardening Work Package 2 — Production Security Rules and Explicit Staff Authorization — pending separate authorization**
 
 Current state:
 
-- [x] Implement neutral, fail-closed Customer QR enablement and separate UAT display mode on `feature/production-rollout-hardening`.
-- [x] Harden the Production Hosting workflow for exact project identity and an explicitly disabled Customer QR build.
-- [x] Explicitly enable the isolated Customer QR UAT workflow and complete automated validation/deployment.
-- [ ] Complete targeted Production hardening Manual UAT.
-- [ ] Obtain explicit approval for Draft PR #5 and any merge decision.
-- [ ] Authorize a separate Production security-rules Work Package after hardening UAT.
+- [x] Production release isolation Work Package 1 implemented, automated-revalidated, manually validated, approved, and squash-merged into `main`.
+- [ ] Authorize Work Package 2 implementation.
+- [ ] Design and Emulator-test Production security rules while preserving existing Production order validation.
+- [ ] Prepare explicit Production Staff authorization provisioning for separate approval; do not write Production data in the implementation task.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -149,11 +160,17 @@ Current state:
 - [x] PR #4 merged to `main`
 - [x] Production Hardening Work Package 1 implemented and automated-revalidated
 - [x] Production Hardening Work Package 1 deployed to isolated Customer QR UAT only
-- [ ] Production Hardening Work Package 1 targeted Manual UAT passed
-- [ ] Draft PR #5 approved and merged
+- [x] Production Hardening Work Package 1 targeted Manual UAT passed
+- [x] PR #5 approved by the user
+- [x] PR #5 squash-merged into `main`
+- [x] Production release isolation completed
+- [ ] Production Hardening Work Package 2 implemented and approved
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed
+- [ ] Production Staff authorization provisioning approved and completed
+- [ ] Production public projection approved and completed
+- [ ] Production Hosting activation approved and completed
 - [ ] Production smoke test passed
 - [ ] Post-release monitoring completed
 
