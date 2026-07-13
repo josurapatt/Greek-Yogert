@@ -68,9 +68,15 @@ describe("Production candidate Firestore authorization", () => {
   it("denies unauthenticated access, including public data", async () => {
     const unauthenticated = environment.unauthenticatedContext().firestore();
     await assertFails(getDoc(doc(unauthenticated, "publicMenu/plain-greek")));
+    await assertFails(
+      getDoc(doc(unauthenticated, "publicSettings/toppingAvailability")),
+    );
     await assertFails(getDoc(doc(unauthenticated, "products/plain-greek")));
     await assertFails(
-      setDoc(doc(unauthenticated, "customerOrderRequests/request-a"), request()),
+      setDoc(
+        doc(unauthenticated, "customerOrderRequests/request-a"),
+        request(),
+      ),
     );
   });
 
@@ -88,6 +94,7 @@ describe("Production candidate Firestore authorization", () => {
       .firestore();
 
     await assertSucceeds(getDoc(doc(customer, "publicMenu/plain-greek")));
+    await assertSucceeds(getDocs(collection(customer, "publicMenu")));
     await assertSucceeds(
       getDoc(doc(customer, "publicSettings/toppingAvailability")),
     );
@@ -126,6 +133,11 @@ describe("Production candidate Firestore authorization", () => {
       setDoc(doc(customer, "publicMenu/plain-greek"), { active: false }),
     );
     await assertFails(
+      setDoc(doc(customer, "publicSettings/toppingAvailability"), {
+        availability: {},
+      }),
+    );
+    await assertFails(
       setDoc(doc(customer, "products/plain-greek"), { active: false }),
     );
     await assertFails(setDoc(doc(customer, "orders/order-a"), order()));
@@ -141,16 +153,30 @@ describe("Production candidate Firestore authorization", () => {
   });
 
   it("denies all private Staff access to non-Staff email accounts", async () => {
+    await seed({
+      "publicMenu/plain-greek": { id: "plain-greek", active: true },
+      "publicSettings/toppingAvailability": { availability: {} },
+    });
     const emailUser = environment
       .authenticatedContext("email-user", passwordToken)
       .firestore();
     await assertSucceeds(getDoc(doc(emailUser, "users/email-user")));
+    await assertFails(getDoc(doc(emailUser, "publicMenu/plain-greek")));
+    await assertFails(getDocs(collection(emailUser, "publicMenu")));
+    await assertFails(
+      getDoc(doc(emailUser, "publicSettings/toppingAvailability")),
+    );
     await assertFails(getDocs(collection(emailUser, "products")));
     await assertFails(getDocs(collection(emailUser, "orders")));
     await assertFails(getDoc(doc(emailUser, "settings/toppingAvailability")));
     await assertFails(getDocs(collection(emailUser, "customerOrderRequests")));
     await assertFails(
       setDoc(doc(emailUser, "publicMenu/plain-greek"), { active: true }),
+    );
+    await assertFails(
+      setDoc(doc(emailUser, "publicSettings/toppingAvailability"), {
+        availability: {},
+      }),
     );
     await assertFails(
       setDoc(doc(emailUser, "users/email-user"), {
@@ -174,11 +200,37 @@ describe("Production candidate Firestore authorization", () => {
     await assertFails(getDocs(collection(emailUser, "customerOrderRequests")));
   });
 
+  it.each([
+    {
+      label: "inactive Staff",
+      authorization: { role: "staff", active: false },
+    },
+    {
+      label: "malformed Staff",
+      authorization: { role: "staff", active: "true" },
+    },
+  ])("denies public reads to $label", async ({ authorization }) => {
+    await seed({
+      "users/email-user": authorization,
+      "publicMenu/plain-greek": { id: "plain-greek", active: true },
+      "publicSettings/toppingAvailability": { availability: {} },
+    });
+    const emailUser = environment
+      .authenticatedContext("email-user", passwordToken)
+      .firestore();
+    await assertFails(getDoc(doc(emailUser, "publicMenu/plain-greek")));
+    await assertFails(
+      getDoc(doc(emailUser, "publicSettings/toppingAvailability")),
+    );
+  });
+
   it("allows only exact active Staff authorization and protects other user documents", async () => {
     await seed({
       "users/staff-user": { role: "staff", active: true },
       "users/customer-b": { role: "staff", active: true },
       "customerOrderRequests/request-a": request(),
+      "publicMenu/plain-greek": { id: "plain-greek", active: true },
+      "publicSettings/toppingAvailability": { availability: {} },
     });
     const staff = environment
       .authenticatedContext("staff-user", passwordToken)
@@ -187,8 +239,17 @@ describe("Production candidate Firestore authorization", () => {
     await assertSucceeds(getDocs(collection(staff, "orders")));
     await assertSucceeds(getDoc(doc(staff, "settings/toppingAvailability")));
     await assertSucceeds(getDocs(collection(staff, "customerOrderRequests")));
+    await assertSucceeds(getDoc(doc(staff, "publicMenu/plain-greek")));
+    await assertSucceeds(
+      getDoc(doc(staff, "publicSettings/toppingAvailability")),
+    );
     await assertSucceeds(
       setDoc(doc(staff, "publicMenu/plain-greek"), { active: true }),
+    );
+    await assertSucceeds(
+      setDoc(doc(staff, "publicSettings/toppingAvailability"), {
+        availability: {},
+      }),
     );
     await assertFails(getDoc(doc(staff, "users/customer-b")));
     await assertFails(getDocs(collection(staff, "users")));

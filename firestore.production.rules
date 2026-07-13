@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function anonymousUser() {
+    function isAnonymousCustomer() {
       return signedIn()
         && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
@@ -55,7 +55,7 @@ service cloud.firestore {
         && data.updatedAt is string;
     }
     function customerOwns(data) {
-      return anonymousUser() && data.ownerUid == request.auth.uid;
+      return isAnonymousCustomer() && data.ownerUid == request.auth.uid;
     }
     function validStaffPayment(value) {
       return value in ['สด', 'โอน', 'โครงการ'];
@@ -92,17 +92,17 @@ service cloud.firestore {
     }
 
     match /publicMenu/{productId} {
-      allow read: if signedIn();
+      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
       allow create, update: if isAuthorizedStaff();
       allow delete: if false;
     }
     match /publicSettings/{document} {
-      allow read: if signedIn();
+      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
       allow create, update: if isAuthorizedStaff();
       allow delete: if false;
     }
     match /customerOrderRequests/{requestId} {
-      allow create: if anonymousUser()
+      allow create: if isAnonymousCustomer()
         && validCustomerRequestCreate(request.resource.data, requestId);
       allow get: if isAuthorizedStaff() || customerOwns(resource.data);
       allow list: if isAuthorizedStaff();
