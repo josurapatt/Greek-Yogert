@@ -1,0 +1,62 @@
+name: Project Customer QR UAT Public Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Dry-run is read-only; apply writes only approved UAT public projection documents
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, apply]
+      expected_fingerprint:
+        description: Required for apply; copy the reviewed fingerprint from the UAT dry-run
+        required: false
+        type: string
+      confirmation:
+        description: Type APPLY_PUBLIC_PROJECTION for apply mode
+        required: false
+        type: string
+      allow_stale_delete:
+        description: Type true only after reviewing stale public IDs in dry-run output
+        required: false
+        default: "false"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: customer-qr-uat-public-projection
+  cancel-in-progress: false
+
+jobs:
+  project-uat-public-data:
+    runs-on: ubuntu-latest
+    environment: customer-qr-uat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Verify isolated UAT target
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+      - name: Prepare isolated UAT credentials
+        env:
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))"
+      - name: Run guarded UAT public projection
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          pnpm projection:public -- --project greek-yogert-customer-uat-2026 --mode "${{ inputs.mode }}" --expected-fingerprint "${{ inputs.expected_fingerprint }}" --confirm "${{ inputs.confirmation }}" --allow-stale-delete "${{ inputs.allow_stale_delete }}"

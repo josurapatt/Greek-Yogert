@@ -9,6 +9,7 @@ import type {
   CartItem,
   CustomerOrderRequest,
   CustomerRequestStatus,
+  PublicCustomerProduct,
   Product,
   ShopOrder,
   StaffPaymentMethod,
@@ -55,15 +56,18 @@ export function uniqueLinePaymentMethods(
   ];
 }
 
-export function toCustomerPublicProduct(product: Product): Product {
+export function toCustomerPublicProduct(
+  product: Product,
+): PublicCustomerProduct {
   const price =
     product.channelPrices?.[customerStorefrontChannel] ?? product.price;
   return {
     id: product.id,
     name: product.name,
-    price,
     emoji: product.emoji,
     description: product.description,
+    active: product.active,
+    storefrontPrice: price,
     optionMode: product.optionMode,
     includedToppings: product.includedToppings,
     granolaOptions: product.granolaOptions,
@@ -76,8 +80,33 @@ export function toCustomerPublicProduct(product: Product): Product {
     extraPremiumPrice: product.extraPremiumPrice,
     supportsSeparatedToppingPackaging:
       product.supportsSeparatedToppingPackaging !== false,
+  };
+}
+
+/** Converts the public whitelist back into the storefront-only view used by the Customer UI. */
+export function customerPublicProductToProduct(
+  product: PublicCustomerProduct,
+): Product {
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.storefrontPrice,
+    emoji: product.emoji,
+    description: product.description,
     active: product.active,
-    channelPrices: { [customerStorefrontChannel]: price },
+    optionMode: product.optionMode,
+    includedToppings: product.includedToppings,
+    granolaOptions: product.granolaOptions,
+    availableToppingIds: product.availableToppingIds,
+    ...(product.premiumToppingIds
+      ? { premiumToppingIds: product.premiumToppingIds }
+      : {}),
+    premiumIncludedSurcharge: product.premiumIncludedSurcharge,
+    extraNormalPrice: product.extraNormalPrice,
+    extraPremiumPrice: product.extraPremiumPrice,
+    supportsSeparatedToppingPackaging:
+      product.supportsSeparatedToppingPackaging,
+    channelPrices: { [customerStorefrontChannel]: product.storefrontPrice },
   };
 }
 
@@ -146,10 +175,11 @@ export function confirmCustomerRequest(
   sequence: number,
   staffUid?: string,
   now = new Date().toISOString(),
+  trustedItems: CartItem[] = request.items,
 ): { request: CustomerOrderRequest; order: ShopOrder } {
   if (request.status !== waitingForShop || request.confirmedOrderId)
     throw new Error("คำขอนี้ได้รับการดำเนินการแล้ว");
-  const paidItems = applyCustomerLinePayments(request.items, paymentAllocation);
+  const paidItems = applyCustomerLinePayments(trustedItems, paymentAllocation);
   const paymentMethods = uniqueLinePaymentMethods(paidItems);
   const paymentMethod = paymentMethods[0];
   const padded = String(sequence).padStart(3, "0");

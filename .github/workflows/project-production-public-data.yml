@@ -1,0 +1,76 @@
+name: Project Production Customer QR Public Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved_source_sha:
+        description: Exact approved 40-character source SHA
+        required: true
+        type: string
+      expected_fingerprint:
+        description: Exact reviewed projection fingerprint
+        required: true
+        type: string
+      mode:
+        description: Defaults to dry-run; apply requires the typed confirmation
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, apply]
+      confirmation:
+        description: Type APPLY_PUBLIC_PROJECTION to permit apply mode
+        required: true
+        type: string
+      allow_stale_delete:
+        description: Type true only after explicit stale-ID review
+        required: true
+        default: "false"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-public-projection
+  cancel-in-progress: false
+
+jobs:
+  project-production-public-data:
+    if: inputs.mode == 'dry-run' || inputs.confirmation == 'APPLY_PUBLIC_PROJECTION'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout exact approved source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_source_sha }}
+          fetch-depth: 1
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Verify restricted Production target and approved source
+        env:
+          APPROVED_SOURCE_SHA: ${{ inputs.approved_source_sha }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          EXPECTED_FINGERPRINT: ${{ inputs.expected_fingerprint }}
+        run: |
+          test "${#APPROVED_SOURCE_SHA}" -eq 40
+          test "$(git rev-parse HEAD)" = "$APPROVED_SOURCE_SHA"
+          test -n "$EXPECTED_FINGERPRINT"
+          test "$FIREBASE_PROJECT_ID" = "greek-yogert"
+          test "$FIREBASE_PROJECT_ID" != "greek-yogert-customer-uat-2026"
+      - name: Prepare Production credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))"
+      - name: Run guarded Production public projection
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          pnpm projection:public -- --project greek-yogert --mode "${{ inputs.mode }}" --expected-fingerprint "${{ inputs.expected_fingerprint }}" --confirm "${{ inputs.confirmation }}" --allow-stale-delete "${{ inputs.allow_stale_delete }}"

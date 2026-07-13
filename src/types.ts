@@ -27,6 +27,15 @@ export interface Product {
   supportsSeparatedToppingPackaging?: boolean
 }
 
+/** The only product fields that may be written to the Customer QR public menu. */
+export interface PublicCustomerProduct {
+  id: string; name: string; emoji: string; description: string[]; active: boolean
+  storefrontPrice: number; optionMode: OptionMode; includedToppings: number
+  granolaOptions: string[]; availableToppingIds: string[]; premiumToppingIds?: string[]
+  premiumIncludedSurcharge: number; extraNormalPrice: number; extraPremiumPrice: number
+  supportsSeparatedToppingPackaging: boolean
+}
+
 export interface PriceBreakdown {
   basePrice: number
   premiumIncludedSurcharge: number

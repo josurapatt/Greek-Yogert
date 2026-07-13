@@ -15,14 +15,18 @@ import {
   onSnapshot,
   setDoc,
 } from "firebase/firestore";
-import { defaultProducts, mergeProducts } from "./data";
+import { defaultProducts } from "./data";
 import { toFirestoreData } from "./firestoreData";
 import { auth, db, firebaseReady } from "./firebase";
 import { runtimeConfig } from "./runtimeConfig";
-import { createCustomerRequest } from "./customerOrder";
+import {
+  createCustomerRequest,
+  customerPublicProductToProduct,
+} from "./customerOrder";
 import type {
   CartItem,
   CustomerOrderRequest,
+  PublicCustomerProduct,
   Product,
   ToppingAvailability,
 } from "./types";
@@ -75,7 +79,9 @@ export function CustomerProvider({
     if (!db || !uid) return;
     const stopMenu = onSnapshot(collection(db, "publicMenu"), (snapshot) =>
       setProducts(
-        mergeProducts(snapshot.docs.map((row) => row.data() as Product)),
+        snapshot.docs.map((row) =>
+          customerPublicProductToProduct(row.data() as PublicCustomerProduct),
+        ),
       ),
     );
     const stopAvailability = onSnapshot(
@@ -103,8 +109,8 @@ export function CustomerProvider({
         getDocs(collection(db, "publicMenu")),
         getDoc(doc(db, "publicSettings", "toppingAvailability")),
       ]);
-      latestProducts = mergeProducts(
-        menuSnapshot.docs.map((row) => row.data() as Product),
+      latestProducts = menuSnapshot.docs.map((row) =>
+        customerPublicProductToProduct(row.data() as PublicCustomerProduct),
       );
       latestAvailability =
         (availabilitySnapshot.data()?.availability as

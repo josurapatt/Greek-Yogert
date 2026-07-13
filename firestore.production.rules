@@ -90,15 +90,55 @@ service cloud.firestore {
           'status', 'rejectionReason', 'rejectedAt', 'updatedAt'
         ]);
     }
+    function validPublicMenu(data, productId) {
+      return data.keys().hasOnly([
+          'id', 'name', 'emoji', 'description', 'active', 'storefrontPrice',
+          'optionMode', 'includedToppings', 'granolaOptions',
+          'availableToppingIds', 'premiumToppingIds',
+          'premiumIncludedSurcharge', 'extraNormalPrice', 'extraPremiumPrice',
+          'supportsSeparatedToppingPackaging'
+        ])
+        && data.keys().hasAll([
+          'id', 'name', 'emoji', 'description', 'active', 'storefrontPrice',
+          'optionMode', 'includedToppings', 'granolaOptions',
+          'availableToppingIds', 'premiumIncludedSurcharge',
+          'extraNormalPrice', 'extraPremiumPrice',
+          'supportsSeparatedToppingPackaging'
+        ])
+        && data.id == productId
+        && data.id is string
+        && data.name is string
+        && data.emoji is string
+        && data.description is list
+        && data.active is bool
+        && data.storefrontPrice is number
+        && data.storefrontPrice >= 0
+        && data.optionMode in ['none', 'granola', 'toppings']
+        && data.includedToppings is number
+        && data.includedToppings >= 0
+        && data.granolaOptions is list
+        && data.availableToppingIds is list
+        && (!data.keys().hasAny(['premiumToppingIds']) || data.premiumToppingIds is list)
+        && data.premiumIncludedSurcharge is number
+        && data.extraNormalPrice is number
+        && data.extraPremiumPrice is number
+        && data.supportsSeparatedToppingPackaging is bool;
+    }
+    function validPublicAvailability(data) {
+      return data.keys().hasOnly(['availability']) && data.availability is map;
+    }
 
     match /publicMenu/{productId} {
       allow read: if isAnonymousCustomer() || isAuthorizedStaff();
-      allow create, update: if isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff()
+        && validPublicMenu(request.resource.data, productId);
       allow delete: if false;
     }
     match /publicSettings/{document} {
       allow read: if isAnonymousCustomer() || isAuthorizedStaff();
-      allow create, update: if isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff()
+        && document == 'toppingAvailability'
+        && validPublicAvailability(request.resource.data);
       allow delete: if false;
     }
     match /customerOrderRequests/{requestId} {

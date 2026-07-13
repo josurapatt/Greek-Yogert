@@ -82,7 +82,6 @@ export default function CustomerRequestsPage() {
         if (!(await transaction.get(availabilityRef)).exists())
           transaction.set(availabilityRef, {
             availability: {},
-            updatedAt: new Date().toISOString(),
           });
       });
       setMessage("เพิ่มเมนู UAT ที่ยังไม่มีแล้ว");

@@ -45,6 +45,23 @@ const order = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const publicProduct = (id = "plain-greek") => ({
+  id,
+  name: "Plain Greek",
+  emoji: "🥣",
+  description: [],
+  active: true,
+  storefrontPrice: 59,
+  optionMode: "none",
+  includedToppings: 0,
+  granolaOptions: [],
+  availableToppingIds: [],
+  premiumIncludedSurcharge: 0,
+  extraNormalPrice: 0,
+  extraPremiumPrice: 0,
+  supportsSeparatedToppingPackaging: true,
+});
+
 const seed = async (data: Record<string, unknown>) =>
   environment.withSecurityRulesDisabled(async (context) => {
     const database = context.firestore();
@@ -244,12 +261,21 @@ describe("Production candidate Firestore authorization", () => {
       getDoc(doc(staff, "publicSettings/toppingAvailability")),
     );
     await assertSucceeds(
-      setDoc(doc(staff, "publicMenu/plain-greek"), { active: true }),
+      setDoc(doc(staff, "publicMenu/plain-greek"), publicProduct()),
     );
     await assertSucceeds(
       setDoc(doc(staff, "publicSettings/toppingAvailability"), {
         availability: {},
       }),
+    );
+    await assertFails(
+      setDoc(doc(staff, "publicMenu/plain-greek"), {
+        ...publicProduct(),
+        channelPrices: { Lineman: 99 },
+      }),
+    );
+    await assertFails(
+      setDoc(doc(staff, "publicSettings/other"), { availability: {} }),
     );
     await assertFails(getDoc(doc(staff, "users/customer-b")));
     await assertFails(getDocs(collection(staff, "users")));
