@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAnonymousCustomer() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+    function nonAnonymousUser() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function isAuthorizedStaff() {
+      return nonAnonymousUser()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+    }
+    function validStatus(value) {
+      return value in ['pending', 'completed', 'cancelled'];
+    }
+    function validOrder(data) {
+      return data.id is string
+        && data.queueNumber is string
+        && data.businessDate is string
+        && data.customerName is string
+        && data.items is list
+        && data.items.size() > 0
+        && data.subtotal is number
+        && data.discount is number
+        && data.total is number
+        && data.total >= 0
+        && data.status == 'pending';
+    }
+    function waitingForShop(value) { return value == 'รอร้านยืนยัน'; }
+    function validCustomerRequestCreate(data, requestId) {
+      return data.keys().hasOnly([
+          'id', 'ownerUid', 'status', 'channel', 'customerName', 'customerNote',
+          'items', 'subtotal', 'total', 'itemCount', 'createdAt', 'updatedAt'
+        ])
+        && data.id == requestId
+        && data.id is string
+        && data.ownerUid == request.auth.uid
+        && waitingForShop(data.status)
+        && data.channel == 'หน้าร้าน'
+        && data.items is list
+        && data.items.size() > 0
+        && data.subtotal is number
+        && data.subtotal >= 0
+        && data.total is number
+        && data.total >= 0
+        && data.itemCount is number
+        && data.itemCount > 0
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+    function customerOwns(data) {
+      return isAnonymousCustomer() && data.ownerUid == request.auth.uid;
+    }
+    function validStaffPayment(value) {
+      return value in ['สด', 'โอน', 'โครงการ'];
+    }
+    function validStaffConfirmation() {
+      return waitingForShop(resource.data.status)
+        && request.resource.data.status == 'ร้านรับออเดอร์แล้ว'
+        && request.resource.data.keys().hasAll([
+          'confirmedOrderId', 'queueNumber', 'paymentMethod', 'paymentMethods',
+          'linePaymentMethods', 'confirmedAt', 'updatedAt'
+        ])
+        && request.resource.data.confirmedOrderId is string
+        && request.resource.data.queueNumber is string
+        && validStaffPayment(request.resource.data.paymentMethod)
+        && request.resource.data.paymentMethods is list
+        && request.resource.data.linePaymentMethods is map
+        && request.resource.data.confirmedAt is string
+        && request.resource.data.updatedAt is string
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'confirmedOrderId', 'queueNumber', 'paymentMethod',
+          'paymentMethods', 'linePaymentMethods', 'confirmedAt', 'updatedAt'
+        ]);
+    }
+    function validStaffRejection() {
+      return waitingForShop(resource.data.status)
+        && request.resource.data.status == 'ปฏิเสธ'
+        && request.resource.data.rejectedAt is string
+        && request.resource.data.updatedAt is string
+        && (!request.resource.data.keys().hasAny(['rejectionReason'])
+          || request.resource.data.rejectionReason is string)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'rejectionReason', 'rejectedAt', 'updatedAt'
+        ]);
+    }
+
+    match /publicMenu/{productId} {
+      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff();
+      allow delete: if false;
+    }
+    match /publicSettings/{document} {
+      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff();
+      allow delete: if false;
+    }
+    match /customerOrderRequests/{requestId} {
+      allow create: if isAnonymousCustomer()
+        && validCustomerRequestCreate(request.resource.data, requestId);
+      allow get: if isAuthorizedStaff() || customerOwns(resource.data);
+      allow list: if isAuthorizedStaff();
+      allow update: if isAuthorizedStaff()
+        && (validStaffConfirmation() || validStaffRejection());
+      allow delete: if false;
+    }
+    match /products/{productId} {
+      allow read, create, update: if isAuthorizedStaff();
+      allow delete: if false;
+    }
+    match /orders/{orderId} {
+      allow read: if isAuthorizedStaff();
+      allow create: if isAuthorizedStaff()
+        && request.resource.data.id == orderId
+        && validOrder(request.resource.data);
+      allow update: if isAuthorizedStaff()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.businessDate == resource.data.businessDate
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validStatus(request.resource.data.status)
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0;
+      allow delete: if false;
+    }
+    match /counters/{businessDate} {
+      allow read, create, update: if isAuthorizedStaff();
+      allow delete: if false;
+    }
+    match /settings/{document=**} {
+      allow read, create, update: if isAuthorizedStaff();
+      allow delete: if false;
+    }
+    match /users/{userId} {
+      allow get: if nonAnonymousUser() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

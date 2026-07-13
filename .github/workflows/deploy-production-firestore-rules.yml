@@ -1,0 +1,61 @@
+name: Deploy Production Firestore Rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved_source_sha:
+        description: Exact approved 40-character source SHA to deploy
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY_FIRESTORE_RULES_ONLY to confirm the restricted scope
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-firestore-rules-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-rules-only:
+    if: inputs.confirmation == 'DEPLOY_FIRESTORE_RULES_ONLY'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout exact approved source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_source_sha }}
+          fetch-depth: 1
+
+      - name: Verify restricted Production target and approved source
+        env:
+          APPROVED_SOURCE_SHA: ${{ inputs.approved_source_sha }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          test "${#APPROVED_SOURCE_SHA}" -eq 40 || { echo "An exact 40-character approved source SHA is required"; exit 1; }
+          test "$(git rev-parse HEAD)" = "$APPROVED_SOURCE_SHA" || { echo "Checked out source does not match the approved SHA"; exit 1; }
+          test -n "$FIREBASE_PROJECT_ID" || { echo "Missing required GitHub secret: FIREBASE_PROJECT_ID"; exit 1; }
+          test "$FIREBASE_PROJECT_ID" = "greek-yogert" || { echo "Production rules workflow must target exactly greek-yogert"; exit 1; }
+          test "$FIREBASE_PROJECT_ID" != "greek-yogert-customer-uat-2026" || { echo "Customer QR UAT cannot be targeted by the Production rules workflow"; exit 1; }
+
+      - name: Prepare Firebase service-account credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || { echo "Missing required GitHub secret: FIREBASE_SERVICE_ACCOUNT_JSON"; exit 1; }
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'))"
+
+      - name: Deploy Firestore rules only
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          test "$FIREBASE_PROJECT_ID" = "greek-yogert" || { echo "Production rules workflow must target exactly greek-yogert"; exit 1; }
+          test "$FIREBASE_PROJECT_ID" != "greek-yogert-customer-uat-2026" || { echo "Customer QR UAT cannot be targeted by the Production rules workflow"; exit 1; }
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.production-rules.json --project "$FIREBASE_PROJECT_ID" --only firestore:rules --non-interactive

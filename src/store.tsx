@@ -93,12 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-        if (!runtimeConfig.customerQrEnabled || account.isAnonymous || !db) {
+        if (account.isAnonymous) {
           setUser({
             uid: account.uid,
             email: account.email ?? "",
             isAnonymous: account.isAnonymous,
           });
+          setLoading(false);
+          return;
+        }
+        if (!db) {
+          setUser(null);
+          setAuthorizationError("ไม่สามารถตรวจสอบสิทธิ์พนักงานได้");
+          await signOut(firebaseAuth);
           setLoading(false);
           return;
         }
@@ -117,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthorizationError(unauthorizedStaffMessage);
           await signOut(firebaseAuth);
         } catch {
+          setUser(null);
           setAuthorizationError("ไม่สามารถตรวจสอบสิทธิ์พนักงานได้");
           await signOut(firebaseAuth);
         } finally {
