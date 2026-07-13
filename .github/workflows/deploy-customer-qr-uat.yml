@@ -48,16 +48,3 @@ jobs:
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm dlx firebase-tools@latest deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
-      - name: Dry-run, apply, and re-run the isolated UAT public projection
-        env:
-          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
-        run: |
-          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
-          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
-          dry_run="$(node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode dry-run)"
-          printf '%s\n' "$dry_run"
-          fingerprint="$(printf '%s' "$dry_run" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0, 'utf8')).fingerprint)")"
-          test -n "$fingerprint"
-          node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode apply --expected-fingerprint "$fingerprint" --confirm APPLY_PUBLIC_PROJECTION
-          node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode dry-run --expected-fingerprint "$fingerprint"
