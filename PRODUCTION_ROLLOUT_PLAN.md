@@ -35,7 +35,7 @@ Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or th
 - Work Package 3 branch: `feature/trusted-customer-boundary`
 - Work Package 3 Draft PR: #7
 - Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
-- Work Package 3 latest implementation head: `833da7ec05b2713d24f8aced82aa4bfa9b8abcff`
+- Work Package 3 latest verified implementation head: `9273113577530cfb9ce3e75c6cd50ad7b5049f60`
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -47,7 +47,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 3 is implemented on a Draft PR and deployed only to isolated UAT; its data-projection execution and targeted Manual UAT remain pending. Every Production prerequisite and approval remains pending.**
+**Not ready for Production deployment. Work Package 3 is implemented on a Draft PR, projected and automated-validated only in isolated UAT, and still awaits reduced human Manual UAT and PR approval. Every Production prerequisite and approval remains pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
@@ -62,19 +62,19 @@ The repository, not the live Production data, was inspected for application beha
 
 ## 4. Production and UAT configuration comparison
 
-| Area                    | Production now                                                  | Customer QR UAT                                          | Release implication                                                                          |
-| ----------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Firebase project        | `greek-yogert`                                                  | `greek-yogert-customer-uat-2026`                         | Identity must be verified at every step.                                                     |
-| Hosting workflow        | Manual `workflow_dispatch`; Hosting only                        | PR/manual workflow; Hosting plus UAT rules/indexes       | Production workflow must remain manual and Hosting-only.                                     |
-| Customer feature flag   | Production workflow build sets `VITE_CUSTOMER_QR_ENABLED=false` | UAT workflow sets `VITE_CUSTOMER_QR_ENABLED=true`        | Neutral fail-closed flag is merged; Production activation remains unapproved.                |
-| Customer labels/actions | Production environment mode removes UAT labels/actions          | `ทดลอง`, `Demo/UAT`, and `Seed เมนู UAT` remain visible  | Environment/display separation is merged into `main`.                                        |
-| Staff Auth provider     | Existing Email/Password behavior must remain                    | Email/Password plus explicit `users/{uid}` authorization | Provider stays enabled; every Staff UID needs an authorization document before rules change. |
-| Customer Auth provider  | Current live state must be verified; approval is absent         | Anonymous enabled                                        | Anonymous is required but must be enabled only after safe rules are live.                    |
-| Firestore rules source  | `firestore.rules`                                               | `firestore.production.rules` candidate via UAT config     | UAT validates the reviewed canonical candidate; Production deployment remains separately gated. |
-| Firestore indexes       | Live CLI check: no indexes/overrides                            | Live CLI check: no indexes/overrides                     | No index deployment is currently required.                                                   |
-| Public menu             | Not used by current Production build                            | `publicMenu/{productId}`                                 | Must be projected from current Production products before Hosting exposure.                  |
-| Public availability     | Not used by current Production build                            | `publicSettings/toppingAvailability`                     | Must be initialized from current private settings.                                           |
-| Customer requests       | Not used by current Production build                            | `customerOrderRequests/{requestId}`                      | Rules, staff subscription, and monitoring must be ready first.                               |
+| Area                    | Production now                                                  | Customer QR UAT                                          | Release implication                                                                             |
+| ----------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Firebase project        | `greek-yogert`                                                  | `greek-yogert-customer-uat-2026`                         | Identity must be verified at every step.                                                        |
+| Hosting workflow        | Manual `workflow_dispatch`; Hosting only                        | PR/manual workflow; Hosting plus UAT rules/indexes       | Production workflow must remain manual and Hosting-only.                                        |
+| Customer feature flag   | Production workflow build sets `VITE_CUSTOMER_QR_ENABLED=false` | UAT workflow sets `VITE_CUSTOMER_QR_ENABLED=true`        | Neutral fail-closed flag is merged; Production activation remains unapproved.                   |
+| Customer labels/actions | Production environment mode removes UAT labels/actions          | `ทดลอง`, `Demo/UAT`, and `Seed เมนู UAT` remain visible  | Environment/display separation is merged into `main`.                                           |
+| Staff Auth provider     | Existing Email/Password behavior must remain                    | Email/Password plus explicit `users/{uid}` authorization | Provider stays enabled; every Staff UID needs an authorization document before rules change.    |
+| Customer Auth provider  | Current live state must be verified; approval is absent         | Anonymous enabled                                        | Anonymous is required but must be enabled only after safe rules are live.                       |
+| Firestore rules source  | `firestore.rules`                                               | `firestore.production.rules` candidate via UAT config    | UAT validates the reviewed canonical candidate; Production deployment remains separately gated. |
+| Firestore indexes       | Live CLI check: no indexes/overrides                            | Live CLI check: no indexes/overrides                     | No index deployment is currently required.                                                      |
+| Public menu             | Not used by current Production build                            | `publicMenu/{productId}`                                 | Must be projected from current Production products before Hosting exposure.                     |
+| Public availability     | Not used by current Production build                            | `publicSettings/toppingAvailability`                     | Must be initialized from current private settings.                                              |
+| Customer requests       | Not used by current Production build                            | `customerOrderRequests/{requestId}`                      | Rules, staff subscription, and monitoring must be ready first.                                  |
 
 ## 5. Production Authentication
 
@@ -230,7 +230,8 @@ The projection must use current Production private product/settings values, be r
 - Rejection leaves the Customer request pending and creates no order or queue allocation. Confirmed historical snapshots are not repriced.
 - `PublicCustomerProduct` contains only Customer-required identity, display, active state, Storefront price, option/topping/granola configuration, approved Storefront surcharge fields, and separated-packaging support. Platform pricing, channel rules, Staff rules, authorization data, and internal metadata are excluded.
 - The projection runner has deterministic fingerprints, dry-run diff output, explicit stale-ID handling, atomic writes limited to `publicMenu/*`, `publicSettings/toppingAvailability`, and `publicProjectionControl/current`, and refuses apply without an exact reviewed fingerprint and typed confirmation.
-- The Production projection workflow is manual-only, source-SHA-bound, exact-project-guarded, and has not run. UAT projection execution is currently blocked before any read or write because its existing deployment service account lacks Firestore data permission; no IAM or Firebase change was made.
+- The Production projection workflow is manual-only, source-SHA-bound, exact-project-guarded, and has not run.
+- In isolated UAT only, the existing GitHub deployer received project-scoped `roles/datastore.user`. Dry-run, reviewed atomic apply, and idempotency verification passed at `wp3-7fc7b4c5be82c3da`; no Production IAM or data was accessed or changed.
 
 ### UAT seed decision
 
@@ -398,7 +399,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 15. Unresolved decisions
 
-1. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
+1. Approve the exact Production execution of the implemented trusted-confirmation and public-projection boundary; isolated UAT evidence does not approve Production.
 2. Approve the exact Production-candidate rules deployment and Emulator/live denial tests; the candidate is merged but not deployed.
 3. Identify and approve every Production Staff UID authorization document.
 4. Approve the one-time current-product/public-availability projection mechanism and review its dry-run output.
