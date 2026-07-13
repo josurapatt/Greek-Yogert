@@ -28,6 +28,10 @@ Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or th
 - Work Package 1 squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
 - Latest isolated hardening UAT workflow: `29189257511`, successful
 - Targeted hardening Manual UAT: Passed with no observed bugs
+- Production Hardening Work Package 2 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
+- PR #6: Approved, squash-merged, and closed
+- Latest isolated WP2 UAT workflow: `29218624822`, successful
+- WP2 Targeted Manual UAT: Passed with no observed bugs
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -39,13 +43,13 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Production Hardening Work Package 2 passed isolated UAT and targeted Manual UAT, and PR #6 is approved for merge. The merge and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Production Hardening Work Package 2 passed isolated UAT and targeted Manual UAT and is squash-merged into `main`. Every Production prerequisite and approval remains pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Squash-merge the approved Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
+1. Separately approve and deploy the merged Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
 3. Create a reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Decide how untrusted customer prices/items are revalidated before staff confirmation creates an order.
@@ -382,16 +386,15 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 15. Unresolved decisions
 
-1. Complete the authorized WP2 squash merge for the Production-candidate security rules; do not deploy them without separate approval.
-2. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
-3. Approve the Production-specific rules merge and exact Emulator/live denial tests.
-4. Identify and approve every Production Staff UID authorization document.
-5. Approve the one-time current-product/public-availability projection mechanism and review its dry-run output.
-6. Verify actual Production Authentication providers and approve Anonymous enablement.
-7. Accept or mitigate anonymous spam/cost risk; decide whether App Check or another hardening cycle is required.
-8. Approve the hardened Production Hosting workflow and exact release SHA.
-9. Approve creation and retention of labelled Production smoke-test records.
-10. Define monitoring duration, thresholds, and who has rollback authority.
+1. Decide whether Staff confirmation must reprice customer items from private products before creating an order.
+2. Approve the exact Production-candidate rules deployment and Emulator/live denial tests; the candidate is merged but not deployed.
+3. Identify and approve every Production Staff UID authorization document.
+4. Approve the one-time current-product/public-availability projection mechanism and review its dry-run output.
+5. Verify actual Production Authentication providers and approve Anonymous enablement.
+6. Accept or mitigate anonymous spam/cost risk; decide whether App Check or another hardening cycle is required.
+7. Approve the hardened Production Hosting workflow and exact release SHA.
+8. Approve creation and retention of labelled Production smoke-test records.
+9. Define monitoring duration, thresholds, and who has rollback authority.
 
 ## 16. Go/no-go rule
 

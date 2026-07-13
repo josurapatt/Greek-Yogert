@@ -7,10 +7,12 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Last verified date: 2026-07-13 (Asia/Bangkok)
 - Verified by: Codex, using the local repository and portable GitHub CLI
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `feature/production-security-authorization`
+- Current branch: `main`
 - Verified WP2 starting baseline: `e8b16c8e05c30cbcc5bedebe73a96966a56b5ff8`
 - Production Hardening Work Package 2 implementation commit: `8da6f45bd12b2015754613371a5419f2b810659a`
 - Production Hardening Work Package 2 public-read security correction: `79421683d531c3337db06d1bab4b26666476ceff`
+- Approved PR #6 documentation-only successor head: `405e266f952e22c4a4314423454f0aab2119b4ad`
+- Production Hardening Work Package 2 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Verified hardening starting commit: `36fff5fb983688bf668707efc5a983558fdcf134`
 - Production Hardening Work Package 1 implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
 - Approved PR #5 head before merge: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
@@ -18,8 +20,8 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Customer QR foundation squash-merge commit on `main`: `4bd879e7d0f5e5aff85ad675103d74700780e347`
 - Approved PR #4 head before merge: `52662b84fe7427e56004397a8ab5acca378c637f`
 - Retained feature branch: `feature/customer-qr-ordering-foundation` at `52662b84fe7427e56004397a8ab5acca378c637f`
-- Working tree before this documentation update: Clean after the WP2 implementation commit and UAT verification
-- Remote synchronization before this documentation update: WP2 implementation commit pushed to `origin/feature/production-security-authorization`
+- Working tree before this documentation update: Clean after the WP2 squash merge
+- Remote synchronization before this documentation update: `main` synchronized with `origin/main` at `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the merge commit above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
@@ -36,9 +38,10 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - PR #5 approved head: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
 - PR #5 squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
 - Production security rules PR: [#6 — Harden Production security rules and Staff authorization](https://github.com/josurapatt/Greek-Yogert/pull/6)
-- PR #6 state: Open Draft; unapproved and unmerged
-- PR #6 latest implementation head: `79421683d531c3337db06d1bab4b26666476ceff`
-- PR #6 Targeted Manual UAT: Passed; approved by the user for Ready-for-review and squash merge
+- PR #6 state: Merged and closed
+- PR #6 final approved documentation-only head: `405e266f952e22c4a4314423454f0aab2119b4ad`
+- PR #6 Targeted Manual UAT: Passed with no observed bugs; approved by the user
+- PR #6 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 
 ## Latest Completed Work
 
@@ -56,6 +59,8 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - A manual-only Production Firestore-rules workflow artifact and blank Staff authorization inventory template were added. Neither was executed or populated with Production data.
 - A pre-Manual-UAT security-consistency review found that public menu/settings reads were too broad because they used `signedIn()`. The candidate rules now allow those reads only to Anonymous Customers or exact active Staff; unauthorized, inactive, and malformed Email/Password identities are denied.
 - The approved PR tree was squash-merged as `4145a554ff428311a3c7e37b7c069a614fb77b3f`; the resulting `main` tree exactly matched the approved PR head.
+- Production Hardening Work Package 2 is complete and squash-merged into `main` as `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`; the resulting tree exactly matched approved PR #6 head `405e266f952e22c4a4314423454f0aab2119b4ad`.
+- The merged Production rules candidate, Staff authorization procedure, and Customer QR feature were not deployed or executed in Production.
 
 - Work Package 1 implementation exists on the PR branch.
 - Manual UAT reported four defects: the product editor remained open after save, Customer QR cart lines could not be modified, global separated-packaging availability was not clearly exposed, and Customer QR could retain stale per-product packaging support.
@@ -160,11 +165,11 @@ Production Hardening Work Package 2 validation:
 ## Known Bugs and Blockers
 
 - No known automated-validation, isolated-UAT deployment, or WP2 Manual UAT blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
-- Production rollout is blocked pending the authorized PR #6 merge, Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, Hosting, smoke-test, and monitoring gates.
+- Production rollout is blocked pending Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, exact Production rules deployment approval, Hosting, smoke-test, and monitoring gates.
 
 ## Immediate Next Action
 
-- Change approved PR #6 from Draft to Ready, verify the final head, and safely squash merge WP2. Production remains No-Go.
+- WP3 — Trusted Customer Data Boundary and Public Projection. It remains pending separate authorization; Production remains No-Go.
 
 ## Release Status
 
@@ -181,13 +186,15 @@ Production Hardening Work Package 2 validation:
 - Production Customer QR: Disabled
 - Production Hosting activation and deployment: Not approved and not performed
 - Production Staff authorization provisioning, public projection, and smoke testing: Not approved and not performed
-- Production Hardening Work Package 2: Implemented, locally validated, and deployed only to isolated UAT; Manual UAT, PR approval, merge, and every Production action remain pending
-- PR #6 Manual UAT approval: Approved by the user; merge is authorized but not yet performed
+- Production Hardening Work Package 2: Completed, automated-validated, manually validated, approved, and squash-merged into `main`; its candidate rules were deployed only to isolated UAT
+- PR #6 approval and merge: Approved by the user; squash-merged and closed
+- Production rules candidate: Merged but not deployed
+- Production Staff authorization procedure: Prepared but not executed
 
 ## Documentation Consistency
 
 - `AGENTS.md`: Corrected stale active-PR guidance and documented canonical candidate-rules/UAT and rules-workflow safeguards
 - `PRODUCTION_STAFF_AUTHORIZATION_INVENTORY.template.md`: Added as a blank non-sensitive future provisioning procedure; it contains no Production data
-- `PRODUCTION_ROLLOUT_PLAN.md`: Records the isolated-UAT-validated WP2 candidate while preserving every Production prerequisite, approval, sequence, smoke test, rollback, and risk
-- `ROADMAP.md`: Records WP2 implementation/UAT completion and pending targeted Manual UAT, PR approval, merge, and all Production gates
-- `CURRENT_STATUS.md`: Records PR #6, WP2 validation/UAT evidence, unchanged Production state, and pending targeted Manual UAT
+- `PRODUCTION_ROLLOUT_PLAN.md`: Records WP2 as merged while preserving every separate Production prerequisite, approval, sequence, smoke test, rollback, and risk
+- `ROADMAP.md`: Records WP2 completion and keeps WP3, WP4, WP5, and all Production gates pending
+- `CURRENT_STATUS.md`: Records merged PR #6, WP2 validation/UAT evidence, unchanged Production state, and WP3 as the next pending Work Package
