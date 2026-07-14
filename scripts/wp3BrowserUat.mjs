@@ -73,6 +73,7 @@ async function deleteIdentity(identity) {
 }
 
 async function unique(locator, description) {
+  await locator.waitFor({ state: "visible" });
   const count = await locator.count();
   assert(count === 1, `Expected one ${description}, found ${count}`);
   return locator;
