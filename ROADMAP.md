@@ -34,10 +34,14 @@ Extend
 - Integrated branch: `main`
 - Customer QR foundation squash-merge commit: `4bd879e7d0f5e5aff85ad675103d74700780e347`
 - Production release isolation squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
+- Production security rules squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
+- Trusted Customer boundary squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Retained feature branch: `feature/customer-qr-ordering-foundation`
 - Retained hardening branch: `feature/production-rollout-hardening`
 - PR #4: **Merged and closed**
 - PR #5: **Approved, squash-merged, and closed**
+- PR #6: **Approved, squash-merged, and closed**
+- PR #7: **Approved at exact head `765e015779c696e03dee9e62905b5645307530f6`, squash-merged, and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
 
@@ -137,7 +141,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — implementation and validation complete; exact-head PR approval and merge pending**
+**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — complete, approved, squash-merged, and post-merge governed**
 
 Current state:
 
@@ -157,8 +161,9 @@ Current state:
 - [x] Add accessible Staff payment/error guidance and complete a real Customer UI → Staff UI → Queue → History → Reports → Excel browser retest with the forged-price control unchanged.
 - [x] Targeted WP3 Human Manual UAT passed 5/5 through the actual browser UI with no observed defects.
 - [x] Missing-payment guidance, valid Customer confirmation into Queue, forged/stale rejection, Queue, History, Reports, and Excel passed Human Manual UAT.
-- [ ] PR #7 exact-final-head approval and merge.
-- [ ] Post-merge WP3 governance closure before WP4 starts.
+- [x] PR #7 exact-final-head approval and squash merge completed.
+- [x] Post-merge WP3 governance closure completed.
+- [ ] WP4 is the next planned Work Package but has not started; create a fresh feature branch and Draft PR before implementation.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -182,7 +187,7 @@ Current state:
 - [x] Production Hardening Work Package 2 targeted Manual UAT and approval complete
 - [x] Production Hardening Work Package 2 squash merge complete
 - [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
-- [ ] Production Hardening Work Package 3 exact-head PR approval and merge complete
+- [x] Production Hardening Work Package 3 exact-head PR approval and squash merge complete
 - [ ] Production Hardening Work Package 4 — Abuse Protection and Operational Controls complete
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved

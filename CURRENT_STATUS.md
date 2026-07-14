@@ -7,7 +7,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Last verified date: 2026-07-14 (Asia/Bangkok)
 - Verified by: Codex, using the local repository, portable GitHub CLI, authenticated Firebase/Google Cloud tooling, isolated-UAT automation, and browser verification
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `feature/trusted-customer-boundary`
+- Current branch: `main`
 - Verified WP2 starting baseline: `e8b16c8e05c30cbcc5bedebe73a96966a56b5ff8`
 - Production Hardening Work Package 2 implementation commit: `8da6f45bd12b2015754613371a5419f2b810659a`
 - Production Hardening Work Package 2 public-read security correction: `79421683d531c3337db06d1bab4b26666476ceff`
@@ -16,6 +16,8 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Production Hardening Work Package 3 branch: `feature/trusted-customer-boundary`
 - Production Hardening Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
 - Production Hardening Work Package 3 latest verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`
+- Production Hardening Work Package 3 approved PR head: `765e015779c696e03dee9e62905b5645307530f6`
+- Production Hardening Work Package 3 squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Verified hardening starting commit: `36fff5fb983688bf668707efc5a983558fdcf134`
 - Production Hardening Work Package 1 implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
 - Approved PR #5 head before merge: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
@@ -23,8 +25,9 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Customer QR foundation squash-merge commit on `main`: `4bd879e7d0f5e5aff85ad675103d74700780e347`
 - Approved PR #4 head before merge: `52662b84fe7427e56004397a8ab5acca378c637f`
 - Retained feature branch: `feature/customer-qr-ordering-foundation` at `52662b84fe7427e56004397a8ab5acca378c637f`
-- Working tree before this documentation update: Clean at `6897e3a907d6cc86f2f2e47072facea21243fa4f` after the WP3 Human-UAT correction and pre-retest governance update
-- Remote synchronization before this documentation update: branch head `6897e3a907d6cc86f2f2e47072facea21243fa4f` is 0 ahead / 0 behind `origin/feature/trusted-customer-boundary`
+- Retained WP3 feature branch: `feature/trusted-customer-boundary` at approved head `765e015779c696e03dee9e62905b5645307530f6`
+- Working tree before this documentation update: Clean on `main` at WP3 squash merge `851ae86137733498c4c4ef7b0fdc94a5e0255726`
+- Remote synchronization before this documentation update: local `main` is 0 ahead / 0 behind `origin/main` at `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the merge commit above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
@@ -46,10 +49,10 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - PR #6 Targeted Manual UAT: Passed with no observed bugs; approved by the user
 - PR #6 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Production trusted-data PR: [#7 — Add trusted Customer confirmation and public projection](https://github.com/josurapatt/Greek-Yogert/pull/7)
-- PR #7 state at final pre-governance verification: Open Draft, unapproved, unmerged, and mergeable; target remains `main`
-- PR #7 verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`
-- PR #7 readiness: Final Human Manual UAT passed 5/5 with no defects, and the user authorized Draft-to-Ready after the final governance commit is pushed and verified
-- PR #7 approval and merge: Pending explicit approval of the exact final PR head; this task does not authorize merge
+- PR #7 final state: Merged and closed
+- PR #7 approved head: `765e015779c696e03dee9e62905b5645307530f6`
+- PR #7 squash-merge commit on `main`: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
+- PR #7 merge method: Squash merge after exact-head user approval and Human Manual UAT passed 5/5 with no defects
 
 ## Latest Completed Work
 
@@ -81,7 +84,8 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Staff confirmation now shows accessible Thai payment guidance before confirmation, clears it after a valid selection, maps confirmation failures to safe Thai categories, and logs only safe request/category/code metadata.
 - Automated browser UAT now creates a request through the real Customer UI, confirms it through the Staff UI, verifies duplicate blocking and the preserved forged-price negative control, follows Queue → History → Reports → Excel, and removes only its temporary records and identities.
 - Final WP3 Human Manual UAT passed all 5 checks through the actual browser UI: Customer submission, missing-payment guidance, valid confirmation into Queue, forged/stale mismatch rejection without an Order or queue write, and Queue/History/Reports/Excel. No defects were observed.
-- WP3 implementation and validation are complete. PR approval and merge remain pending; WP4 must not start until PR #7 is merged and post-merge governance is complete.
+- WP3 implementation and validation are complete, and approved PR #7 was squash-merged into `main` as `851ae86137733498c4c4ef7b0fdc94a5e0255726`.
+- WP4 is the next planned Work Package but has not started. It requires a fresh feature branch and Draft PR before implementation.
 
 - Work Package 1 implementation exists on the PR branch.
 - Manual UAT reported four defects: the product editor remained open after save, Customer QR cart lines could not be modified, global separated-packaging availability was not clearly exposed, and Customer QR could retain stale per-product packaging support.
@@ -211,11 +215,12 @@ Production Hardening Work Package 3 validation (latest Human-UAT correction):
 - No known automated-validation, isolated-UAT deployment, or WP2 Manual UAT blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
 - Production rollout is blocked pending Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, exact Production rules deployment approval, Hosting, smoke-test, and monitoring gates.
 - No known WP3 implementation, automated-validation, Human Manual UAT, UAT IAM, projection, deployment, runtime, or cleanup blocker remains.
-- The only remaining WP3 gate before merge is explicit approval of the exact final Ready-for-Review PR head.
+- No known WP3 blocker remains after the approved squash merge.
+- WP4 is planned next but remains unstarted; no WP4 branch or PR has been created.
 
 ## Immediate Next Action
 
-- Push and verify the final governance-only head, move PR #7 to Ready for Review, and obtain explicit approval of that exact head before merge. Do not start WP4 before merge and post-merge governance. Production remains No-Go.
+- Treat WP3 as closed after this post-merge governance update. WP4 may begin only under a separately authorized task on a fresh feature branch with a new Draft PR. Production remains No-Go.
 
 ## Release Status
 
@@ -239,14 +244,15 @@ Production Hardening Work Package 3 validation (latest Human-UAT correction):
 - Production Hardening Work Package 3 implementation: Complete
 - Production Hardening Work Package 3 automated UAT: Passed
 - Production Hardening Work Package 3 Human Manual UAT: Passed 5/5 with no observed defects
-- PR #7 approval: Pending exact-final-head approval
-- PR #7 merge: Pending; not authorized by this task
+- PR #7 approval: Explicitly approved at exact head `765e015779c696e03dee9e62905b5645307530f6`
+- PR #7 merge: Squash-merged and closed as `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Production Hardening Work Package 3 Production rollout: No-Go
+- Production Hardening Work Package 4: Next planned Work Package; not started
 
 ## Documentation Consistency
 
 - `PRODUCTION_STAFF_AUTHORIZATION_INVENTORY.template.md`: Added as a blank non-sensitive future provisioning procedure; it contains no Production data
 - `AGENTS.md`: Adds the durable rule that trusted-confirmation UAT must cover a real/shared Customer UI request through Staff confirmation, not only hand-built snapshots
-- `PRODUCTION_ROLLOUT_PLAN.md`: Records the corrected WP3 implementation/UAT baseline while preserving every separate Production prerequisite, approval, sequence, smoke test, rollback, and risk
-- `ROADMAP.md`: Records WP3 implementation and validation complete while keeping PR approval/merge, WP4, WP5, and all Production gates pending
-- `CURRENT_STATUS.md`: Records final Human Manual UAT passed 5/5, no known defects, Ready-for-Review authorization, unchanged Production state, and exact-head approval as the remaining gate
+- `PRODUCTION_ROLLOUT_PLAN.md`: Records the approved WP3 squash merge while preserving every separate Production prerequisite, approval, sequence, smoke test, rollback, and risk
+- `ROADMAP.md`: Records WP3 complete and merged, with WP4 next planned but not started and every Production gate pending
+- `CURRENT_STATUS.md`: Records the approved head, squash merge, final WP3 status, retained feature branch, unchanged Production state, and fresh-branch requirement for WP4

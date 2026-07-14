@@ -2,7 +2,7 @@
 
 ## 1. Purpose and authority
 
-This document is a verified release-readiness plan for Customer QR Ordering and the completed Work Package 1 and Work Package 2 changes merged into `main`. It does not approve or perform a Production change.
+This document is a verified release-readiness plan for Customer QR Ordering and the completed Work Package 1, Work Package 2, and Work Package 3 changes merged into `main`. It does not approve or perform a Production change.
 
 Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or this document does not approve Authentication, Firestore, data/configuration, Hosting, smoke testing, or Production rollout.
 
@@ -32,16 +32,18 @@ Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or th
 - PR #6: Approved, squash-merged, and closed
 - Latest isolated WP2 UAT workflow: `29218624822`, successful
 - WP2 Targeted Manual UAT: Passed with no observed bugs
-- Work Package 3 branch: `feature/trusted-customer-boundary`
-- Work Package 3 Draft PR: #7
+- Work Package 3 retained branch: `feature/trusted-customer-boundary`
+- Work Package 3 PR #7: Approved, squash-merged, and closed
 - Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
 - Work Package 3 latest verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`
-- Work Package 3 pre-final-governance branch head: `6897e3a907d6cc86f2f2e47072facea21243fa4f`
+- Work Package 3 approved PR head: `765e015779c696e03dee9e62905b5645307530f6`
+- Work Package 3 squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Latest corrected WP3 isolated-UAT workflow: `29299876536`, successful
 - WP3 Human-UAT defect: real Customer granola labels diverged from trusted reconstruction; fixed through one shared canonical label builder and automated-revalidated
 - WP3 final Human Manual UAT: Passed 5/5 through the actual browser UI with no observed defects
 - WP3 implementation and validation: Complete
-- WP3 remaining governance: Exact-final-head PR approval and merge; WP4 remains blocked until merge and post-merge governance are complete
+- WP3 governance: Complete after exact-head approval, squash merge, and post-merge status update
+- WP4: Next planned Work Package, not started; a fresh feature branch and Draft PR are required before implementation
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -53,7 +55,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 3 implementation, automated UAT, and Human Manual UAT are complete with no known defects, but PR #7 still requires exact-final-head approval and merge. Every Production prerequisite and approval remains pending.**
+**Not ready for Production deployment. Work Package 3 implementation, automated UAT, Human Manual UAT, exact-head approval, and squash merge are complete with no known defects. Every Production prerequisite and approval remains pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
@@ -241,7 +243,7 @@ The projection must use current Production private product/settings values, be r
 - Customer submission and trusted confirmation now derive displayed option labels from the same canonical builder; the exact option-ID, ordering, duplicate, price, availability, packaging, and mismatch checks remain unchanged.
 - Corrected browser UAT `29299876536` created a request through the real Customer UI, confirmed it exactly once through Staff, verified Customer status and duplicate blocking, preserved the forged-price no-write control, traversed Queue/History/Reports, validated Excel, and completed temporary-data cleanup.
 - Final Human Manual UAT passed 5/5: Customer submission, missing-payment guidance, valid confirmation into Queue, forged/stale mismatch rejection without an Order or queue write, and Queue/History/Reports/Excel. No defects were observed.
-- Human UAT completion permits PR #7 to proceed to Ready for Review only; it does not approve merge or any Production action.
+- The user approved exact PR head `765e015779c696e03dee9e62905b5645307530f6`, and PR #7 was squash-merged into `main` as `851ae86137733498c4c4ef7b0fdc94a5e0255726`. This merge did not approve or perform any Production action.
 
 ### UAT seed decision
 
