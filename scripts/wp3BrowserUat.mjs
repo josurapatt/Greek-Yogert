@@ -141,7 +141,9 @@ try {
     }
   });
 
-  await customerPage.goto(`${baseUrl}/order`, { waitUntil: "networkidle" });
+  await customerPage.goto(`${baseUrl}/order`, {
+    waitUntil: "domcontentloaded",
+  });
   await (
     await unique(
       customerPage.getByRole("button").filter({ hasText: "Apple Ohlala" }),
@@ -195,7 +197,7 @@ try {
   const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
     "Customer request confirmation failed",
   ]);
-  await staffPage.goto(baseUrl, { waitUntil: "networkidle" });
+  await staffPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await staffPage.getByLabel("อีเมล").fill(staffEmail);
   await staffPage.getByLabel("รหัสผ่าน").fill(staffPassword);
   await staffPage.getByRole("button", { name: "เข้าสู่ระบบ" }).click();
@@ -204,7 +206,7 @@ try {
     .waitFor({ state: "visible" });
 
   await staffPage.goto(`${baseUrl}/customer-requests/${requestId}`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
   const confirmButton = await unique(
     staffPage.getByRole("button", { name: "ยืนยันและสร้างคิว" }),
@@ -256,7 +258,7 @@ try {
   await customerPage.getByText(queueNumber, { exact: true }).waitFor();
 
   await staffPage.goto(`${baseUrl}/customer-requests/${requestId}`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
   await staffPage.getByText("ไม่พบคำขอที่รอยืนยัน", { exact: true }).waitFor();
   assert(
@@ -280,7 +282,7 @@ try {
   assert(negativeBefore, "Preserved negative-control request is missing");
   const negativeCounterBefore = await counterSequence(date);
   await staffPage.goto(`${baseUrl}/customer-requests/${negativeRequestId}`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
   const negativePayment = await unique(
     staffPage.getByRole("combobox", { name: "วิธีชำระเงิน Apple Ohlala" }),
@@ -309,7 +311,7 @@ try {
     "Negative control consumed a queue number",
   );
 
-  await staffPage.goto(`${baseUrl}/queue`, { waitUntil: "networkidle" });
+  await staffPage.goto(`${baseUrl}/queue`, { waitUntil: "domcontentloaded" });
   await (
     await unique(
       staffPage.getByRole("link").filter({ hasText: marker }),
@@ -323,9 +325,9 @@ try {
     )
   ).click();
   await staffPage.getByRole("button", { name: "นำกลับเข้าคิว" }).waitFor();
-  await staffPage.goto(`${baseUrl}/history`, { waitUntil: "networkidle" });
+  await staffPage.goto(`${baseUrl}/history`, { waitUntil: "domcontentloaded" });
   await staffPage.getByText(marker, { exact: true }).waitFor();
-  await staffPage.goto(`${baseUrl}/reports`, { waitUntil: "networkidle" });
+  await staffPage.goto(`${baseUrl}/reports`, { waitUntil: "domcontentloaded" });
   await staffPage.getByRole("heading", { name: "รายงานและยอดขาย" }).waitFor();
   const exportButton = await unique(
     staffPage.getByRole("button", { name: "ส่งออก Excel" }),
