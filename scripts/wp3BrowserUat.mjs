@@ -261,7 +261,15 @@ try {
   await staffPage.goto(`${baseUrl}/customer-requests/${requestId}`, {
     waitUntil: "domcontentloaded",
   });
-  await staffPage.getByText("ไม่พบคำขอที่รอยืนยัน", { exact: true }).waitFor();
+  await staffPage.getByRole("heading", { name: marker }).waitFor();
+  const duplicateButton = await unique(
+    staffPage.getByRole("button", { name: "ยืนยันและสร้างคิว" }),
+    "processed-request confirmation action",
+  );
+  assert(
+    !(await duplicateButton.isEnabled()),
+    "Processed request can still be confirmed",
+  );
   assert(
     (await counterSequence(date)) === counterAfter,
     "Duplicate UI path changed the queue counter",
