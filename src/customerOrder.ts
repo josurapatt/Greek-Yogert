@@ -56,6 +56,19 @@ export function uniqueLinePaymentMethods(
   ];
 }
 
+export function customerOptionLabels(
+  product: Product,
+  selectedOptionIds: string[],
+): string[] {
+  if (product.optionMode === "granola")
+    return selectedOptionIds.map((name) => `กราโนล่ารส${name}`);
+  if (product.optionMode === "toppings")
+    return selectedOptionIds.map(
+      (id) => toppings.find((entry) => entry.id === id)?.name ?? id,
+    );
+  return [];
+}
+
 export function toCustomerPublicProduct(
   product: Product,
 ): PublicCustomerProduct {

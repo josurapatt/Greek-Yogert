@@ -1,5 +1,6 @@
 import { Minus, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { customerOptionLabels } from "../customerOrder";
 import { toppings } from "../data";
 import {
   calculatePriceBreakdown,
@@ -104,12 +105,7 @@ export default function ProductModal({
     });
   const save = () => {
     if (error) return;
-    const names =
-      product.optionMode === "granola"
-        ? selected.map((name) => `กราโนล่ารส${name}`)
-        : selected.map(
-            (id) => toppings.find((entry) => entry.id === id)?.name ?? id,
-          );
+    const names = customerOptionLabels(product, selected);
     onSave({
       id: initial?.id ?? crypto.randomUUID(),
       productId: product.id,

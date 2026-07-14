@@ -13,6 +13,7 @@
     "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project production-security-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.production.test.ts\"",
     "projection:public": "node scripts/runPublicProjection.mjs",
     "uat:wp3:diagnose": "node scripts/runWp3HumanUatDiagnostic.mjs",
+    "uat:wp3:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp3": "node scripts/runWp3UatValidation.mjs",
     "test:watch": "vitest"
   },
@@ -37,6 +38,7 @@
     "firebase-admin": "13.5.0",
     "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
+    "playwright": "1.61.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"

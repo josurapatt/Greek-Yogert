@@ -1,5 +1,8 @@
 import { toppings } from "./data";
-import { customerStorefrontChannel } from "./customerOrder";
+import {
+  customerOptionLabels,
+  customerStorefrontChannel,
+} from "./customerOrder";
 import { orderTotals, prepareOrderItems } from "./lib";
 import type {
   CartItem,
@@ -20,20 +23,20 @@ function sameValue(left: unknown, right: unknown): boolean {
 
 function canonicalOptionLabels(product: Product, ids: string[]): string[] {
   if (product.optionMode === "toppings") {
-    return ids.map((id) => {
+    ids.forEach((id) => {
       const topping = toppings.find((entry) => entry.id === id);
       if (!topping) mismatch("พบรหัสท็อปปิ้งที่ไม่รู้จัก");
       if (!product.availableToppingIds.includes(id))
         mismatch("ท็อปปิ้งนี้ไม่รองรับสำหรับสินค้า");
-      return topping.name;
     });
+    return customerOptionLabels(product, ids);
   }
   if (product.optionMode === "granola") {
-    return ids.map((id) => {
+    ids.forEach((id) => {
       if (!product.granolaOptions.includes(id))
         mismatch("ตัวเลือกกราโนล่าไม่อยู่ในเมนูปัจจุบัน");
-      return id;
     });
+    return customerOptionLabels(product, ids);
   }
   if (ids.length) mismatch("สินค้านี้ไม่มีตัวเลือกเพิ่มเติม");
   return [];

@@ -13,7 +13,7 @@ function appleItem(): CartItem {
     productId: apple.id,
     productName: apple.name,
     basePrice: 69,
-    selectedOptions: ["กล้วย"],
+    selectedOptions: ["กราโนล่ารสกล้วย"],
     selectedOptionIds: ["กล้วย"],
     selectedChannel: "หน้าร้าน",
     quantity: 1,
@@ -205,6 +205,20 @@ describe("trusted Customer confirmation boundary", () => {
     );
     expectMismatch(() =>
       rebuildTrustedCustomerConfirmation(request, changed, {}),
+    );
+  });
+
+  it("accepts the real Customer UI granola label but rejects a different display snapshot", () => {
+    const valid = requestFor();
+    expect(
+      rebuildTrustedCustomerConfirmation(valid, defaultProducts, {}).items[0]
+        .selectedOptions,
+    ).toEqual(["กราโนล่ารสกล้วย"]);
+
+    const mismatched = structuredClone(valid);
+    mismatched.items[0].selectedOptions = ["กล้วย"];
+    expectMismatch(() =>
+      rebuildTrustedCustomerConfirmation(mismatched, defaultProducts, {}),
     );
   });
 

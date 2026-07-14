@@ -58,3 +58,15 @@ jobs:
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp3:diagnose
+      - name: Install isolated UAT browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run WP3 browser UAT and clean temporary data
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp3:browser

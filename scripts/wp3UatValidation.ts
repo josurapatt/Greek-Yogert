@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import {
   createCustomerRequest,
+  customerOptionLabels,
   customerPublicProductToProduct,
   waitingForShop,
 } from "../src/customerOrder";
@@ -182,7 +183,10 @@ function cartItem(product: PublicCustomerProduct, id: string): CartItem {
     productId: product.id,
     productName: product.name,
     basePrice: product.storefrontPrice,
-    selectedOptions: [...selectedOptionIds],
+    selectedOptions: customerOptionLabels(
+      customerPublicProductToProduct(product),
+      selectedOptionIds,
+    ),
     selectedOptionIds,
     quantity: 1,
     unitPrice: product.storefrontPrice,

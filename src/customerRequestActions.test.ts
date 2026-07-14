@@ -24,7 +24,7 @@ function appleItem(): CartItem {
     productId: apple.id,
     productName: apple.name,
     basePrice: 69,
-    selectedOptions: ["กล้วย"],
+    selectedOptions: ["กราโนล่ารสกล้วย"],
     selectedOptionIds: ["กล้วย"],
     selectedChannel: "หน้าร้าน",
     quantity: 1,
