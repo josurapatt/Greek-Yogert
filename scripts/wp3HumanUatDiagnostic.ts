@@ -37,16 +37,7 @@ const safeItem = (item: CustomerOrderRequest["items"][number]) => ({
   packagingSurchargeTotal: item.packagingSurchargeTotal,
 });
 
-async function inspect(label: string) {
-  const requestRows = await firestore
-    .collection("customerOrderRequests")
-    .where("customerName", "==", label)
-    .get();
-  if (requestRows.empty) return { label, found: false };
-  if (requestRows.size !== 1)
-    throw new Error(`Expected exactly one preserved ${label} request`);
-
-  const request = requestRows.docs[0].data() as CustomerOrderRequest;
+async function inspectRequest(label: string, request: CustomerOrderRequest) {
   const productIds = [...new Set(request.items.map((item) => item.productId))];
   const productRows = await Promise.all(
     productIds.map((id) => firestore.doc(`products/${id}`).get()),
@@ -86,8 +77,6 @@ async function inspect(label: string) {
   });
 
   return {
-    label,
-    found: true,
     request: {
       id: request.id,
       status: request.status,
@@ -108,6 +97,25 @@ async function inspect(label: string) {
     matchingOrders: orders,
     matchingOrderCount: orders.length,
     diagnosticWrites: 0,
+  };
+}
+
+async function inspect(label: string) {
+  const requestRows = await firestore
+    .collection("customerOrderRequests")
+    .where("customerName", "==", label)
+    .get();
+  if (requestRows.empty) return { label, found: false };
+
+  return {
+    label,
+    found: true,
+    matchCount: requestRows.size,
+    matches: await Promise.all(
+      requestRows.docs.map((row) =>
+        inspectRequest(label, row.data() as CustomerOrderRequest),
+      ),
+    ),
   };
 }
 
