@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { chromium } from "playwright";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx";
 
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
