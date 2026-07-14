@@ -333,10 +333,22 @@ try {
       "complete Order action",
     )
   ).click();
-  await staffPage.getByRole("button", { name: "นำกลับเข้าคิว" }).waitFor();
-  await staffPage.goto(`${baseUrl}/history`, { waitUntil: "domcontentloaded" });
+  await staffPage.waitForURL(`${baseUrl}/queue`);
+  await (
+    await unique(
+      staffPage.getByRole("link", { name: "ประวัติ", exact: true }),
+      "History navigation",
+    )
+  ).click();
+  await staffPage.waitForURL(`${baseUrl}/history`);
   await staffPage.getByText(marker, { exact: true }).waitFor();
-  await staffPage.goto(`${baseUrl}/reports`, { waitUntil: "domcontentloaded" });
+  await (
+    await unique(
+      staffPage.getByRole("link", { name: "รายงาน", exact: true }),
+      "Reports navigation",
+    )
+  ).click();
+  await staffPage.waitForURL(`${baseUrl}/reports`);
   await staffPage.getByRole("heading", { name: "รายงานและยอดขาย" }).waitFor();
   const exportButton = await unique(
     staffPage.getByRole("button", { name: "ส่งออก Excel" }),
