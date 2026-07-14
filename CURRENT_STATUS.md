@@ -1,10 +1,10 @@
 # GreekYogurtOrderApp — Current Status
 
-This document is the latest operational snapshot, not a changelog. Git history is authoritative for historical changes. Repository and GitHub facts below were verified on 2026-07-13; user-controlled approvals remain pending unless explicitly stated.
+This document is the latest operational snapshot, not a changelog. Git history is authoritative for historical changes. Repository and GitHub facts below were verified on 2026-07-14; user-controlled approvals remain pending unless explicitly stated.
 
 ## Status Metadata
 
-- Last verified date: 2026-07-13 (Asia/Bangkok)
+- Last verified date: 2026-07-14 (Asia/Bangkok)
 - Verified by: Codex, using the local repository, portable GitHub CLI, authenticated Firebase/Google Cloud tooling, isolated-UAT automation, and browser verification
 - Repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/trusted-customer-boundary`
@@ -15,7 +15,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Production Hardening Work Package 2 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Production Hardening Work Package 3 branch: `feature/trusted-customer-boundary`
 - Production Hardening Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
-- Production Hardening Work Package 3 latest verified implementation head: `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
+- Production Hardening Work Package 3 latest verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`
 - Verified hardening starting commit: `36fff5fb983688bf668707efc5a983558fdcf134`
 - Production Hardening Work Package 1 implementation commit: `953c6f3bac5bd4424d0728a495fad46b2aeb6b1b`
 - Approved PR #5 head before merge: `aa2bf6d45d494d08ec40fe7e1013ea09a8fca9fe`
@@ -23,8 +23,8 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - Customer QR foundation squash-merge commit on `main`: `4bd879e7d0f5e5aff85ad675103d74700780e347`
 - Approved PR #4 head before merge: `52662b84fe7427e56004397a8ab5acca378c637f`
 - Retained feature branch: `feature/customer-qr-ordering-foundation` at `52662b84fe7427e56004397a8ab5acca378c637f`
-- Working tree before this documentation update: Clean after WP3 implementation, projection, automated UAT, defect fixes, and isolated-UAT deployment
-- Remote synchronization before this documentation update: implementation head `2c75b197a3892712f1b11d37944359f6ad6cb3ab` is pushed to `origin/feature/trusted-customer-boundary`
+- Working tree before this documentation update: Clean after the WP3 Human-UAT correction, automated browser retest, and isolated-UAT cleanup
+- Remote synchronization before this documentation update: implementation head `9dd0751a04eec128e0d04a84c4549664038e4120` is pushed to `origin/feature/trusted-customer-boundary`
 - Status-document commit note: The documentation-only commit containing this snapshot is necessarily newer than the merge commit above. Verify actual HEAD with Git before relying on it.
 
 ## Pull Request
@@ -47,6 +47,7 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - PR #6 squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Production trusted-data PR: [#7 — Add trusted Customer confirmation and public projection](https://github.com/josurapatt/Greek-Yogert/pull/7)
 - PR #7 state: Open Draft, unapproved, and unmerged
+- PR #7 verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`; GitHub reports it mergeable, but it must remain Draft pending Human Retest and explicit approval
 
 ## Latest Completed Work
 
@@ -73,6 +74,10 @@ This document is the latest operational snapshot, not a changelog. Git history i
 - WP3 now includes an exact-source-SHA-bound manual UAT projection workflow, explicit source/public-target audit output, private product identity validation, the full mismatch matrix, transaction no-write assertions, and a reusable live isolated-UAT validator.
 - Live automated UAT confirmed the public/private boundary, applied fingerprint, trusted confirmation, queue/request linkage, payment allocation, duplicate blocking, forged-price rejection without writes, Staff rejection, Customer status isolation, request-update denial, and unauthorized/inactive/malformed Staff denial. Temporary Auth identities and authorization documents were removed.
 - WP3 defects fixed in this continuation: incomplete projection audit evidence, ambiguous private product-ID acceptance, missing explicit mismatch/no-write coverage, non-source-bound UAT projection dispatch, slow-emulator startup timeout, and UAT cleanup warning handling.
+- The first WP3 Human UAT exposed a real Customer-to-Staff compatibility defect: `ProductModal` stored the decorated granola label `กราโนล่ารสช็อกโกแลต`, while trusted reconstruction independently produced the raw label `ช็อกโกแลต`. The preserved request `fO6GTxsDbuJc2G4pkNux` remained pending, with no order or queue allocation.
+- Customer submission and trusted reconstruction now use one shared canonical option-label builder. Exact option IDs, ordering, duplicates, pricing, availability, packaging, and mismatch rejection remain enforced.
+- Staff confirmation now shows accessible Thai payment guidance before confirmation, clears it after a valid selection, maps confirmation failures to safe Thai categories, and logs only safe request/category/code metadata.
+- Automated browser UAT now creates a request through the real Customer UI, confirms it through the Staff UI, verifies duplicate blocking and the preserved forged-price negative control, follows Queue → History → Reports → Excel, and removes only its temporary records and identities.
 
 - Work Package 1 implementation exists on the PR branch.
 - Manual UAT reported four defects: the product editor remained open after save, Customer QR cart lines could not be modified, global separated-packaging availability was not clearly exposed, and Customer QR could retain stale per-product packaging support.
@@ -130,19 +135,21 @@ Production Hardening Work Package 2 validation:
 - Full application suite after the rules correction: 144 passed across 14 test files
 - Corrected isolated UAT workflow: [29218624822](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218624822) succeeded for `79421683d531c3337db06d1bab4b26666476ceff`
 
-Production Hardening Work Package 3 validation:
+Production Hardening Work Package 3 validation (latest Human-UAT correction):
 
-- Focused trusted-confirmation, public-projection, and transaction tests: 31 passed across 3 test files
-- Application tests: 175 passed across 17 test files
+- Focused trusted-confirmation and confirmation-UX tests: 32 passed across 4 test files
+- Application tests: 180 passed across 19 test files
 - Canonical Production-candidate Firestore Emulator tests: 15 passed
 - Lint, Production-disabled build, UAT-enabled build, Prettier, workflow YAML parsing, diff review, and secret scan: Passed
 - Firestore Emulator harness startup defect fixed without changing rules or assertions; the final 15-test rerun passed
-- Isolated UAT deployment: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420) succeeded for `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
+- Corrected isolated UAT workflow: [29299876536](https://github.com/josurapatt/Greek-Yogert/actions/runs/29299876536) succeeded for `9dd0751a04eec128e0d04a84c4549664038e4120`
 - Projection dry-run: [29241851162](https://github.com/josurapatt/Greek-Yogert/actions/runs/29241851162) validated 6 private products; planned 4 creates, 2 whitelist replacements, 0 stale removals, availability/control updates, and 0 dry-run writes
 - Projection apply: [29241980849](https://github.com/josurapatt/Greek-Yogert/actions/runs/29241980849) atomically committed 8 writes at fingerprint `wp3-7fc7b4c5be82c3da`
 - Projection idempotency: [29242037737](https://github.com/josurapatt/Greek-Yogert/actions/runs/29242037737) reported all 6 menu documents, availability, and control current with 0 planned writes
 - Live automated UAT marker `WP3-AUTO-1783939065803`: Passed; 4 temporary Auth identities and 2 temporary authorization documents removed
 - Browser verification: UAT `/order` rendered all 6 projected products with the UAT label and 0 console errors
+- Read-only Human-UAT diagnostic: preserved request `fO6GTxsDbuJc2G4pkNux` reproduced the exact trusted-label mismatch with 0 writes; preserved negative request `WP3-AUTO-1783938043929-forged-unit-price` remained pending and unmodified
+- Corrected browser marker `WP3-AUTO-UI-VALID-RETEST-1783994349542`: request `SpNrsD8xnUwLbDuUe598` confirmed exactly once as order `20260714-003`, queue `Q003`; payment guidance was visible then cleared, Customer status updated, duplicate confirmation made no write, the negative control consumed no counter, Queue/History/Reports/Excel passed, and no unexpected browser-console errors occurred
 
 ## Deployment Status
 
@@ -150,7 +157,7 @@ Production Hardening Work Package 3 validation:
 
 - Firebase project: `greek-yogert-customer-uat-2026`
 - Deployment status: Safeguarded isolated UAT workflow succeeded
-- Latest workflow run: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420)
+- Latest workflow run: [29299876536](https://github.com/josurapatt/Greek-Yogert/actions/runs/29299876536)
 - Workflow target safeguard: Build and deployment both require the exact project ID `greek-yogert-customer-uat-2026`
 - UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/> — HTTP 200 verified
 - UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
@@ -162,7 +169,7 @@ Production Hardening Work Package 3 validation:
 - WP2 UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order> — HTTP 200 verified
 - Corrected WP2 UAT workflow: [29218624822](https://github.com/josurapatt/Greek-Yogert/actions/runs/29218624822) — succeeded
 - Corrected WP2 UAT Staff and Customer URLs: HTTP 200 verified
-- WP3 UAT workflow: [29244204420](https://github.com/josurapatt/Greek-Yogert/actions/runs/29244204420) — succeeded for implementation head `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
+- WP3 corrected UAT workflow: [29299876536](https://github.com/josurapatt/Greek-Yogert/actions/runs/29299876536) — succeeded for implementation head `9dd0751a04eec128e0d04a84c4549664038e4120`
 - WP3 UAT projection: Applied and idempotent at `wp3-7fc7b4c5be82c3da`; writes were restricted to `publicMenu/*`, `publicSettings/toppingAvailability`, and `publicProjectionControl/current`
 
 ### Production
@@ -190,18 +197,19 @@ Production Hardening Work Package 3 validation:
 - WP2 Manual UAT passed: authorized Staff access; unauthorized/inactive/malformed Staff denial; Anonymous public menu access; owned-request isolation; request-update denial; Staff confirmation/rejection and duplicate protection; Queue, History, Reports, and Excel regression
 - WP2 Manual UAT observed bugs: None
 - WP3 automated UAT: Passed
-- WP3 remaining Manual UAT: Pending only for visual presentation, interaction usability, and business acceptance
-- Human-only checks remain for Customer menu/cart presentation, Staff mismatch-message clarity and end-to-end usability, Queue/History/Reports presentation, downloaded Excel presentation, and final business acceptance.
+- Initial WP3 Human UAT: Failed at Staff confirmation because the real Customer UI and trusted reconstruction produced different granola labels; the request remained pending and no queue/order was created. The defect is fixed and automated-revalidated.
+- WP3 remaining Manual UAT: Pending only for the short corrected-path Human Retest and business acceptance
+- Human-only checks remain for one fresh Customer request, visible missing-payment guidance, one successful Staff confirmation and Queue transition, preserved forged-price mismatch clarity, and Queue/History/Reports/Excel presentation.
 
 ## Known Bugs and Blockers
 
 - No known automated-validation, isolated-UAT deployment, or WP2 Manual UAT blocker; the public-read discrepancy was corrected and revalidated before Manual UAT
 - Production rollout is blocked pending Staff authorization provisioning, current-product public projection, customer price revalidation/risk decision, Authentication, exact Production rules deployment approval, Hosting, smoke-test, and monitoring gates.
-- No known WP3 automated-validation, UAT IAM, projection, deployment, or runtime blocker remains.
+- No known WP3 automated-validation, UAT IAM, projection, deployment, runtime, or cleanup blocker remains; the corrected path awaits Human Retest.
 
 ## Immediate Next Action
 
-- Complete the reduced human-only WP3 Manual UAT, then obtain exact PR-head approval before Ready for Review or merge. Production remains No-Go.
+- Complete the five-item corrected-path WP3 Human Retest, then obtain exact PR-head approval before Ready for Review or merge. Production remains No-Go.
 
 ## Release Status
 
@@ -222,13 +230,12 @@ Production Hardening Work Package 3 validation:
 - PR #6 approval and merge: Approved by the user; squash-merged and closed
 - Production rules candidate: Merged but not deployed
 - Production Staff authorization procedure: Prepared but not executed
-- Production Hardening Work Package 3: Implemented, projected, automated-validated, and deployed only to isolated UAT on Draft PR #7; reduced human Manual UAT and approval remain pending
+- Production Hardening Work Package 3: Implemented, projected, corrected after Human UAT, automated-revalidated, and deployed only to isolated UAT on Draft PR #7; the short Human Retest and approval remain pending
 
 ## Documentation Consistency
 
-- `AGENTS.md`: Corrected stale active-PR guidance and documented canonical candidate-rules/UAT and rules-workflow safeguards
 - `PRODUCTION_STAFF_AUTHORIZATION_INVENTORY.template.md`: Added as a blank non-sensitive future provisioning procedure; it contains no Production data
-- `PRODUCTION_ROLLOUT_PLAN.md`: Records WP2 as merged while preserving every separate Production prerequisite, approval, sequence, smoke test, rollback, and risk
-- `ROADMAP.md`: Records WP2 completion and keeps WP3, WP4, WP5, and all Production gates pending
-- `CURRENT_STATUS.md`: Records merged PR #6, WP2 validation/UAT evidence, unchanged Production state, and WP3 as the next pending Work Package
-- `CURRENT_STATUS.md`: Records the resolved UAT IAM blocker, projection evidence, automated UAT, final implementation baseline, unchanged Production state, and reduced human-only stop point
+- `AGENTS.md`: Adds the durable rule that trusted-confirmation UAT must cover a real/shared Customer UI request through Staff confirmation, not only hand-built snapshots
+- `PRODUCTION_ROLLOUT_PLAN.md`: Records the corrected WP3 implementation/UAT baseline while preserving every separate Production prerequisite, approval, sequence, smoke test, rollback, and risk
+- `ROADMAP.md`: Records the WP3 Human-UAT correction and automated browser retest while keeping WP3, WP4, WP5, and all Production gates pending
+- `CURRENT_STATUS.md`: Records the Human-UAT root cause, correction, automated evidence, unchanged Production state, and five-item Human Retest stop point

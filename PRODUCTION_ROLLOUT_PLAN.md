@@ -35,7 +35,10 @@ Every approval in this plan is independent. Approval of PR #4, PR #5, UAT, or th
 - Work Package 3 branch: `feature/trusted-customer-boundary`
 - Work Package 3 Draft PR: #7
 - Work Package 3 implementation commit: `ff09e330f8215865362ec9f2e6e1552c24200435`
-- Work Package 3 latest verified implementation head: `2c75b197a3892712f1b11d37944359f6ad6cb3ab`
+- Work Package 3 latest verified implementation head: `9dd0751a04eec128e0d04a84c4549664038e4120`
+- Latest corrected WP3 isolated-UAT workflow: `29299876536`, successful
+- WP3 Human-UAT defect: real Customer granola labels diverged from trusted reconstruction; fixed through one shared canonical label builder and automated-revalidated
+- WP3 remaining acceptance: short corrected-path Human Retest and explicit PR approval
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -47,7 +50,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 3 is implemented on a Draft PR, projected and automated-validated only in isolated UAT, and still awaits reduced human Manual UAT and PR approval. Every Production prerequisite and approval remains pending.**
+**Not ready for Production deployment. Work Package 3 is corrected on a Draft PR, projected and automated-validated only in isolated UAT, and still awaits the short Human Retest and PR approval. Every Production prerequisite and approval remains pending.**
 
 `main` now uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Work Package 1 change was deployed to Production.
 
@@ -232,6 +235,8 @@ The projection must use current Production private product/settings values, be r
 - The projection runner has deterministic fingerprints, dry-run diff output, explicit stale-ID handling, atomic writes limited to `publicMenu/*`, `publicSettings/toppingAvailability`, and `publicProjectionControl/current`, and refuses apply without an exact reviewed fingerprint and typed confirmation.
 - The Production projection workflow is manual-only, source-SHA-bound, exact-project-guarded, and has not run.
 - In isolated UAT only, the existing GitHub deployer received project-scoped `roles/datastore.user`. Dry-run, reviewed atomic apply, and idempotency verification passed at `wp3-7fc7b4c5be82c3da`; no Production IAM or data was accessed or changed.
+- Customer submission and trusted confirmation now derive displayed option labels from the same canonical builder; the exact option-ID, ordering, duplicate, price, availability, packaging, and mismatch checks remain unchanged.
+- Corrected browser UAT `29299876536` created a request through the real Customer UI, confirmed it exactly once through Staff, verified Customer status and duplicate blocking, preserved the forged-price no-write control, traversed Queue/History/Reports, validated Excel, and completed temporary-data cleanup.
 
 ### UAT seed decision
 

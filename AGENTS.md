@@ -547,6 +547,11 @@ Automate every safe test and UAT check before requesting Manual UAT. Keep the
 remaining Manual UAT limited to human visual, physical-workflow, or business
 judgment that automation cannot establish conclusively.
 
+Trusted-confirmation UAT must include at least one request created through the
+real Customer UI (or its shared canonical UI builder) and confirmed through the
+Staff UI. A hand-built service snapshot alone is not sufficient evidence for
+Customer-to-Staff option-label compatibility.
+
 ### Production release task
 
 Before merge/release verify:

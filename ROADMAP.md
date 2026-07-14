@@ -137,7 +137,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — automated UAT complete; human acceptance pending**
+**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — Human-UAT defect corrected and automated UAT complete; short Human Retest pending**
 
 Current state:
 
@@ -153,6 +153,8 @@ Current state:
 - [x] Work Package 3 trusted confirmation and public projection implementation completed, automated-validated, and deployed only to isolated Customer QR UAT on Draft PR #7.
 - [x] Grant only UAT-project `roles/datastore.user` to the existing deployer and complete projection dry-run, reviewed atomic apply, and zero-write idempotency verification.
 - [x] Complete automated WP3 mismatch, transaction, security, live isolated-UAT, and browser validation.
+- [x] Diagnose the preserved Human-UAT confirmation failure without writes and correct the shared Customer/trusted granola-label boundary.
+- [x] Add accessible Staff payment/error guidance and complete a real Customer UI → Staff UI → Queue → History → Reports → Excel browser retest with the forged-price control unchanged.
 - [ ] Targeted WP3 Manual UAT and PR approval.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
