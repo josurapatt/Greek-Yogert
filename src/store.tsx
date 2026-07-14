@@ -16,7 +16,6 @@ import {
   collection,
   deleteField,
   doc,
-  FieldPath,
   getDoc,
   onSnapshot,
   runTransaction,
@@ -394,11 +393,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (db) {
       const batch = writeBatch(db);
       batch.set(doc(db, "products", normalized.id), normalized);
-      if (runtimeConfig.customerQrEnabled)
-        batch.set(
-          doc(db, "publicMenu", normalized.id),
-          toCustomerPublicProduct(normalized),
-        );
+      batch.set(
+        doc(db, "publicMenu", normalized.id),
+        toCustomerPublicProduct(normalized),
+      );
       await batch.commit();
     } else
       setProducts((rows) => [
@@ -409,22 +407,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const setToppingAvailability = async (id: string, available: boolean) => {
     if (db) {
-      const data = {
-        availability: { [id]: available },
-        updatedAt: new Date().toISOString(),
-      };
-      const options = {
-        mergeFields: [new FieldPath("availability", id), "updatedAt"],
-      };
-      const batch = writeBatch(db);
-      batch.set(doc(db, "settings", "toppingAvailability"), data, options);
-      if (runtimeConfig.customerQrEnabled)
-        batch.set(
-          doc(db, "publicSettings", "toppingAvailability"),
-          data,
-          options,
+      const firestore = db;
+      await runTransaction(firestore, async (transaction) => {
+        const privateRef = doc(firestore, "settings", "toppingAvailability");
+        const current = await transaction.get(privateRef);
+        const next = {
+          ...((current.data()?.availability as
+            | ToppingAvailability
+            | undefined) ?? {}),
+          [id]: available,
+        };
+        transaction.set(privateRef, {
+          availability: next,
+          updatedAt: new Date().toISOString(),
+        });
+        transaction.set(
+          doc(firestore, "publicSettings", "toppingAvailability"),
+          { availability: next },
         );
-      await batch.commit();
+      });
     } else setAvailability((current) => ({ ...current, [id]: available }));
   };
 

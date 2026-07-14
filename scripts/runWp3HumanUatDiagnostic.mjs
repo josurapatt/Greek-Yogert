@@ -1,0 +1,18 @@
+import { buildSync } from "esbuild";
+import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const outputDirectory = resolve("node_modules/.tmp");
+const outputFile = resolve(outputDirectory, "wp3-human-uat-diagnostic.mjs");
+mkdirSync(outputDirectory, { recursive: true });
+buildSync({
+  entryPoints: ["scripts/wp3HumanUatDiagnostic.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  packages: "external",
+  outfile: outputFile,
+});
+await import(`${pathToFileURL(outputFile).href}?run=${Date.now()}`);

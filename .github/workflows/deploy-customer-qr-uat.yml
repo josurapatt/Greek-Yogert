@@ -8,7 +8,7 @@ on:
       - "**.md"
 jobs:
   deploy-customer-uat:
-    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization'
+    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
@@ -48,3 +48,25 @@ jobs:
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm dlx firebase-tools@latest deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
+      - name: Capture read-only WP3 Human UAT diagnostics
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp3:diagnose
+      - name: Install isolated UAT browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run WP3 browser UAT and clean temporary data
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp3:browser

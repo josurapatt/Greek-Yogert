@@ -213,7 +213,10 @@ Rules:
 - Work on a focused feature branch.
 - Never commit directly to `main` unless the user explicitly requests and approves a release operation.
 - Never force push.
+- Never rewrite history on an already-pushed feature branch; use normal follow-up commits for corrections.
 - Keep commits focused.
+- Use one fresh feature branch and one Draft PR for each Work Package.
+- Do not start the next Work Package until the current Work Package PR is approved and merged.
 - Do not merge a Draft PR.
 - Do not merge before explicit UAT approval.
 - Verify the approved PR head SHA before release.
@@ -539,6 +542,15 @@ Before deployment verify:
 - Production exclusion safeguards
 
 Deploy only the resources named in the task.
+
+Automate every safe test and UAT check before requesting Manual UAT. Keep the
+remaining Manual UAT limited to human visual, physical-workflow, or business
+judgment that automation cannot establish conclusively.
+
+Trusted-confirmation UAT must include at least one request created through the
+real Customer UI (or its shared canonical UI builder) and confirmed through the
+Staff UI. A hand-built service snapshot alone is not sufficient evidence for
+Customer-to-Staff option-label compatibility.
 
 ### Production release task
 

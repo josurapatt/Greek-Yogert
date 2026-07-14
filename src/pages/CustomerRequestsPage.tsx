@@ -18,6 +18,10 @@ import type { CustomerOrderRequest, StaffPaymentMethod } from "../types";
 import { pendingCustomerRequests } from "../customerRequests";
 import OrderItemSummary from "../components/OrderItemSummary";
 import { runtimeConfig } from "../runtimeConfig";
+import {
+  customerConfirmationFailureMessage,
+  logCustomerConfirmationFailure,
+} from "../customerConfirmationUx";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
@@ -40,9 +44,16 @@ export default function CustomerRequestsPage() {
       dismissCustomerRequest(request.id);
       setMessage("ยืนยันคำขอและสร้างคิวแล้ว");
     } catch (cause) {
-      if (db && !(await requestIsStillPending(db, request.id)))
-        dismissCustomerRequest(request.id);
-      setMessage(cause instanceof Error ? cause.message : "ยืนยันไม่สำเร็จ");
+      try {
+        if (db && !(await requestIsStillPending(db, request.id)))
+          dismissCustomerRequest(request.id);
+      } catch {
+        console.error("Customer request reconciliation failed", {
+          requestId: request.id,
+        });
+      }
+      logCustomerConfirmationFailure(request.id, cause);
+      setMessage(customerConfirmationFailureMessage(cause));
     } finally {
       setBusy(null);
     }
@@ -82,7 +93,6 @@ export default function CustomerRequestsPage() {
         if (!(await transaction.get(availabilityRef)).exists())
           transaction.set(availabilityRef, {
             availability: {},
-            updatedAt: new Date().toISOString(),
           });
       });
       setMessage("เพิ่มเมนู UAT ที่ยังไม่มีแล้ว");
@@ -114,7 +124,11 @@ export default function CustomerRequestsPage() {
           </button>
         )}
       </div>
-      {message && <p className="notice">{message}</p>}
+      {message && (
+        <p className="notice" role="status">
+          {message}
+        </p>
+      )}
       {!pending.length ? (
         <div className="empty">ไม่มีคำขอที่รอยืนยัน</div>
       ) : (

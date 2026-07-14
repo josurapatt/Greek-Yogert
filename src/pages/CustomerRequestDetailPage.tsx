@@ -12,6 +12,11 @@ import {
   waitingForShop,
   type StaffPaymentAllocation,
 } from "../customerOrder";
+import {
+  customerConfirmationFailureMessage,
+  logCustomerConfirmationFailure,
+  paymentRequiredMessage,
+} from "../customerConfirmationUx";
 import { db } from "../firebase";
 import { formatThaiDateTime, money } from "../lib";
 import { useAuth, useData } from "../store";
@@ -29,6 +34,7 @@ export default function CustomerRequestDetailPage() {
   >({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [paymentAttempted, setPaymentAttempted] = useState(false);
   const complete = useMemo(
     () => Boolean(request?.items.every((item) => payments[item.id])),
     [payments, request],
@@ -50,7 +56,12 @@ export default function CustomerRequestDetailPage() {
       </div>
     );
   const confirm = async () => {
-    if (!db || !id || busy || !complete) return;
+    if (!db || !id || busy) return;
+    setPaymentAttempted(true);
+    if (!complete) {
+      setError("");
+      return;
+    }
     try {
       setBusy(true);
       setError("");
@@ -63,8 +74,15 @@ export default function CustomerRequestDetailPage() {
       dismissCustomerRequest(id);
       navigate("/queue");
     } catch (cause) {
-      await reconcile();
-      setError(cause instanceof Error ? cause.message : "ยืนยันไม่สำเร็จ");
+      try {
+        await reconcile();
+      } catch {
+        console.error("Customer request reconciliation failed", {
+          requestId: id,
+        });
+      }
+      logCustomerConfirmationFailure(id, cause);
+      setError(customerConfirmationFailureMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -136,6 +154,14 @@ export default function CustomerRequestDetailPage() {
                   วิธีชำระเงิน
                   <select
                     aria-label={`วิธีชำระเงิน ${item.productName}`}
+                    aria-invalid={
+                      paymentAttempted && !payments[item.id] ? true : undefined
+                    }
+                    aria-describedby={
+                      paymentAttempted && !payments[item.id]
+                        ? "customer-request-payment-error"
+                        : undefined
+                    }
                     value={payments[item.id] ?? ""}
                     onChange={(event) =>
                       setPayments((rows) => ({
@@ -157,6 +183,20 @@ export default function CustomerRequestDetailPage() {
           ))}
         </div>
       </section>
+      {paymentAttempted && !complete && (
+        <p
+          className="validation"
+          id="customer-request-payment-error"
+          role="alert"
+        >
+          {paymentRequiredMessage}
+        </p>
+      )}
+      {error && (
+        <p className="validation" role="alert">
+          {error}
+        </p>
+      )}
       <section className="detail-actions">
         <button
           className="secondary"
@@ -167,13 +207,12 @@ export default function CustomerRequestDetailPage() {
         </button>
         <button
           className="primary"
-          disabled={busy || !complete || request.status !== waitingForShop}
+          disabled={busy || request.status !== waitingForShop}
           onClick={() => void confirm()}
         >
           <CheckCircle2 /> ยืนยันและสร้างคิว
         </button>
       </section>
-      {error && <p className="validation">{error}</p>}
     </div>
   );
 }

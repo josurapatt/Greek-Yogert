@@ -137,7 +137,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — pending separate authorization**
+**Production Hardening Work Package 3 — Trusted Customer Data Boundary and Public Projection — implementation and validation complete; exact-head PR approval and merge pending**
 
 Current state:
 
@@ -150,7 +150,15 @@ Current state:
 - [x] Public menu/settings identity boundary corrected and revalidated: only Anonymous Customers and exact active Staff can read candidate public resources.
 - [x] Targeted WP2 Manual UAT passed with no observed bugs.
 - [x] PR #6 approved by the user and squash-merged into `main`.
-- [ ] Authorize Work Package 3 — Trusted Customer Data Boundary and Public Projection.
+- [x] Work Package 3 trusted confirmation and public projection implementation completed, automated-validated, and deployed only to isolated Customer QR UAT on Draft PR #7.
+- [x] Grant only UAT-project `roles/datastore.user` to the existing deployer and complete projection dry-run, reviewed atomic apply, and zero-write idempotency verification.
+- [x] Complete automated WP3 mismatch, transaction, security, live isolated-UAT, and browser validation.
+- [x] Diagnose the preserved Human-UAT confirmation failure without writes and correct the shared Customer/trusted granola-label boundary.
+- [x] Add accessible Staff payment/error guidance and complete a real Customer UI → Staff UI → Queue → History → Reports → Excel browser retest with the forged-price control unchanged.
+- [x] Targeted WP3 Human Manual UAT passed 5/5 through the actual browser UI with no observed defects.
+- [x] Missing-payment guidance, valid Customer confirmation into Queue, forged/stale rejection, Queue, History, Reports, and Excel passed Human Manual UAT.
+- [ ] PR #7 exact-final-head approval and merge.
+- [ ] Post-merge WP3 governance closure before WP4 starts.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -173,7 +181,8 @@ Current state:
 - [x] Production Hardening Work Package 2 implemented, automated-validated, and deployed only to isolated Customer QR UAT
 - [x] Production Hardening Work Package 2 targeted Manual UAT and approval complete
 - [x] Production Hardening Work Package 2 squash merge complete
-- [ ] Production Hardening Work Package 3 complete
+- [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
+- [ ] Production Hardening Work Package 3 exact-head PR approval and merge complete
 - [ ] Production Hardening Work Package 4 — Abuse Protection and Operational Controls complete
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved
