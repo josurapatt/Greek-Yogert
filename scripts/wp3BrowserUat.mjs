@@ -205,10 +205,45 @@ try {
   try {
     await customerPage.waitForURL(/\/order\/status\//);
   } catch (cause) {
-    const persisted = await firestore
-      .collection("customerOrderRequests")
-      .where("customerName", "==", marker)
-      .get();
+    const [persisted, privateControl, publicControl, policy, projection] =
+      await Promise.all([
+        firestore
+          .collection("customerOrderRequests")
+          .where("customerName", "==", marker)
+          .get(),
+        firestore.doc("settings/customerOrdering").get(),
+        firestore.doc("publicSettings/customerOrdering").get(),
+        firestore.doc("publicSettings/customerRequestPolicy").get(),
+        firestore.doc("publicProjectionControl/current").get(),
+      ]);
+    const retainedEnvelope = await customerPage.evaluate(() => {
+      const entry = Object.entries(localStorage).find(([key]) =>
+        key.startsWith("greek-more-customer-submit-v2:"),
+      );
+      if (!entry) return null;
+      const value = JSON.parse(entry[1]);
+      return {
+        envelopeVersion: value.envelopeVersion,
+        itemCount: value.items?.length,
+        items: value.items?.map((item) => ({
+          keys: Object.keys(item).sort(),
+          productId: item.productId,
+          productName: item.productName,
+          selectedOptions: item.selectedOptions,
+          selectedOptionIds: item.selectedOptionIds,
+          quantity: item.quantity,
+          basePrice: item.basePrice,
+          unitPrice: item.unitPrice,
+          lineTotal: item.lineTotal,
+          selectedChannel: item.selectedChannel,
+          priceBreakdown: item.priceBreakdown,
+          toppingPackaging: item.toppingPackaging,
+          toppingPackagingLabel: item.toppingPackagingLabel,
+          packagingSurchargePerUnit: item.packagingSurchargePerUnit,
+          packagingSurchargeTotal: item.packagingSurchargeTotal,
+        })),
+      };
+    });
     throw new Error(
       `Customer submit did not navigate: ${JSON.stringify({
         url: customerPage.url(),
@@ -220,6 +255,26 @@ try {
           .allTextContents(),
         consoleErrors: customerErrors(),
         persistedRequestIds: persisted.docs.map((entry) => entry.id),
+        retainedEnvelope,
+        privateControl: {
+          keys: Object.keys(privateControl.data() ?? {}).sort(),
+          schemaVersion: privateControl.data()?.schemaVersion,
+          enabled: privateControl.data()?.enabled,
+        },
+        publicControl: {
+          keys: Object.keys(publicControl.data() ?? {}).sort(),
+          schemaVersion: publicControl.data()?.schemaVersion,
+          enabled: publicControl.data()?.enabled,
+        },
+        requestPolicy: {
+          schemaVersion: policy.data()?.schemaVersion,
+          fingerprint: policy.data()?.fingerprint,
+          productLimit: policy.data()?.productLimits?.["apple-ohlala"],
+        },
+        projection: {
+          schemaVersion: projection.data()?.schemaVersion,
+          fingerprint: projection.data()?.fingerprint,
+        },
       })}`,
       { cause },
     );
