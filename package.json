@@ -14,7 +14,9 @@
     "projection:public": "node scripts/runPublicProjection.mjs",
     "uat:wp3:diagnose": "node scripts/runWp3HumanUatDiagnostic.mjs",
     "uat:wp3:browser": "node scripts/wp3BrowserUat.mjs",
+    "uat:wp4:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp3": "node scripts/runWp3UatValidation.mjs",
+    "uat:wp4": "node scripts/runWp4UatValidation.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

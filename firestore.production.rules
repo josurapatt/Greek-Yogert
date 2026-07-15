@@ -10,11 +10,18 @@ service cloud.firestore {
       return signedIn()
         && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
+    function staffDocument() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
     function isAuthorizedStaff() {
       return nonAnonymousUser()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+        && staffDocument().role == 'staff'
+        && staffDocument().active == true;
+    }
+    function canManageCustomerOrdering() {
+      return isAuthorizedStaff()
+        && staffDocument().canManageCustomerOrdering == true;
     }
     function validStatus(value) {
       return value in ['pending', 'completed', 'cancelled'];
@@ -33,26 +40,294 @@ service cloud.firestore {
         && data.status == 'pending';
     }
     function waitingForShop(value) { return value == 'รอร้านยืนยัน'; }
+    function validMoney(value) {
+      return value is int && value >= 0 && value <= 5000;
+    }
+    function validBoundedString(value, maximum) {
+      return value is string && value.size() <= maximum;
+    }
+    function validOptionList(values) {
+      return values is list && values.size() <= 10;
+    }
+    function validPriceBreakdown(value) {
+      return value is map
+        && value.keys().hasOnly([
+          'basePrice', 'premiumIncludedSurcharge', 'extraToppingCharges',
+          'unitPrice'
+        ])
+        && value.keys().hasAll([
+          'basePrice', 'premiumIncludedSurcharge', 'extraToppingCharges',
+          'unitPrice'
+        ])
+        && validMoney(value.basePrice)
+        && validMoney(value.premiumIncludedSurcharge)
+        && validMoney(value.extraToppingCharges)
+        && validMoney(value.unitPrice);
+    }
+    function validCustomerItem(item) {
+      return item is map
+        && item.keys().hasOnly([
+          'id', 'productId', 'productName', 'basePrice', 'selectedOptions',
+          'selectedOptionIds', 'quantity', 'unitPrice', 'selectedChannel',
+          'priceBreakdown', 'lineTotal', 'toppingPackaging',
+          'toppingPackagingLabel', 'packagingSurchargePerUnit',
+          'packagingSurchargeTotal'
+        ])
+        && item.keys().hasAll([
+          'id', 'productId', 'productName', 'basePrice', 'selectedOptions',
+          'selectedOptionIds', 'quantity', 'unitPrice', 'selectedChannel',
+          'priceBreakdown', 'lineTotal', 'toppingPackaging',
+          'toppingPackagingLabel', 'packagingSurchargePerUnit',
+          'packagingSurchargeTotal'
+        ])
+        && validBoundedString(item.id, 128)
+        && validBoundedString(item.productId, 128)
+        && validBoundedString(item.productName, 120)
+        && validOptionList(item.selectedOptions)
+        && validOptionList(item.selectedOptionIds)
+        && item.selectedOptions.size() == item.selectedOptionIds.size()
+        && item.quantity is int
+        && item.quantity >= 1
+        && item.quantity <= 10
+        && item.selectedChannel == 'หน้าร้าน'
+        && item.toppingPackaging in ['included', 'separated']
+        && validBoundedString(item.toppingPackagingLabel, 80)
+        && validMoney(item.basePrice)
+        && validMoney(item.unitPrice)
+        && validMoney(item.lineTotal)
+        && validMoney(item.packagingSurchargePerUnit)
+        && validMoney(item.packagingSurchargeTotal)
+        && validPriceBreakdown(item.priceBreakdown)
+        && item.lineTotal == item.unitPrice * item.quantity
+        && item.packagingSurchargeTotal
+          == item.packagingSurchargePerUnit * item.quantity
+        && item.unitPrice
+          == item.priceBreakdown.unitPrice + item.packagingSurchargePerUnit;
+    }
+    function requestPolicy() {
+      return get(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data;
+    }
+    function projectionControl() {
+      return get(/databases/$(database)/documents/publicProjectionControl/current).data;
+    }
+    function validProjectedRequestPolicy() {
+      return exists(/databases/$(database)/documents/publicSettings/customerRequestPolicy)
+        && exists(/databases/$(database)/documents/publicProjectionControl/current)
+        && requestPolicy().schemaVersion == 2
+        && requestPolicy().fingerprint is string
+        && requestPolicy().fingerprint == projectionControl().fingerprint
+        && projectionControl().schemaVersion == 2
+        && requestPolicy().productLimits is map;
+    }
+    function validProjectedOptionCount(item) {
+      return requestPolicy().productLimits[item.productId] is map
+        && requestPolicy().productLimits[item.productId].minimum is int
+        && requestPolicy().productLimits[item.productId].maximum is int
+        && requestPolicy().productLimits[item.productId].allowedIds is list
+        && requestPolicy().productLimits[item.productId].allowedLabels is list
+        && requestPolicy().productLimits[item.productId].minimum >= 0
+        && requestPolicy().productLimits[item.productId].maximum
+          >= requestPolicy().productLimits[item.productId].minimum
+        && requestPolicy().productLimits[item.productId].maximum <= 10
+        && item.selectedOptionIds.size()
+          >= requestPolicy().productLimits[item.productId].minimum
+        && item.selectedOptionIds.size()
+          <= requestPolicy().productLimits[item.productId].maximum
+        && item.selectedOptionIds.toSet().difference(
+          requestPolicy().productLimits[item.productId].allowedIds.toSet()
+        ).size() == 0
+        && item.selectedOptions.toSet().difference(
+          requestPolicy().productLimits[item.productId].allowedLabels.toSet()
+        ).size() == 0;
+    }
+    function validRuntimeIntakeControl() {
+      return exists(/databases/$(database)/documents/settings/customerOrdering)
+        && validPrivateControlShape(
+          get(/databases/$(database)/documents/settings/customerOrdering).data
+        )
+        && get(/databases/$(database)/documents/settings/customerOrdering).data.enabled == true;
+    }
     function validCustomerRequestCreate(data, requestId) {
       return data.keys().hasOnly([
-          'id', 'ownerUid', 'status', 'channel', 'customerName', 'customerNote',
-          'items', 'subtotal', 'total', 'itemCount', 'createdAt', 'updatedAt'
+          'schemaVersion', 'id', 'retryId', 'ownerUid', 'status', 'channel',
+          'customerName', 'customerNote', 'lineCount', 'itemIds',
+          'itemGroupIds',
+          'subtotal', 'total', 'itemCount', 'createdAt', 'updatedAt',
+          'submittedAt'
         ])
+        && data.keys().hasAll([
+          'schemaVersion', 'id', 'retryId', 'ownerUid', 'status', 'channel',
+          'lineCount', 'itemIds', 'itemGroupIds', 'subtotal', 'total', 'itemCount',
+          'createdAt', 'updatedAt', 'submittedAt'
+        ])
+        && data.schemaVersion == 2
         && data.id == requestId
-        && data.id is string
+        && data.retryId == requestId
+        && validBoundedString(data.id, 128)
         && data.ownerUid == request.auth.uid
+        && validBoundedString(data.ownerUid, 128)
         && waitingForShop(data.status)
         && data.channel == 'หน้าร้าน'
-        && data.items is list
-        && data.items.size() > 0
-        && data.subtotal is number
-        && data.subtotal >= 0
-        && data.total is number
-        && data.total >= 0
-        && data.itemCount is number
-        && data.itemCount > 0
-        && data.createdAt is string
-        && data.updatedAt is string;
+        && (!data.keys().hasAny(['customerName'])
+          || validBoundedString(data.customerName, 40))
+        && (!data.keys().hasAny(['customerNote'])
+          || validBoundedString(data.customerNote, 200))
+        && data.lineCount is int
+        && data.lineCount >= 1
+        && data.lineCount <= 12
+        && validParentItemIds(data.itemIds, data.lineCount)
+        && data.itemGroupIds is list
+        && data.itemGroupIds.size() >= 1
+        && data.itemGroupIds.size() <= 2
+        && data.itemGroupIds[0] == '0'
+        && (data.itemGroupIds.size() < 2 || data.itemGroupIds[1] == '1')
+        && ((data.lineCount <= 6 && data.itemGroupIds.size() == 1)
+          || (data.lineCount > 6 && data.itemGroupIds.size() == 2))
+        && data.itemCount is int
+        && data.itemCount >= 1
+        && data.itemCount <= 30
+        && validMoney(data.subtotal)
+        && validMoney(data.total)
+        && data.total == data.subtotal
+        && validBoundedString(data.createdAt, 40)
+        && validBoundedString(data.updatedAt, 40)
+        && data.submittedAt is timestamp
+        && data.submittedAt == request.time
+        && validParentGroupSummaries(data, requestId)
+        && validRuntimeIntakeControl();
+    }
+    function validParentItemIds(itemIds, lineCount) {
+      return itemIds is list
+        && itemIds.size() == lineCount
+        && itemIds[0] == '00'
+        && (lineCount < 2 || itemIds[1] == '01')
+        && (lineCount < 3 || itemIds[2] == '02')
+        && (lineCount < 4 || itemIds[3] == '03')
+        && (lineCount < 5 || itemIds[4] == '04')
+        && (lineCount < 6 || itemIds[5] == '05')
+        && (lineCount < 7 || itemIds[6] == '06')
+        && (lineCount < 8 || itemIds[7] == '07')
+        && (lineCount < 9 || itemIds[8] == '08')
+        && (lineCount < 10 || itemIds[9] == '09')
+        && (lineCount < 11 || itemIds[10] == '10')
+        && (lineCount < 12 || itemIds[11] == '11');
+    }
+    function firstGroupAfter(requestId) {
+      return getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)/itemGroups/0).data;
+    }
+    function secondGroupAfter(requestId) {
+      return getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)/itemGroups/1).data;
+    }
+    function validParentGroupSummaries(data, requestId) {
+      let first = firstGroupAfter(requestId);
+      let secondLineCount = data.itemGroupIds.size() == 2
+        ? secondGroupAfter(requestId).lineCount : 0;
+      let secondItemCount = data.itemGroupIds.size() == 2
+        ? secondGroupAfter(requestId).itemCount : 0;
+      let secondSubtotal = data.itemGroupIds.size() == 2
+        ? secondGroupAfter(requestId).subtotal : 0;
+      let secondItemIds = data.itemGroupIds.size() == 2
+        ? secondGroupAfter(requestId).itemIds : [];
+      return first.requestId == requestId
+        && first.ownerUid == data.ownerUid
+        && first.groupIndex == 0
+        && first.lineCount >= 1
+        && first.lineCount <= 6
+        && (data.itemGroupIds.size() == 1
+          || (secondGroupAfter(requestId).requestId == requestId
+            && secondGroupAfter(requestId).ownerUid == data.ownerUid
+            && secondGroupAfter(requestId).groupIndex == 1
+            && secondLineCount >= 1
+            && secondLineCount <= 6))
+        && data.itemIds == first.itemIds.concat(secondItemIds)
+        && data.lineCount == first.lineCount + secondLineCount
+        && data.itemCount == first.itemCount + secondItemCount
+        && data.subtotal == first.subtotal + secondSubtotal;
+    }
+    function validItemDocumentId(itemId, itemIndex) {
+      return (itemId == '00' && itemIndex == 0)
+        || (itemId == '01' && itemIndex == 1)
+        || (itemId == '02' && itemIndex == 2)
+        || (itemId == '03' && itemIndex == 3)
+        || (itemId == '04' && itemIndex == 4)
+        || (itemId == '05' && itemIndex == 5)
+        || (itemId == '06' && itemIndex == 6)
+        || (itemId == '07' && itemIndex == 7)
+        || (itemId == '08' && itemIndex == 8)
+        || (itemId == '09' && itemIndex == 9)
+        || (itemId == '10' && itemIndex == 10)
+        || (itemId == '11' && itemIndex == 11);
+    }
+    function validCustomerItemDocument(data, requestId, itemId) {
+      return data.keys().hasOnly([
+          'schemaVersion', 'requestId', 'ownerUid', 'itemIndex', 'item',
+          'quantity', 'lineTotal'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion', 'requestId', 'ownerUid', 'itemIndex', 'item',
+          'quantity', 'lineTotal'
+        ])
+        && data.schemaVersion == 2
+        && data.requestId == requestId
+        && data.ownerUid == request.auth.uid
+        && data.itemIndex is int
+        && validItemDocumentId(itemId, data.itemIndex)
+        && validCustomerItem(data.item)
+        && data.quantity == data.item.quantity
+        && data.lineTotal == data.item.lineTotal
+        && validProjectedRequestPolicy()
+        && validProjectedOptionCount(data.item);
+    }
+    function itemAfter(requestId, itemId) {
+      return getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)/items/$(itemId)).data;
+    }
+    function groupQuantityAt(requestId, itemIds, index) {
+      return itemIds.size() > index ? itemAfter(requestId, itemIds[index]).quantity : 0;
+    }
+    function groupLineTotalAt(requestId, itemIds, index) {
+      return itemIds.size() > index ? itemAfter(requestId, itemIds[index]).lineTotal : 0;
+    }
+    function validGroupItemRef(requestId, ownerUid, itemIds, index) {
+      return itemIds.size() <= index
+        || (itemAfter(requestId, itemIds[index]).requestId == requestId
+          && itemAfter(requestId, itemIds[index]).ownerUid == ownerUid);
+    }
+    function validCustomerItemGroup(data, requestId, groupId) {
+      return data.keys().hasOnly([
+          'schemaVersion', 'requestId', 'ownerUid', 'groupIndex', 'itemIds',
+          'lineCount', 'itemCount', 'subtotal'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion', 'requestId', 'ownerUid', 'groupIndex', 'itemIds',
+          'lineCount', 'itemCount', 'subtotal'
+        ])
+        && data.schemaVersion == 2
+        && data.requestId == requestId
+        && data.ownerUid == request.auth.uid
+        && ((groupId == '0' && data.groupIndex == 0)
+          || (groupId == '1' && data.groupIndex == 1))
+        && data.itemIds is list
+        && data.itemIds.size() >= 1
+        && data.itemIds.size() <= 6
+        && data.lineCount == data.itemIds.size()
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 0)
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 1)
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 2)
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 3)
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 4)
+        && validGroupItemRef(requestId, data.ownerUid, data.itemIds, 5)
+        && data.itemCount == groupQuantityAt(requestId, data.itemIds, 0)
+          + groupQuantityAt(requestId, data.itemIds, 1)
+          + groupQuantityAt(requestId, data.itemIds, 2)
+          + groupQuantityAt(requestId, data.itemIds, 3)
+          + groupQuantityAt(requestId, data.itemIds, 4)
+          + groupQuantityAt(requestId, data.itemIds, 5)
+        && data.subtotal == groupLineTotalAt(requestId, data.itemIds, 0)
+          + groupLineTotalAt(requestId, data.itemIds, 1)
+          + groupLineTotalAt(requestId, data.itemIds, 2)
+          + groupLineTotalAt(requestId, data.itemIds, 3)
+          + groupLineTotalAt(requestId, data.itemIds, 4)
+          + groupLineTotalAt(requestId, data.itemIds, 5);
     }
     function customerOwns(data) {
       return isAnonymousCustomer() && data.ownerUid == request.auth.uid;
@@ -85,7 +360,7 @@ service cloud.firestore {
         && request.resource.data.rejectedAt is string
         && request.resource.data.updatedAt is string
         && (!request.resource.data.keys().hasAny(['rejectionReason'])
-          || request.resource.data.rejectionReason is string)
+          || validBoundedString(request.resource.data.rejectionReason, 200))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'rejectionReason', 'rejectedAt', 'updatedAt'
         ]);
@@ -93,16 +368,16 @@ service cloud.firestore {
     function validPublicMenu(data, productId) {
       return data.keys().hasOnly([
           'id', 'name', 'emoji', 'description', 'active', 'storefrontPrice',
-          'optionMode', 'includedToppings', 'granolaOptions',
-          'availableToppingIds', 'premiumToppingIds',
+          'optionMode', 'includedToppings', 'maxSelectedOptions',
+          'granolaOptions', 'availableToppingIds', 'premiumToppingIds',
           'premiumIncludedSurcharge', 'extraNormalPrice', 'extraPremiumPrice',
           'supportsSeparatedToppingPackaging'
         ])
         && data.keys().hasAll([
           'id', 'name', 'emoji', 'description', 'active', 'storefrontPrice',
-          'optionMode', 'includedToppings', 'granolaOptions',
-          'availableToppingIds', 'premiumIncludedSurcharge',
-          'extraNormalPrice', 'extraPremiumPrice',
+          'optionMode', 'includedToppings', 'maxSelectedOptions',
+          'granolaOptions', 'availableToppingIds',
+          'premiumIncludedSurcharge', 'extraNormalPrice', 'extraPremiumPrice',
           'supportsSeparatedToppingPackaging'
         ])
         && data.id == productId
@@ -114,8 +389,11 @@ service cloud.firestore {
         && data.storefrontPrice is number
         && data.storefrontPrice >= 0
         && data.optionMode in ['none', 'granola', 'toppings']
-        && data.includedToppings is number
+        && data.includedToppings is int
         && data.includedToppings >= 0
+        && data.maxSelectedOptions is int
+        && data.maxSelectedOptions >= data.includedToppings
+        && data.maxSelectedOptions <= 10
         && data.granolaOptions is list
         && data.availableToppingIds is list
         && (!data.keys().hasAny(['premiumToppingIds']) || data.premiumToppingIds is list)
@@ -127,35 +405,187 @@ service cloud.firestore {
     function validPublicAvailability(data) {
       return data.keys().hasOnly(['availability']) && data.availability is map;
     }
+    function validPublicRequestPolicy(data) {
+      return data.keys().hasOnly(['schemaVersion', 'fingerprint', 'productLimits'])
+        && data.keys().hasAll(['schemaVersion', 'fingerprint', 'productLimits'])
+        && data.schemaVersion == 2
+        && validBoundedString(data.fingerprint, 64)
+        && data.productLimits is map;
+    }
+    function validProjectionControlData(data) {
+      return data.keys().hasOnly(['schemaVersion', 'fingerprint', 'menuIds'])
+        && data.keys().hasAll(['schemaVersion', 'fingerprint', 'menuIds'])
+        && data.schemaVersion == 2
+        && validBoundedString(data.fingerprint, 64)
+        && data.menuIds is list
+        && data.menuIds.size() <= 100;
+    }
+    function validPrivateControlShape(data) {
+      return data.keys().hasOnly([
+          'schemaVersion', 'enabled', 'message', 'reason', 'updatedAt',
+          'updatedBy', 'changeId', 'disabledAt'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion', 'enabled', 'message', 'reason', 'updatedAt',
+          'updatedBy', 'changeId', 'disabledAt'
+        ])
+        && data.schemaVersion == 1
+        && data.enabled is bool
+        && validBoundedString(data.message, 160)
+        && validBoundedString(data.reason, 200)
+        && data.reason.size() > 0
+        && data.updatedAt is timestamp
+        && validBoundedString(data.updatedBy, 128)
+        && validBoundedString(data.changeId, 128)
+        && ((data.enabled == true && data.disabledAt == null)
+          || (data.enabled == false && data.disabledAt is timestamp));
+    }
+    function validPrivateControl(data) {
+      return validPrivateControlShape(data)
+        && data.updatedAt == request.time
+        && data.updatedBy == request.auth.uid
+        && (data.enabled == true || data.disabledAt == request.time);
+    }
+    function validPublicControl(data) {
+      return data.keys().hasOnly([
+          'schemaVersion', 'enabled', 'message', 'updatedAt', 'changeId'
+        ])
+        && data.keys().hasAll([
+          'schemaVersion', 'enabled', 'message', 'updatedAt', 'changeId'
+        ])
+        && data.schemaVersion == 1
+        && data.enabled is bool
+        && validBoundedString(data.message, 160)
+        && data.updatedAt == request.time
+        && validBoundedString(data.changeId, 128);
+    }
+    function validControlAudit(data, previousState, newState, changeId) {
+      return data.keys().hasOnly([
+          'eventType', 'controlSchemaVersion', 'previousState', 'newState',
+          'actorUid', 'reason', 'occurredAt', 'changeId'
+        ])
+        && data.keys().hasAll([
+          'eventType', 'controlSchemaVersion', 'previousState', 'newState',
+          'actorUid', 'reason', 'occurredAt', 'changeId'
+        ])
+        && data.eventType == 'control_change'
+        && data.controlSchemaVersion == 1
+        && data.previousState == previousState
+        && data.newState == newState
+        && data.actorUid == request.auth.uid
+        && validBoundedString(data.reason, 200)
+        && data.reason.size() > 0
+        && data.occurredAt == request.time
+        && data.changeId == changeId;
+    }
+    function validAtomicControlChange(privateData, previousState) {
+      let publicData = getAfter(/databases/$(database)/documents/publicSettings/customerOrdering).data;
+      let auditData = getAfter(/databases/$(database)/documents/customerOrderingAuditEvents/$(privateData.changeId)).data;
+      return validPrivateControl(privateData)
+        && validPublicControl(publicData)
+        && publicData.enabled == privateData.enabled
+        && publicData.message == privateData.message
+        && publicData.updatedAt == privateData.updatedAt
+        && publicData.changeId == privateData.changeId
+        && validControlAudit(
+          auditData,
+          previousState,
+          privateData.enabled ? 'enabled' : 'disabled',
+          privateData.changeId
+        );
+    }
+    function validOperationalAudit(data) {
+      return data.keys().hasOnly([
+          'eventType', 'outcome', 'actorUid', 'requestId', 'occurredAt',
+          'schemaVersion'
+        ])
+        && data.keys().hasAll([
+          'eventType', 'outcome', 'actorUid', 'requestId', 'occurredAt',
+          'schemaVersion'
+        ])
+        && data.schemaVersion == 1
+        && data.eventType in ['confirmation_attempt', 'request_decision']
+        && data.outcome in [
+          'confirmed', 'trusted_mismatch', 'already_processed',
+          'permission_failure', 'unexpected_failure', 'rejected'
+        ]
+        && data.actorUid == request.auth.uid
+        && validBoundedString(data.requestId, 128)
+        && data.occurredAt == request.time;
+    }
 
     match /publicMenu/{productId} {
-      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow get: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow list: if (isAnonymousCustomer() || isAuthorizedStaff())
+        && request.query.limit <= 100;
       allow create, update: if isAuthorizedStaff()
         && validPublicMenu(request.resource.data, productId);
       allow delete: if false;
     }
-    match /publicSettings/{document} {
-      allow read: if isAnonymousCustomer() || isAuthorizedStaff();
+    match /publicSettings/toppingAvailability {
+      allow get: if isAnonymousCustomer() || isAuthorizedStaff();
       allow create, update: if isAuthorizedStaff()
-        && document == 'toppingAvailability'
         && validPublicAvailability(request.resource.data);
+      allow delete: if false;
+    }
+    match /publicSettings/customerOrdering {
+      allow get: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff()
+        && validPublicControl(request.resource.data)
+        && getAfter(/databases/$(database)/documents/settings/customerOrdering).data.changeId
+          == request.resource.data.changeId
+        && getAfter(/databases/$(database)/documents/settings/customerOrdering).data.enabled
+          == request.resource.data.enabled
+        && getAfter(/databases/$(database)/documents/settings/customerOrdering).data.message
+          == request.resource.data.message;
+      allow delete: if false;
+    }
+    match /publicSettings/customerRequestPolicy {
+      allow get: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff()
+        && validPublicRequestPolicy(request.resource.data)
+        && getAfter(/databases/$(database)/documents/publicProjectionControl/current).data.fingerprint
+          == request.resource.data.fingerprint;
       allow delete: if false;
     }
     match /customerOrderRequests/{requestId} {
       allow create: if isAnonymousCustomer()
         && validCustomerRequestCreate(request.resource.data, requestId);
       allow get: if isAuthorizedStaff() || customerOwns(resource.data);
-      allow list: if isAuthorizedStaff();
+      allow list: if isAuthorizedStaff() && request.query.limit <= 250;
       allow update: if isAuthorizedStaff()
         && (validStaffConfirmation() || validStaffRejection());
       allow delete: if false;
+
+      match /items/{itemId} {
+        allow create: if isAnonymousCustomer()
+          && validCustomerItemDocument(request.resource.data, requestId, itemId)
+          && getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)).data.id == requestId
+          && getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)).data.ownerUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)).data.itemIds.hasAny([itemId]);
+        allow get: if isAuthorizedStaff()
+          || (isAnonymousCustomer() && resource.data.ownerUid == request.auth.uid);
+        allow list: if isAuthorizedStaff() && request.query.limit <= 12;
+        allow update, delete: if false;
+      }
+      match /itemGroups/{groupId} {
+        allow create: if isAnonymousCustomer()
+          && validCustomerItemGroup(request.resource.data, requestId, groupId)
+          && getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)).data.id == requestId
+          && getAfter(/databases/$(database)/documents/customerOrderRequests/$(requestId)).data.itemGroupIds.hasAny([groupId]);
+        allow get: if isAuthorizedStaff();
+        allow list, update, delete: if false;
+      }
     }
     match /products/{productId} {
-      allow read, create, update: if isAuthorizedStaff();
+      allow get: if isAuthorizedStaff();
+      allow list: if isAuthorizedStaff() && request.query.limit <= 100;
+      allow create, update: if isAuthorizedStaff();
       allow delete: if false;
     }
     match /orders/{orderId} {
-      allow read: if isAuthorizedStaff();
+      allow get: if isAuthorizedStaff();
+      allow list: if isAuthorizedStaff() && request.query.limit <= 250;
       allow create: if isAuthorizedStaff()
         && request.resource.data.id == orderId
         && validOrder(request.resource.data);
@@ -174,9 +604,55 @@ service cloud.firestore {
       allow read, create, update: if isAuthorizedStaff();
       allow delete: if false;
     }
-    match /settings/{document=**} {
-      allow read, create, update: if isAuthorizedStaff();
+    match /settings/customerOrdering {
+      allow get: if isAuthorizedStaff();
+      allow create: if isAuthorizedStaff()
+        && request.resource.data.enabled == false
+        && validAtomicControlChange(request.resource.data, 'missing');
+      allow update: if isAuthorizedStaff()
+        && validPrivateControlShape(resource.data)
+        && (
+          request.resource.data.enabled == false
+          || (resource.data.enabled == false
+            && request.resource.data.enabled == true
+            && canManageCustomerOrdering())
+        )
+        && validAtomicControlChange(
+          request.resource.data,
+          resource.data.enabled ? 'enabled' : 'disabled'
+        );
       allow delete: if false;
+    }
+    match /settings/{document} {
+      allow read, create, update: if isAuthorizedStaff()
+        && document != 'customerOrdering';
+      allow delete: if false;
+    }
+    match /customerOrderingAuditEvents/{eventId} {
+      allow get: if isAuthorizedStaff();
+      allow list: if isAuthorizedStaff() && request.query.limit <= 250;
+      allow create: if isAuthorizedStaff()
+        && (
+          (eventId == request.resource.data.changeId
+            && validControlAudit(
+              request.resource.data,
+              request.resource.data.previousState,
+              request.resource.data.newState,
+              eventId
+            )
+            && getAfter(/databases/$(database)/documents/settings/customerOrdering).data.changeId == eventId
+            && getAfter(/databases/$(database)/documents/publicSettings/customerOrdering).data.changeId == eventId)
+          || validOperationalAudit(request.resource.data)
+        );
+      allow update, delete: if false;
+    }
+    match /publicProjectionControl/current {
+      allow get: if isAuthorizedStaff();
+      allow create, update: if isAuthorizedStaff()
+        && validProjectionControlData(request.resource.data)
+        && getAfter(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data.fingerprint
+          == request.resource.data.fingerprint;
+      allow list, delete: if false;
     }
     match /users/{userId} {
       allow get: if nonAnonymousUser() && request.auth.uid == userId;

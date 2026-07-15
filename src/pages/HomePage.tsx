@@ -8,12 +8,34 @@ import {
   Settings,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { businessDate, money } from "../lib";
 import { useData } from "../store";
+import { db } from "../firebase";
+import { loadReportOrders } from "../staffFirestore";
+import type { ShopOrder } from "../types";
 
 export default function HomePage() {
-  const { orders } = useData();
+  const { orders: pendingOrders } = useData();
   const today = businessDate();
+  const [settledOrders, setSettledOrders] = useState<ShopOrder[]>([]);
+  const [complete, setComplete] = useState(true);
+  useEffect(() => {
+    if (!db) return;
+    let active = true;
+    void loadReportOrders(db, today, today).then((result) => {
+      if (!active) return;
+      setSettledOrders(result.rows);
+      setComplete(result.complete);
+    });
+    return () => {
+      active = false;
+    };
+  }, [today]);
+  const orders = [...pendingOrders, ...settledOrders].filter(
+    (order, index, rows) =>
+      rows.findIndex((entry) => entry.id === order.id) === index,
+  );
   const todays = orders.filter((order) => order.businessDate === today);
   const waiting = todays.filter((order) => order.status === "pending");
   const completed = todays.filter((order) => order.status === "completed");
@@ -89,6 +111,11 @@ export default function HomePage() {
           <small>ไม่รวมรายการยกเลิก</small>
         </article>
       </section>
+      {!complete && (
+        <p className="validation">
+          ข้อมูลภาพรวมถึงขีดจำกัดที่ปลอดภัย กรุณาใช้รายงานแบบแบ่งช่วงวันที่
+        </p>
+      )}
       <div className="section-heading">
         <div>
           <p className="eyebrow">เมนูหลัก</p>

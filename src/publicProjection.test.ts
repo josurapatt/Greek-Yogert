@@ -22,6 +22,7 @@ describe("public Customer projection", () => {
       "granolaOptions",
       "id",
       "includedToppings",
+      "maxSelectedOptions",
       "name",
       "optionMode",
       "premiumIncludedSurcharge",

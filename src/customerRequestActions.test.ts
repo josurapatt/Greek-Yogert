@@ -5,11 +5,16 @@ import { businessDate } from "./lib";
 import type { CartItem } from "./types";
 
 const firestoreMocks = vi.hoisted(() => ({
-  doc: vi.fn((_firestore: unknown, ...segments: string[]) =>
+  collection: vi.fn((_firestore: unknown, ...segments: string[]) =>
     segments.join("/"),
+  ),
+  doc: vi.fn((reference: unknown, ...segments: string[]) =>
+    segments.length ? segments.join("/") : `${String(reference)}/audit-id`,
   ),
   getDoc: vi.fn(),
   runTransaction: vi.fn(),
+  serverTimestamp: vi.fn(() => "SERVER_TIMESTAMP"),
+  setDoc: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => firestoreMocks);
@@ -82,11 +87,12 @@ describe("trusted Customer confirmation Firestore transaction", () => {
     );
 
     expect(firestoreMocks.runTransaction).toHaveBeenCalledOnce();
-    expect(set).toHaveBeenCalledTimes(3);
+    expect(set).toHaveBeenCalledTimes(4);
     expect(set.mock.calls.map(([path]) => path)).toEqual([
       "counters/" + businessDate(),
       expect.stringMatching(/^orders\//),
       "customerOrderRequests/WP3-AUTO-request-1",
+      expect.stringMatching(/^customerOrderingAuditEvents\//),
     ]);
     const order = set.mock.calls[1][1];
     const linkedRequest = set.mock.calls[2][1];
@@ -113,6 +119,7 @@ describe("trusted Customer confirmation Firestore transaction", () => {
 
     expect(firestoreMocks.runTransaction).toHaveBeenCalledOnce();
     expect(set).not.toHaveBeenCalled();
+    expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
     expect(forged.status).toBe("รอร้านยืนยัน");
     expect(forged.confirmedOrderId).toBeUndefined();
     expect(forged.queueNumber).toBeUndefined();

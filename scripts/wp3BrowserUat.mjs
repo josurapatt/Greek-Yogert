@@ -8,13 +8,15 @@ const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 if (projectId !== "greek-yogert-customer-uat-2026")
-  throw new Error("WP3 browser UAT requires the exact isolated UAT project");
+  throw new Error(
+    "Customer browser UAT requires the exact isolated UAT project",
+  );
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
 if (!getApps().length)
   initializeApp({ credential: applicationDefault(), projectId });
 const firestore = getFirestore();
 
-const marker = `WP3-AUTO-UI-VALID-RETEST-${Date.now()}`;
+const marker = `WP4-AUTO-UI-${Date.now()}`;
 const staffEmail = `${marker.toLowerCase()}@example.com`;
 const staffPassword = `Wp3!${randomBytes(18).toString("base64url")}`;
 const paymentRequired = "กรุณาเลือกวิธีการชำระเงินก่อนยืนยันคำสั่งซื้อ";
@@ -29,6 +31,7 @@ let requestId;
 let orderId;
 let queueNumber;
 let validationFailure;
+const paginationOrderIds = [];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -70,6 +73,32 @@ async function createStaffIdentity() {
 async function deleteIdentity(identity) {
   if (!identity?.idToken) return;
   await identityRequest("delete", { idToken: identity.idToken });
+}
+
+async function deleteNormalizedRequest(id) {
+  const parent = await firestore.doc(`customerOrderRequests/${id}`).get();
+  if (!parent.exists) return;
+  const value = parent.data() ?? {};
+  const batch = firestore.batch();
+  for (const itemId of value.itemIds ?? [])
+    batch.delete(firestore.doc(`customerOrderRequests/${id}/items/${itemId}`));
+  for (const groupId of value.itemGroupIds ?? [])
+    batch.delete(
+      firestore.doc(`customerOrderRequests/${id}/itemGroups/${groupId}`),
+    );
+  batch.delete(parent.ref);
+  await batch.commit();
+}
+
+async function deleteTemporaryOperationalAudit(id) {
+  const rows = await firestore
+    .collection("customerOrderingAuditEvents")
+    .where("requestId", "==", id)
+    .get();
+  if (rows.empty) return;
+  const batch = firestore.batch();
+  rows.docs.forEach((entry) => batch.delete(entry.ref));
+  await batch.commit();
 }
 
 async function unique(locator, description) {
@@ -368,6 +397,36 @@ try {
     rows.some((row) => row["ชื่อลูกค้า"] === marker),
     "Excel output does not contain the valid browser Order",
   );
+
+  const paginationSource = (
+    await firestore.doc(`orders/${orderId}`).get()
+  ).data();
+  assert(paginationSource, "Pagination source Order is missing");
+  const paginationBatch = firestore.batch();
+  for (let index = 0; index < 51; index += 1) {
+    const id = `${marker}-PAGE-${String(index).padStart(2, "0")}`;
+    paginationOrderIds.push(id);
+    paginationBatch.set(firestore.doc(`orders/${id}`), {
+      ...paginationSource,
+      id,
+      customerName: `${marker}-PAGE-${String(index).padStart(2, "0")}`,
+      status: "completed",
+      createdAt: `2099-01-01T00:${String(59 - index).padStart(2, "0")}:00.000Z`,
+      updatedAt: `2099-01-01T00:${String(59 - index).padStart(2, "0")}:00.000Z`,
+      completedAt: `2099-01-01T00:${String(59 - index).padStart(2, "0")}:00.000Z`,
+    });
+  }
+  await paginationBatch.commit();
+  await staffPage.goto(`${baseUrl}/history`, { waitUntil: "domcontentloaded" });
+  await staffPage.getByText(`${marker}-PAGE-00`, { exact: true }).waitFor();
+  assert(
+    (await staffPage
+      .getByText(`${marker}-PAGE-50`, { exact: true })
+      .count()) === 0,
+    "History rendered beyond the first 50-row page",
+  );
+  await staffPage.getByRole("button", { name: "โหลดเพิ่ม 50 รายการ" }).click();
+  await staffPage.getByText(`${marker}-PAGE-50`, { exact: true }).waitFor();
   assert(
     staffUnexpectedErrors().length === 0,
     `Unexpected Staff UI console errors: ${staffUnexpectedErrors().join(" | ")}`,
@@ -396,6 +455,7 @@ try {
       history: "passed",
       reports: "passed",
       excel: "passed",
+      pagination: "51 records crossed the 50-row cursor boundary",
       browserConsole: "no-unexpected-errors",
     }),
   );
@@ -409,11 +469,21 @@ try {
       .doc(`orders/${orderId}`)
       .delete()
       .catch((cause) => cleanupFailures.push(cause));
+  if (paginationOrderIds.length) {
+    const batch = firestore.batch();
+    paginationOrderIds.forEach((id) =>
+      batch.delete(firestore.doc(`orders/${id}`)),
+    );
+    await batch.commit().catch((cause) => cleanupFailures.push(cause));
+  }
   if (requestId)
-    await firestore
-      .doc(`customerOrderRequests/${requestId}`)
-      .delete()
-      .catch((cause) => cleanupFailures.push(cause));
+    await deleteTemporaryOperationalAudit(requestId).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
+  if (requestId)
+    await deleteNormalizedRequest(requestId).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
   if (staffIdentity?.localId)
     await firestore
       .doc(`users/${staffIdentity.localId}`)
@@ -425,11 +495,41 @@ try {
   await deleteIdentity(customerIdentity).catch((cause) =>
     cleanupFailures.push(cause),
   );
+  if (requestId) {
+    const [parent, items, groups, audits] = await Promise.all([
+      firestore.doc(`customerOrderRequests/${requestId}`).get(),
+      firestore.collection(`customerOrderRequests/${requestId}/items`).get(),
+      firestore
+        .collection(`customerOrderRequests/${requestId}/itemGroups`)
+        .get(),
+      firestore
+        .collection("customerOrderingAuditEvents")
+        .where("requestId", "==", requestId)
+        .get(),
+    ]).catch((cause) => {
+      cleanupFailures.push(cause);
+      return [];
+    });
+    if (parent?.exists || !items?.empty || !groups?.empty || !audits?.empty)
+      cleanupFailures.push(
+        new Error("Normalized browser request cleanup verification failed"),
+      );
+  }
+  if (paginationOrderIds.length) {
+    const remaining = await Promise.all(
+      paginationOrderIds.map((id) => firestore.doc(`orders/${id}`).get()),
+    ).catch((cause) => {
+      cleanupFailures.push(cause);
+      return [];
+    });
+    if (remaining.some((entry) => entry.exists))
+      cleanupFailures.push(new Error("Pagination cleanup verification failed"));
+  }
 }
 
 if (cleanupFailures.length)
   throw new Error(
-    `WP3 browser UAT cleanup failed for ${cleanupFailures.length} temporary resources`,
+    `Customer browser UAT cleanup failed for ${cleanupFailures.length} temporary resources`,
     { cause: validationFailure },
   );
 if (validationFailure) throw validationFailure;

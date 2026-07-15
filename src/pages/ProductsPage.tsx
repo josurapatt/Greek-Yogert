@@ -3,6 +3,7 @@ import { useState } from "react";
 import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import { normalizeProduct, toppings } from "../data";
 import { getChannelRules, getProductPrice, money } from "../lib";
+import { productSelectedOptionLimits } from "../customerRequestPolicy";
 import { useData } from "../store";
 import type {
   ChannelGroup,
@@ -20,6 +21,7 @@ const blankProduct = () =>
     description: ["กรีกโยเกิร์ต"],
     optionMode: "none",
     includedToppings: 0,
+    maxSelectedOptions: 0,
     granolaOptions: ["กล้วย", "เบอร์รี่รวม", "ช็อกโกแลต", "น้ำผึ้ง"],
     availableToppingIds: toppings.map((item) => item.id),
     premiumToppingIds: toppings
@@ -80,6 +82,7 @@ export default function ProductsPage() {
     try {
       setSaving(true);
       setSaveError("");
+      productSelectedOptionLimits(editing);
       await saveProduct(editing);
       setSaved(editing.id);
       setEditing(null);
@@ -261,10 +264,21 @@ export default function ProductsPage() {
                     <select
                       value={editing.optionMode}
                       onChange={(event) =>
-                        change(
-                          "optionMode",
-                          event.target.value as Product["optionMode"],
-                        )
+                        setEditing((product) => {
+                          if (!product) return product;
+                          const optionMode = event.target
+                            .value as Product["optionMode"];
+                          return {
+                            ...product,
+                            optionMode,
+                            maxSelectedOptions:
+                              optionMode === "none"
+                                ? 0
+                                : optionMode === "granola"
+                                  ? 1
+                                  : Math.max(product.includedToppings, 10),
+                          };
+                        })
                       }
                     >
                       <option value="none">ไม่มี</option>
@@ -293,9 +307,27 @@ export default function ProductsPage() {
                       <input
                         type="number"
                         min="0"
+                        max="10"
                         value={editing.includedToppings}
                         onChange={(event) =>
                           change("includedToppings", Number(event.target.value))
+                        }
+                      />
+                    </label>
+                  )}
+                  {editing.optionMode === "toppings" && (
+                    <label>
+                      จำนวนท็อปปิ้งสูงสุด
+                      <input
+                        type="number"
+                        min={editing.includedToppings}
+                        max="10"
+                        value={editing.maxSelectedOptions ?? 10}
+                        onChange={(event) =>
+                          change(
+                            "maxSelectedOptions",
+                            Number(event.target.value),
+                          )
                         }
                       />
                     </label>

@@ -16,6 +16,7 @@ const applyConfirmation = "APPLY_PUBLIC_PROJECTION";
 const approvedWriteNamespaces = [
   "publicMenu/*",
   "publicSettings/toppingAvailability",
+  "publicSettings/customerRequestPolicy",
   `publicProjectionControl/${publicProjectionControlId}`,
 ] as const;
 const forbiddenNamespaces = [
@@ -70,12 +71,14 @@ const [
   availabilitySnapshot,
   publicMenuSnapshot,
   publicAvailabilitySnapshot,
+  publicRequestPolicySnapshot,
   controlSnapshot,
 ] = await Promise.all([
   firestore.collection("products").get(),
   firestore.doc("settings/toppingAvailability").get(),
   firestore.collection("publicMenu").get(),
   firestore.doc("publicSettings/toppingAvailability").get(),
+  firestore.doc("publicSettings/customerRequestPolicy").get(),
   firestore.doc(`publicProjectionControl/${publicProjectionControlId}`).get(),
 ]);
 
@@ -107,6 +110,10 @@ const availabilityCurrent =
   publicAvailabilitySnapshot.exists &&
   projectionFingerprint(publicAvailabilitySnapshot.data()) ===
     projectionFingerprint({ availability: projection.availability });
+const requestPolicyCurrent =
+  publicRequestPolicySnapshot.exists &&
+  projectionFingerprint(publicRequestPolicySnapshot.data()) ===
+    projectionFingerprint(projection.requestPolicy);
 const control = {
   schemaVersion: publicProjectionSchemaVersion,
   fingerprint: projection.fingerprint,
@@ -143,6 +150,7 @@ const result = {
     staleDocuments: diff.stale,
     documentsNeedingWhitelistReplacement: diff.update,
     availability: availabilityCurrent ? "current" : "update",
+    requestPolicy: requestPolicyCurrent ? "current" : "update",
     control: controlCurrent ? "current" : "update",
   },
   plan: {
@@ -150,6 +158,7 @@ const result = {
     updates: diff.update,
     removals: diff.stale,
     availabilityUpdate: !availabilityCurrent,
+    requestPolicyUpdate: !requestPolicyCurrent,
     controlUpdate: !controlCurrent,
     approvedWriteNamespaces,
     forbiddenNamespaces,
@@ -160,6 +169,7 @@ const result = {
     diff.update.length +
     diff.stale.length +
     (availabilityCurrent ? 0 : 1) +
+    (requestPolicyCurrent ? 0 : 1) +
     (controlCurrent ? 0 : 1),
   atomicity: "single-firestore-batch",
 };
@@ -191,6 +201,11 @@ if (mode === "dry-run") {
     batch.set(firestore.doc("publicSettings/toppingAvailability"), {
       availability: projection.availability,
     });
+  if (!requestPolicyCurrent)
+    batch.set(
+      firestore.doc("publicSettings/customerRequestPolicy"),
+      projection.requestPolicy,
+    );
   if (!controlCurrent)
     batch.set(
       firestore.doc(`publicProjectionControl/${publicProjectionControlId}`),

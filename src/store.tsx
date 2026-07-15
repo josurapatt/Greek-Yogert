@@ -17,7 +17,10 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   runTransaction,
   setDoc,
   updateDoc,
@@ -33,11 +36,20 @@ import {
 } from "./data";
 import { toFirestoreData } from "./firestoreData";
 import {
+  canManageCustomerOrdering,
   isAuthorizedStaffDocument,
   unauthorizedStaffMessage,
 } from "./staffAuthorization";
 import { removeCustomerRequest } from "./customerRequests";
-import { toCustomerPublicProduct } from "./customerOrder";
+import {
+  buildPublicProjection,
+  publicProjectionControlId,
+  publicProjectionSchemaVersion,
+} from "./publicProjection";
+import {
+  subscribePendingCustomerRequests,
+  subscribePendingOrders,
+} from "./staffFirestore";
 import {
   applyCartItemUpdate,
   businessDate,
@@ -63,6 +75,7 @@ interface SessionUser {
   uid: string;
   email: string;
   isAnonymous?: boolean;
+  canManageCustomerOrdering?: boolean;
 }
 interface AuthValue {
   user: SessionUser | null;
@@ -117,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               uid: account.uid,
               email: account.email ?? "",
               isAnonymous: false,
+              canManageCustomerOrdering: canManageCustomerOrdering(data),
             });
             return;
           }
@@ -177,6 +191,8 @@ interface DataValue {
   customerRequests: CustomerOrderRequest[];
   toppingAvailability: ToppingAvailability;
   loading: boolean;
+  queueIncomplete: boolean;
+  customerRequestsIncomplete: boolean;
   dismissCustomerRequest(id: string): void;
   submitOrder(draft: OrderDraft): Promise<ShopOrder>;
   replaceOrder(id: string, draft: OrderDraft): Promise<void>;
@@ -218,31 +234,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     () => (firebaseReady ? {} : readLocal(TOPPING_AVAILABILITY_KEY, {})),
   );
   const [loading, setLoading] = useState(Boolean(db));
+  const [queueIncomplete, setQueueIncomplete] = useState(false);
+  const [customerRequestsIncomplete, setCustomerRequestsIncomplete] =
+    useState(false);
 
   useEffect(() => {
     if (!db || !user || isAnonymous) {
       setLoading(false);
       return;
     }
-    const stopProducts = onSnapshot(collection(db, "products"), (snapshot) => {
-      const rows = snapshot.docs.map((entry) => entry.data() as Product);
-      setProducts(
-        rows.length
-          ? mergeProducts(rows)
-          : defaultProducts.map(normalizeProduct),
-      );
-      if (!rows.length)
-        defaultProducts.forEach(
-          (product) => void setDoc(doc(db!, "products", product.id), product),
+    const stopProducts = onSnapshot(
+      query(collection(db, "products"), limit(100)),
+      (snapshot) => {
+        const rows = snapshot.docs.map((entry) => entry.data() as Product);
+        setProducts(
+          rows.length
+            ? mergeProducts(rows)
+            : defaultProducts.map(normalizeProduct),
         );
-      setLoading(false);
-    });
-    const stopOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
-      setOrders(
-        snapshot.docs
-          .map((entry) => entry.data() as ShopOrder)
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      );
+        if (!rows.length)
+          defaultProducts.forEach(
+            (product) => void setDoc(doc(db!, "products", product.id), product),
+          );
+        setLoading(false);
+      },
+    );
+    const stopOrders = subscribePendingOrders(db, (rows, incomplete) => {
+      setOrders(rows);
+      setQueueIncomplete(incomplete);
     });
     const stopAvailability = onSnapshot(
       doc(db, "settings", "toppingAvailability"),
@@ -254,12 +273,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
     );
     const stopCustomerRequests = runtimeConfig.customerQrEnabled
-      ? onSnapshot(collection(db, "customerOrderRequests"), (snapshot) => {
-          setCustomerRequests(
-            snapshot.docs
-              .map((entry) => entry.data() as CustomerOrderRequest)
-              .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-          );
+      ? subscribePendingCustomerRequests(db, (rows, incomplete) => {
+          setCustomerRequests(rows);
+          setCustomerRequestsIncomplete(incomplete);
         })
       : () => undefined;
     return () => {
@@ -391,12 +407,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const saveProduct = async (product: Product) => {
     const normalized = normalizeProduct(product);
     if (db) {
+      const current = await getDocs(
+        query(collection(db, "products"), limit(100)),
+      );
+      const source = [
+        ...current.docs
+          .map((entry) => normalizeProduct(entry.data() as Product))
+          .filter((entry) => entry.id !== normalized.id),
+        normalized,
+      ];
+      const projection = buildPublicProjection(source, toppingAvailability);
       const batch = writeBatch(db);
       batch.set(doc(db, "products", normalized.id), normalized);
-      batch.set(
-        doc(db, "publicMenu", normalized.id),
-        toCustomerPublicProduct(normalized),
+      Object.entries(projection.menu).forEach(([id, value]) =>
+        batch.set(doc(db!, "publicMenu", id), value),
       );
+      batch.set(
+        doc(db, "publicSettings", "customerRequestPolicy"),
+        projection.requestPolicy,
+      );
+      batch.set(doc(db, "publicProjectionControl", publicProjectionControlId), {
+        schemaVersion: publicProjectionSchemaVersion,
+        fingerprint: projection.fingerprint,
+        menuIds: Object.keys(projection.menu).sort(),
+      });
       await batch.commit();
     } else
       setProducts((rows) => [
@@ -417,6 +451,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             | undefined) ?? {}),
           [id]: available,
         };
+        const projection = buildPublicProjection(products, next);
         transaction.set(privateRef, {
           availability: next,
           updatedAt: new Date().toISOString(),
@@ -424,6 +459,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         transaction.set(
           doc(firestore, "publicSettings", "toppingAvailability"),
           { availability: next },
+        );
+        transaction.set(
+          doc(firestore, "publicSettings", "customerRequestPolicy"),
+          projection.requestPolicy,
+        );
+        transaction.set(
+          doc(firestore, "publicProjectionControl", publicProjectionControlId),
+          {
+            schemaVersion: publicProjectionSchemaVersion,
+            fingerprint: projection.fingerprint,
+            menuIds: Object.keys(projection.menu).sort(),
+          },
         );
       });
     } else setAvailability((current) => ({ ...current, [id]: available }));
@@ -437,14 +484,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
       throw new Error("รูปแบบไฟล์สำรองไม่ถูกต้อง");
     if (db) {
       const firestore = db;
-      await Promise.all([
-        ...data.products.map((product) =>
-          setDoc(doc(firestore, "products", product.id), product),
-        ),
-        ...data.orders.map((order) =>
+      const importedProducts = data.products.map(normalizeProduct);
+      const current = await getDocs(
+        query(collection(firestore, "products"), limit(100)),
+      );
+      const importedIds = new Set(
+        importedProducts.map((product) => product.id),
+      );
+      const source = [
+        ...current.docs
+          .map((entry) => normalizeProduct(entry.data() as Product))
+          .filter((entry) => !importedIds.has(entry.id)),
+        ...importedProducts,
+      ];
+      const projection = buildPublicProjection(source, toppingAvailability);
+      const batch = writeBatch(firestore);
+      importedProducts.forEach((product) =>
+        batch.set(doc(firestore, "products", product.id), product),
+      );
+      Object.entries(projection.menu).forEach(([id, value]) =>
+        batch.set(doc(firestore, "publicMenu", id), value),
+      );
+      batch.set(
+        doc(firestore, "publicSettings", "customerRequestPolicy"),
+        projection.requestPolicy,
+      );
+      batch.set(
+        doc(firestore, "publicProjectionControl", publicProjectionControlId),
+        {
+          schemaVersion: publicProjectionSchemaVersion,
+          fingerprint: projection.fingerprint,
+          menuIds: Object.keys(projection.menu).sort(),
+        },
+      );
+      await batch.commit();
+      await Promise.all(
+        data.orders.map((order) =>
           setDoc(doc(firestore, "orders", order.id), order),
         ),
-      ]);
+      );
     } else {
       setProducts(data.products);
       setOrders(data.orders);
@@ -459,6 +537,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     customerRequests,
     toppingAvailability,
     loading,
+    queueIncomplete,
+    customerRequestsIncomplete,
     dismissCustomerRequest,
     submitOrder,
     replaceOrder,

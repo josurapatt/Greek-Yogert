@@ -8,7 +8,7 @@ on:
       - "**.md"
 jobs:
   deploy-customer-uat:
-    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
+    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary' || github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
@@ -17,8 +17,12 @@ jobs:
         with: { version: 11.7.0 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test && pnpm lint
+      - run: pnpm test && pnpm test:rules && pnpm lint
       - name: Build isolated Customer QR UAT app
         env:
           VITE_APP_ENVIRONMENT: customer-qr-uat
@@ -47,8 +51,10 @@ jobs:
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          pnpm dlx firebase-tools@latest deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
+          node scripts/disableUatCustomerOrdering.mjs
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
       - name: Capture read-only WP3 Human UAT diagnostics
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -59,8 +65,10 @@ jobs:
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp3:diagnose
       - name: Install isolated UAT browser
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         run: pnpm exec playwright install --with-deps chromium
       - name: Run WP3 browser UAT and clean temporary data
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         env:
           CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}

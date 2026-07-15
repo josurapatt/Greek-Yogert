@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { businessDate, channelLabels, money, paymentMethodLabel } from "../lib";
 import {
   aggregateSalesChannels,
@@ -10,6 +10,9 @@ import {
   salesChannelColors,
 } from "../reporting";
 import { useData } from "../store";
+import { db } from "../firebase";
+import { loadReportOrders } from "../staffFirestore";
+import type { ShopOrder } from "../types";
 
 const startOfRange = (range: string) => {
   const date = new Date();
@@ -20,12 +23,38 @@ const startOfRange = (range: string) => {
 };
 
 export default function ReportsPage() {
-  const { orders } = useData();
+  const { orders: localOrders } = useData();
   const [range, setRange] = useState("today");
   const [from, setFrom] = useState(businessDate());
   const [to, setTo] = useState(businessDate());
   const [start, end] =
     range === "custom" ? [from, to] : [startOfRange(range), businessDate()];
+  const [orders, setOrders] = useState<ShopOrder[]>(() =>
+    db ? [] : localOrders,
+  );
+  const [complete, setComplete] = useState(true);
+  const [loading, setLoading] = useState(Boolean(db));
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => {
+    if (!db) {
+      setOrders(localOrders);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    void loadReportOrders(db, start, end)
+      .then((result) => {
+        if (!active) return;
+        setOrders(result.rows);
+        setComplete(result.complete);
+      })
+      .catch(() => active && setLoadError("โหลดข้อมูลรายงานไม่สำเร็จ"))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [start, end, localOrders]);
   const inRange = orders.filter(
     (order) => order.businessDate >= start && order.businessDate <= end,
   );
@@ -60,6 +89,7 @@ export default function ReportsPage() {
   );
 
   const exportExcel = async () => {
+    if (!complete) throw new Error("ไม่สามารถส่งออกข้อมูลที่โหลดไม่ครบ");
     const XLSX = await import("xlsx");
     const rows = buildOrderExportRows(exportable);
     const sheet = XLSX.utils.json_to_sheet(rows);
@@ -105,11 +135,19 @@ export default function ReportsPage() {
         <button
           className="secondary"
           onClick={() => void exportExcel()}
-          disabled={!exportable.length}
+          disabled={!exportable.length || !complete || loading}
         >
           <Download /> ส่งออก Excel
         </button>
       </div>
+      {loading && <p className="notice">กำลังโหลดรายงานแบบแบ่งหน้า…</p>}
+      {loadError && <p className="validation">{loadError}</p>}
+      {!complete && (
+        <p className="validation">
+          ข้อมูลเกินขีดจำกัด 5,000 ออเดอร์ ระบบปิดการส่งออก Excel
+          เพื่อป้องกันไฟล์ไม่ครบ กรุณาแบ่งช่วงวันที่ให้แคบลง
+        </p>
+      )}
       <section className="report-filters">
         <div className="segmented">
           {[

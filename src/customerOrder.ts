@@ -5,6 +5,11 @@ import {
   prepareOrderItems,
 } from "./lib";
 import { toppings } from "./data";
+import {
+  assertCustomerRequestPolicy,
+  customerRequestSchemaVersion,
+  productSelectedOptionLimits,
+} from "./customerRequestPolicy";
 import type {
   CartItem,
   CustomerOrderRequest,
@@ -83,6 +88,7 @@ export function toCustomerPublicProduct(
     storefrontPrice: price,
     optionMode: product.optionMode,
     includedToppings: product.includedToppings,
+    maxSelectedOptions: productSelectedOptionLimits(product).maximum,
     granolaOptions: product.granolaOptions,
     availableToppingIds: product.availableToppingIds,
     ...(product.premiumToppingIds
@@ -109,6 +115,7 @@ export function customerPublicProductToProduct(
     active: product.active,
     optionMode: product.optionMode,
     includedToppings: product.includedToppings,
+    maxSelectedOptions: product.maxSelectedOptions,
     granolaOptions: product.granolaOptions,
     availableToppingIds: product.availableToppingIds,
     ...(product.premiumToppingIds
@@ -142,8 +149,10 @@ export function createCustomerRequest(
   );
   if (!prepared.length) throw new Error("ตะกร้าว่าง");
   const totals = orderTotals(prepared);
-  return {
+  const request: CustomerOrderRequest = {
+    schemaVersion: customerRequestSchemaVersion,
     id,
+    retryId: id,
     ownerUid,
     status: waitingForShop,
     channel: customerStorefrontChannel,
@@ -160,6 +169,8 @@ export function createCustomerRequest(
     createdAt: now,
     updatedAt: now,
   };
+  assertCustomerRequestPolicy(request, products);
+  return request;
 }
 
 export function customerStatusLabel(status: CustomerRequestStatus): string {

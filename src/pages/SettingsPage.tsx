@@ -4,6 +4,8 @@ import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvai
 import { firebaseReady } from "../firebase";
 import { formatThaiDateTime } from "../lib";
 import { useAuth, useData } from "../store";
+import { db } from "../firebase";
+import { loadAllOrdersForBackup } from "../staffFirestore";
 
 export default function SettingsPage() {
   const { products, orders, importBackup } = useData();
@@ -13,24 +15,43 @@ export default function SettingsPage() {
     localStorage.getItem("gym-last-backup") || "",
   );
   const [message, setMessage] = useState("");
+  const [backingUp, setBackingUp] = useState(false);
 
-  const backup = () => {
-    const createdAt = new Date().toISOString();
-    const payload = JSON.stringify(
-      { version: 1, createdAt, products, orders },
-      null,
-      2,
-    );
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(
-      new Blob([payload], { type: "application/json" }),
-    );
-    link.download = `greek-more-backup-${createdAt.slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    localStorage.setItem("gym-last-backup", createdAt);
-    setLastBackup(createdAt);
-    setMessage("สำรองข้อมูลเรียบร้อย");
+  const backup = async () => {
+    try {
+      setBackingUp(true);
+      const backupOrders = db
+        ? await loadAllOrdersForBackup(db)
+        : { rows: orders, complete: true };
+      if (!backupOrders.complete) {
+        setMessage(
+          "ข้อมูลออเดอร์เกินขีดจำกัด 5,000 รายการ จึงไม่สร้างไฟล์สำรองที่ไม่ครบ",
+        );
+        return;
+      }
+      const createdAt = new Date().toISOString();
+      const payload = JSON.stringify(
+        { version: 1, createdAt, products, orders: backupOrders.rows },
+        null,
+        2,
+      );
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(
+        new Blob([payload], { type: "application/json" }),
+      );
+      link.download = `greek-more-backup-${createdAt.slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      localStorage.setItem("gym-last-backup", createdAt);
+      setLastBackup(createdAt);
+      setMessage("สำรองข้อมูลเรียบร้อย");
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : "สำรองข้อมูลไม่สำเร็จ",
+      );
+    } finally {
+      setBackingUp(false);
+    }
   };
 
   const restore = async (file?: File) => {
@@ -75,7 +96,11 @@ export default function SettingsPage() {
             {lastBackup ? formatThaiDateTime(lastBackup) : "ยังไม่เคยสำรอง"}
           </small>
         </div>
-        <button className="primary" onClick={backup}>
+        <button
+          className="primary"
+          disabled={backingUp}
+          onClick={() => void backup()}
+        >
           <Download /> ดาวน์โหลด JSON
         </button>
       </section>

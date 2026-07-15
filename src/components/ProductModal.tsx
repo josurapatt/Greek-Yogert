@@ -1,6 +1,10 @@
 import { Minus, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { customerOptionLabels } from "../customerOrder";
+import {
+  customerRequestLimits,
+  productSelectedOptionLimits,
+} from "../customerRequestPolicy";
 import { toppings } from "../data";
 import {
   calculatePriceBreakdown,
@@ -30,6 +34,7 @@ interface Props {
   channel: OrderChannel;
   initial?: CartItem;
   availability?: ToppingAvailability;
+  customerLimits?: boolean;
   onClose(): void;
   onSave(item: CartItem): void;
 }
@@ -39,6 +44,7 @@ export default function ProductModal({
   channel,
   initial,
   availability = {},
+  customerLimits = false,
   onClose,
   onSave,
 }: Props) {
@@ -50,6 +56,7 @@ export default function ProductModal({
     normalizeToppingPackaging(initial?.toppingPackaging),
   );
   const rules = getChannelRules(product, channel);
+  const optionMaximum = productSelectedOptionLimits(product).maximum;
   const isPlatform = getChannelGroup(channel) === "platform";
   const breakdown = useMemo(
     () => calculatePriceBreakdown(product, selected, toppings, channel),
@@ -92,6 +99,7 @@ export default function ProductModal({
 
   const addTopping = (id: string) =>
     setSelected((rows) => {
+      if (rows.length >= optionMaximum) return rows;
       if (!isSelectionAvailable(product, id, availability)) return rows;
       if (!rules.allowDuplicateToppings && rows.includes(id)) return rows;
       return [...rows, id];
@@ -225,6 +233,7 @@ export default function ProductModal({
                         onClick={() => addTopping(option.id)}
                         disabled={
                           includedFull ||
+                          selected.length >= optionMaximum ||
                           soldOut ||
                           (!rules.allowDuplicateToppings && count > 0)
                         }
@@ -257,6 +266,7 @@ export default function ProductModal({
                       key={option.id}
                       disabled={
                         includedCount < product.includedToppings ||
+                        selected.length >= optionMaximum ||
                         selected.includes(option.id) ||
                         !isSelectionAvailable(product, option.id, availability)
                       }
@@ -341,7 +351,13 @@ export default function ProductModal({
               <Minus />
             </button>
             <b>{quantity}</b>
-            <button onClick={() => setQuantity(quantity + 1)}>
+            <button
+              disabled={
+                customerLimits &&
+                quantity >= customerRequestLimits.maxQuantityPerLine
+              }
+              onClick={() => setQuantity(quantity + 1)}
+            >
               <Plus />
             </button>
           </div>

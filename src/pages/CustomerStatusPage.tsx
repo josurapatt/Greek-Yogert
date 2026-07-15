@@ -7,6 +7,7 @@ import { db } from "../firebase";
 import { useCustomer } from "../customerFirebase";
 import { runtimeConfig } from "../runtimeConfig";
 import type { CustomerOrderRequest } from "../types";
+import { hydrateCustomerRequest } from "../customerRequestChunks";
 
 export default function CustomerStatusPage() {
   const { requestId } = useParams();
@@ -15,22 +16,34 @@ export default function CustomerStatusPage() {
   const [error, setError] = useState("");
   useEffect(() => {
     if (!db || !uid || !requestId) return;
-    return onSnapshot(
+    let active = true;
+    const stop = onSnapshot(
       doc(db, "customerOrderRequests", requestId),
       (snapshot) => {
         if (!snapshot.exists()) {
           setError("ไม่พบคำขอ");
           return;
         }
-        const value = snapshot.data() as CustomerOrderRequest;
-        if (value.ownerUid !== uid) {
-          setError("ไม่มีสิทธิ์ดูคำขอนี้");
-          return;
-        }
-        setRequest(value);
+        void hydrateCustomerRequest(
+          db!,
+          snapshot.data() as CustomerOrderRequest,
+        )
+          .then((value) => {
+            if (!active) return;
+            if (value.ownerUid !== uid) {
+              setError("ไม่มีสิทธิ์ดูคำขอนี้");
+              return;
+            }
+            setRequest(value);
+          })
+          .catch(() => active && setError("ข้อมูลรายการสินค้าไม่ครบ"));
       },
       () => setError("ไม่สามารถเปิดสถานะคำขอได้"),
     );
+    return () => {
+      active = false;
+      stop();
+    };
   }, [uid, requestId]);
   if (loading)
     return (

@@ -2,12 +2,8 @@ import { doc, runTransaction } from "firebase/firestore";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { db } from "../firebase";
-import {
-  customerPaymentMethods,
-  toCustomerPublicProduct,
-} from "../customerOrder";
+import { customerPaymentMethods } from "../customerOrder";
 import { formatThaiDateTime, money } from "../lib";
-import { defaultProducts } from "../data";
 import { useAuth, useData } from "../store";
 import {
   confirmCustomerRequestTransaction,
@@ -22,10 +18,22 @@ import {
   customerConfirmationFailureMessage,
   logCustomerConfirmationFailure,
 } from "../customerConfirmationUx";
+import CustomerOrderingOperationsPanel from "../components/CustomerOrderingOperationsPanel";
+import {
+  buildPublicProjection,
+  publicProjectionControlId,
+  publicProjectionSchemaVersion,
+} from "../publicProjection";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
-  const { customerRequests: requests, dismissCustomerRequest } = useData();
+  const {
+    customerRequests: requests,
+    customerRequestsIncomplete,
+    dismissCustomerRequest,
+    products,
+    toppingAvailability,
+  } = useData();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const confirm = async (
@@ -63,7 +71,7 @@ export default function CustomerRequestsPage() {
     const reason = window.prompt("เหตุผล (ไม่บังคับ)") ?? undefined;
     try {
       setBusy(request.id);
-      await rejectCustomerRequestTransaction(db, request.id, reason);
+      await rejectCustomerRequestTransaction(db, request.id, reason, user?.uid);
       dismissCustomerRequest(request.id);
       setMessage("ปฏิเสธคำขอแล้ว");
     } catch (cause) {
@@ -80,22 +88,27 @@ export default function CustomerRequestsPage() {
     try {
       setBusy("seed");
       await runTransaction(db, async (transaction) => {
-        for (const product of defaultProducts) {
-          const ref = doc(db!, "publicMenu", product.id);
-          if (!(await transaction.get(ref)).exists())
-            transaction.set(ref, toCustomerPublicProduct(product));
-        }
-        const availabilityRef = doc(
-          db!,
-          "publicSettings",
-          "toppingAvailability",
+        const projection = buildPublicProjection(products, toppingAvailability);
+        Object.entries(projection.menu).forEach(([id, product]) =>
+          transaction.set(doc(db!, "publicMenu", id), product),
         );
-        if (!(await transaction.get(availabilityRef)).exists())
-          transaction.set(availabilityRef, {
-            availability: {},
-          });
+        transaction.set(doc(db!, "publicSettings", "toppingAvailability"), {
+          availability: projection.availability,
+        });
+        transaction.set(
+          doc(db!, "publicSettings", "customerRequestPolicy"),
+          projection.requestPolicy,
+        );
+        transaction.set(
+          doc(db!, "publicProjectionControl", publicProjectionControlId),
+          {
+            schemaVersion: publicProjectionSchemaVersion,
+            fingerprint: projection.fingerprint,
+            menuIds: Object.keys(projection.menu).sort(),
+          },
+        );
       });
-      setMessage("เพิ่มเมนู UAT ที่ยังไม่มีแล้ว");
+      setMessage("ซิงก์เมนูและนโยบาย Projection V2 สำหรับ UAT แล้ว");
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "seed ไม่สำเร็จ");
     } finally {
@@ -124,9 +137,15 @@ export default function CustomerRequestsPage() {
           </button>
         )}
       </div>
+      <CustomerOrderingOperationsPanel />
       {message && (
         <p className="notice" role="status">
           {message}
+        </p>
+      )}
+      {customerRequestsIncomplete && (
+        <p className="validation">
+          แสดงคำขอที่รอล่าสุดแบบจำกัด อาจมีคำขอเก่ากว่านี้ กรุณาตรวจสอบตัวชี้วัด
         </p>
       )}
       {!pending.length ? (
