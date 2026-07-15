@@ -38,8 +38,7 @@ for (const audit of audits.docs) {
     continue;
   try {
     const account = await auth.getUser(actorUid);
-    if (account.disabled || !account.email || account.providerData.length === 0)
-      continue;
+    if (account.disabled || !account.email) continue;
     designated = authorization.ref;
     designatedAccount = account;
     break;
@@ -60,7 +59,6 @@ if (!designated) {
       if (
         account.disabled ||
         !email ||
-        account.providerData.length === 0 ||
         automationActors.some((prefix) =>
           authorization.id.startsWith(prefix),
         ) ||
