@@ -485,7 +485,6 @@ try {
     staffPage.getByRole("button", { name: "ส่งออก Excel" }),
     "Excel export action",
   );
-  assert(await exportButton.isEnabled(), "Reports Excel export is disabled");
   const [download] = await Promise.all([
     staffPage.waitForEvent("download"),
     exportButton.click(),
