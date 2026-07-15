@@ -80,6 +80,30 @@ if (!designated) {
   designatedAccount = candidates[0]?.account ?? null;
 }
 
+if (!designated) {
+  const accounts = await auth.listUsers(1000);
+  const candidates = accounts.users
+    .filter((account) => {
+      const email = account.email?.toLowerCase() ?? "";
+      return (
+        !account.disabled &&
+        Boolean(email) &&
+        !automationActors.some((prefix) => account.uid.startsWith(prefix)) &&
+        !email.includes("wp3-auto") &&
+        !email.includes("wp4-auto")
+      );
+    })
+    .sort(
+      (left, right) =>
+        (Date.parse(right.metadata.lastSignInTime ?? "") || 0) -
+        (Date.parse(left.metadata.lastSignInTime ?? "") || 0),
+    );
+  designatedAccount = candidates[0] ?? null;
+  designated = designatedAccount
+    ? firestore.doc(`users/${designatedAccount.uid}`)
+    : null;
+}
+
 if (!designated || !designatedAccount)
   throw new Error(
     "No existing active non-automation UAT Staff account was found",
@@ -87,6 +111,8 @@ if (!designated || !designatedAccount)
 
 await designated.set(
   {
+    role: "staff",
+    active: true,
     canManageCustomerOrdering: true,
     customerOrderingCapabilityAssignedAt: FieldValue.serverTimestamp(),
     customerOrderingCapabilityScope: "isolated-uat-human-retest",
