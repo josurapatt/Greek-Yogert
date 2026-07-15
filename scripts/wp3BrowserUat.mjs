@@ -22,7 +22,7 @@ const staffPassword = `Wp3!${randomBytes(18).toString("base64url")}`;
 const paymentRequired = "กรุณาเลือกวิธีการชำระเงินก่อนยืนยันคำสั่งซื้อ";
 const mismatchMessage =
   "คำขอไม่ตรงกับเมนูหรือการตั้งค่าปัจจุบัน กรุณาให้ลูกค้าแก้ไขหรือสร้างคำขอใหม่";
-const negativeRequestId = "WP3-AUTO-1783938043929-forged-unit-price";
+const negativeRequestId = `${marker}-FORGED-PRODUCT-NAME`;
 const cleanupFailures = [];
 let staffIdentity;
 let customerIdentity;
@@ -389,17 +389,43 @@ try {
     "Duplicate UI path created another Order",
   );
 
+  const sourceItem = (
+    await firestore.doc(`customerOrderRequests/${requestId}/items/00`).get()
+  ).data()?.item;
+  assert(sourceItem, "Valid request item is unavailable for negative control");
   const negativeRef = firestore.doc(
     `customerOrderRequests/${negativeRequestId}`,
   );
+  const negativeTimestamp = new Date().toISOString();
+  const forgedItem = {
+    ...sourceItem,
+    productName: `FORGED ${sourceItem.productName}`,
+  };
+  await negativeRef.set({
+    id: negativeRequestId,
+    ownerUid: "wp4-browser-negative-owner",
+    status: "รอร้านยืนยัน",
+    channel: "หน้าร้าน",
+    customerName: `${marker}-NEGATIVE`,
+    customerNote: "temporary trusted-confirmation mismatch",
+    items: [forgedItem],
+    subtotal: forgedItem.lineTotal,
+    total: forgedItem.lineTotal,
+    itemCount: forgedItem.quantity,
+    createdAt: negativeTimestamp,
+    updatedAt: negativeTimestamp,
+  });
   const negativeBefore = (await negativeRef.get()).data();
-  assert(negativeBefore, "Preserved negative-control request is missing");
+  assert(
+    negativeBefore?.status === "รอร้านยืนยัน",
+    "Temporary negative-control request is not pending",
+  );
   const negativeCounterBefore = await counterSequence(date);
   await staffPage.goto(`${baseUrl}/customer-requests/${negativeRequestId}`, {
     waitUntil: "domcontentloaded",
   });
   const negativePayment = await unique(
-    staffPage.getByRole("combobox", { name: "วิธีชำระเงิน Apple Ohlala" }),
+    staffPage.getByRole("combobox"),
     "negative-control payment control",
   );
   await negativePayment.selectOption({ label: "สด" });
@@ -560,6 +586,13 @@ try {
     await deleteNormalizedRequest(requestId).catch((cause) =>
       cleanupFailures.push(cause),
     );
+  await deleteTemporaryOperationalAudit(negativeRequestId).catch((cause) =>
+    cleanupFailures.push(cause),
+  );
+  await firestore
+    .doc(`customerOrderRequests/${negativeRequestId}`)
+    .delete()
+    .catch((cause) => cleanupFailures.push(cause));
   if (staffIdentity?.localId)
     await firestore
       .doc(`users/${staffIdentity.localId}`)
@@ -601,6 +634,20 @@ try {
     if (remaining.some((entry) => entry.exists))
       cleanupFailures.push(new Error("Pagination cleanup verification failed"));
   }
+  const [negativeRemaining, negativeAuditsRemaining] = await Promise.all([
+    firestore.doc(`customerOrderRequests/${negativeRequestId}`).get(),
+    firestore
+      .collection("customerOrderingAuditEvents")
+      .where("requestId", "==", negativeRequestId)
+      .get(),
+  ]).catch((cause) => {
+    cleanupFailures.push(cause);
+    return [];
+  });
+  if (negativeRemaining?.exists || !negativeAuditsRemaining?.empty)
+    cleanupFailures.push(
+      new Error("Temporary negative-control cleanup verification failed"),
+    );
 }
 
 if (cleanupFailures.length)
