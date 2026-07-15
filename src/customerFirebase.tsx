@@ -153,25 +153,31 @@ export function CustomerProvider({
         orderingControl.message || "ร้านปิดรับคำสั่งซื้อใหม่ชั่วคราว",
       );
     return withCustomerSubmissionLock(uid, async () => {
-      if (db) {
-        const existing = await getDoc(
-          doc(db, "customerOrderRequests", envelope.retryId),
-        );
-        if (existing.exists()) {
-          const recovered = await hydrateCustomerRequest(
-            db,
-            existing.data() as CustomerOrderRequest,
+      if (db && envelope.state === "uncertain") {
+        try {
+          const existing = await getDoc(
+            doc(db, "customerOrderRequests", envelope.retryId),
           );
-          if (
-            recovered.ownerUid !== uid ||
-            recovered.id !== envelope.retryId ||
-            recovered.retryId !== envelope.retryId
-          )
-            throw new Error("ไม่สามารถตรวจสอบคำขอเดิมได้ กรุณาติดต่อพนักงาน");
-          clearCustomerSubmissionEnvelope(uid);
-          setPendingSubmission(null);
-          recordCustomerSubmissionAccepted(uid);
-          return recovered;
+          if (existing.exists()) {
+            const recovered = await hydrateCustomerRequest(
+              db,
+              existing.data() as CustomerOrderRequest,
+            );
+            if (
+              recovered.ownerUid !== uid ||
+              recovered.id !== envelope.retryId ||
+              recovered.retryId !== envelope.retryId
+            )
+              throw new Error("ไม่สามารถตรวจสอบคำขอเดิมได้ กรุณาติดต่อพนักงาน");
+            clearCustomerSubmissionEnvelope(uid);
+            setPendingSubmission(null);
+            recordCustomerSubmissionAccepted(uid);
+            return recovered;
+          }
+        } catch {
+          // Nonexistent request IDs are intentionally unreadable. Replaying the
+          // same atomic create is safe; an accepted create becomes a denied
+          // update and is reconciled by the post-write exact-document probe.
         }
       }
       let latestProducts = products;

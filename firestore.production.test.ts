@@ -391,6 +391,9 @@ describe("WP4 Production-candidate Firestore authorization", () => {
     const staff = environment
       .authenticatedContext("staff", passwordToken)
       .firestore();
+    await assertFails(
+      getDoc(doc(customer, "customerOrderRequests/not-created-yet")),
+    );
     await assertSucceeds(writeCustomerRequest(customer, request("owned")));
     const itemRef = doc(customer, "customerOrderRequests/owned/items/00");
     await assertSucceeds(getDoc(itemRef));
