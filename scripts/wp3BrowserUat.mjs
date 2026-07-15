@@ -202,7 +202,28 @@ try {
       "Customer submit action",
     )
   ).click();
-  await customerPage.waitForURL(/\/order\/status\//);
+  try {
+    await customerPage.waitForURL(/\/order\/status\//);
+  } catch (cause) {
+    const persisted = await firestore
+      .collection("customerOrderRequests")
+      .where("customerName", "==", marker)
+      .get();
+    throw new Error(
+      `Customer submit did not navigate: ${JSON.stringify({
+        url: customerPage.url(),
+        validationMessages: await customerPage
+          .locator(".validation")
+          .allTextContents(),
+        statusMessages: await customerPage
+          .locator('[role="status"]')
+          .allTextContents(),
+        consoleErrors: customerErrors(),
+        persistedRequestIds: persisted.docs.map((entry) => entry.id),
+      })}`,
+      { cause },
+    );
+  }
   requestId = new URL(customerPage.url()).pathname.split("/").at(-1);
   assert(requestId, "Customer UI did not expose the created request ID");
   assert(

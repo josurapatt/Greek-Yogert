@@ -19,6 +19,8 @@ import {
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
+import { defaultProducts } from "./src/data";
+import { customerOptionLabels } from "./src/customerOrder";
 
 let environment: RulesTestEnvironment;
 const passwordToken = { firebase: { sign_in_provider: "password" } };
@@ -532,6 +534,66 @@ describe("WP4 Production-candidate Firestore authorization", () => {
           itemCount: 31,
           subtotal: 1829,
           total: 1829,
+        }),
+      ),
+    );
+  });
+
+  it("accepts the granola selection emitted by the Customer UI", async () => {
+    await seedRuntime();
+    const product = defaultProducts.find(
+      (entry) => entry.id === "apple-ohlala",
+    )!;
+    const selected = product.granolaOptions[2];
+    const selectedOptions = customerOptionLabels(product, [selected]);
+    await seed({
+      "publicSettings/customerRequestPolicy": {
+        schemaVersion: 2,
+        fingerprint: "wp4-granola-ui",
+        productLimits: {
+          [product.id]: {
+            minimum: 1,
+            maximum: 1,
+            allowedIds: product.granolaOptions,
+            allowedLabels: customerOptionLabels(
+              product,
+              product.granolaOptions,
+            ),
+          },
+        },
+      },
+      "publicProjectionControl/current": {
+        schemaVersion: 2,
+        fingerprint: "wp4-granola-ui",
+        menuIds: [product.id],
+      },
+    });
+    const customer = environment
+      .authenticatedContext("customer-a", anonymousToken)
+      .firestore();
+    await assertSucceeds(
+      writeCustomerRequest(
+        customer,
+        request("granola-ui", "customer-a", {
+          items: [
+            item("granola-line", {
+              productId: product.id,
+              productName: product.name,
+              basePrice: 69,
+              selectedOptions,
+              selectedOptionIds: [selected],
+              unitPrice: 69,
+              priceBreakdown: {
+                basePrice: 69,
+                premiumIncludedSurcharge: 0,
+                extraToppingCharges: 0,
+                unitPrice: 69,
+              },
+              lineTotal: 69,
+            }),
+          ],
+          subtotal: 69,
+          total: 69,
         }),
       ),
     );
