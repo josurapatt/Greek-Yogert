@@ -21,6 +21,7 @@ const audits = await firestore
   .get();
 
 let designated = null;
+let designatedAccount = null;
 for (const audit of audits.docs) {
   const value = audit.data();
   const actorUid = typeof value.actorUid === "string" ? value.actorUid : "";
@@ -37,17 +38,53 @@ for (const audit of audits.docs) {
     continue;
   try {
     const account = await auth.getUser(actorUid);
-    if (!account.email || account.providerData.length === 0) continue;
+    if (account.disabled || !account.email || account.providerData.length === 0)
+      continue;
     designated = authorization.ref;
+    designatedAccount = account;
     break;
   } catch {
     // Deleted automated identities are intentionally skipped.
   }
 }
 
-if (!designated)
+if (!designated) {
+  const authorizations = await firestore.collection("users").limit(100).get();
+  const candidates = [];
+  for (const authorization of authorizations.docs) {
+    const data = authorization.data();
+    if (data.role !== "staff" || data.active !== true) continue;
+    try {
+      const account = await auth.getUser(authorization.id);
+      const email = account.email?.toLowerCase() ?? "";
+      if (
+        account.disabled ||
+        !email ||
+        account.providerData.length === 0 ||
+        automationActors.some((prefix) =>
+          authorization.id.startsWith(prefix),
+        ) ||
+        email.includes("wp3-auto") ||
+        email.includes("wp4-auto")
+      )
+        continue;
+      candidates.push({
+        authorization: authorization.ref,
+        account,
+        lastSignIn: Date.parse(account.metadata.lastSignInTime ?? "") || 0,
+      });
+    } catch {
+      // Authorization documents without a current Auth account are skipped.
+    }
+  }
+  candidates.sort((left, right) => right.lastSignIn - left.lastSignIn);
+  designated = candidates[0]?.authorization ?? null;
+  designatedAccount = candidates[0]?.account ?? null;
+}
+
+if (!designated || !designatedAccount)
   throw new Error(
-    "No existing active UAT Staff account from the Human disable evidence was found",
+    "No existing active non-automation UAT Staff account was found",
   );
 
 await designated.set(
@@ -64,7 +101,11 @@ console.log(
     projectId,
     designated: true,
     accountHint:
-      "Use the same UAT Staff account that performed the latest Human emergency disable; the UI capability label is authoritative",
+      "Use the most recently active non-automation UAT Staff account; the signed-in email and UI capability label identify it",
+    maskedEmail: designatedAccount.email.replace(
+      /^(.{1,2}).*(@.*)$/,
+      "$1***$2",
+    ),
     uidExposed: false,
     passwordExposed: false,
   }),
