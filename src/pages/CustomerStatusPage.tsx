@@ -8,6 +8,11 @@ import { useCustomer } from "../customerFirebase";
 import { runtimeConfig } from "../runtimeConfig";
 import type { CustomerOrderRequest } from "../types";
 import { hydrateCustomerRequest } from "../customerRequestChunks";
+import { waitingForShop } from "../customerOrder";
+import {
+  clearCustomerSubmissionEnvelope,
+  rememberCustomerActiveRequest,
+} from "../customerSubmissionRetry";
 
 export default function CustomerStatusPage() {
   const { requestId } = useParams();
@@ -34,6 +39,10 @@ export default function CustomerStatusPage() {
               setError("ไม่มีสิทธิ์ดูคำขอนี้");
               return;
             }
+            if (value.status === waitingForShop)
+              rememberCustomerActiveRequest(uid, value.id);
+            else clearCustomerSubmissionEnvelope(uid);
+            setError("");
             setRequest(value);
           })
           .catch(() => active && setError("ข้อมูลรายการสินค้าไม่ครบ"));
@@ -55,6 +64,13 @@ export default function CustomerStatusPage() {
     return (
       <main className="customer-page">
         <p className="validation">{error}</p>
+        <p>
+          ระบบยังเก็บรหัสคำขอเดิมไว้และจะไม่สร้างคำขอใหม่
+          กรุณาลองเปิดสถานะอีกครั้งด้วยเบราว์เซอร์เดิม
+        </p>
+        <button className="secondary" onClick={() => window.location.reload()}>
+          ลองเปิดสถานะอีกครั้ง
+        </button>
       </main>
     );
   if (!request)
@@ -84,9 +100,15 @@ export default function CustomerStatusPage() {
         <strong>{money(request.total)}</strong>
         {request.rejectionReason && <p>เหตุผล: {request.rejectionReason}</p>}
       </section>
-      <Link className="secondary" to="/order">
-        สั่งรายการใหม่
-      </Link>
+      {request.status === waitingForShop ? (
+        <p className="notice">
+          คำขอนี้ยังรอร้านยืนยัน กรุณาเก็บหน้านี้ไว้ดูสถานะ
+        </p>
+      ) : (
+        <Link className="secondary" to="/order">
+          สั่งรายการใหม่
+        </Link>
+      )}
     </main>
   );
 }

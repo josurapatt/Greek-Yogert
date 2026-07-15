@@ -25,6 +25,7 @@ import { runtimeConfig } from "./runtimeConfig";
 import {
   createCustomerRequest,
   customerPublicProductToProduct,
+  waitingForShop,
 } from "./customerOrder";
 import type {
   CartItem,
@@ -40,8 +41,11 @@ import {
 import {
   assertCustomerSubmissionCooldown,
   clearCustomerSubmissionEnvelope,
+  customerSubmissionStorageEvent,
+  loadCustomerActiveRequestId,
   loadCustomerSubmissionEnvelope,
   markCustomerSubmissionUncertain,
+  markCustomerSubmissionSubmitted,
   prepareCustomerSubmissionEnvelope,
   recordCustomerSubmissionAccepted,
   withCustomerSubmissionLock,
@@ -59,6 +63,7 @@ interface CustomerValue {
   loading: boolean;
   orderingControl: CustomerOrderingControlState;
   pendingSubmission: CustomerSubmissionEnvelope | null;
+  activeRequestId: string | null;
   submit(
     items: CartItem[],
     input: { customerName?: string; customerNote?: string },
@@ -99,6 +104,7 @@ export function CustomerProvider({
     );
   const [pendingSubmission, setPendingSubmission] =
     useState<CustomerSubmissionEnvelope | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   useEffect(() => {
     if (!shouldInitializeCustomerFirebase(enabled, Boolean(auth)) || !auth) {
       setLoading(false);
@@ -113,7 +119,8 @@ export function CustomerProvider({
   }, [enabled]);
   useEffect(() => {
     if (!db || !uid) return;
-    const menuQuery = query(collection(db, "publicMenu"), limit(100));
+    const firestore = db;
+    const menuQuery = query(collection(firestore, "publicMenu"), limit(100));
     const stopMenu = onSnapshot(menuQuery, (snapshot) =>
       setProducts(
         snapshot.docs.map((row) =>
@@ -122,7 +129,7 @@ export function CustomerProvider({
       ),
     );
     const stopAvailability = onSnapshot(
-      doc(db, "publicSettings", "toppingAvailability"),
+      doc(firestore, "publicSettings", "toppingAvailability"),
       (snapshot) =>
         setAvailability(
           (snapshot.data()?.availability as ToppingAvailability | undefined) ??
@@ -130,7 +137,7 @@ export function CustomerProvider({
         ),
     );
     const stopControl = onSnapshot(
-      doc(db, "publicSettings", "customerOrdering"),
+      doc(firestore, "publicSettings", "customerOrdering"),
       (snapshot) =>
         setOrderingControl(
           snapshot.exists()
@@ -139,11 +146,45 @@ export function CustomerProvider({
         ),
       () => setOrderingControl(parsePublicCustomerOrderingControl(null)),
     );
-    setPendingSubmission(loadCustomerSubmissionEnvelope(uid));
+    const syncSubmissionState = () => {
+      const envelope = loadCustomerSubmissionEnvelope(uid);
+      setPendingSubmission(envelope?.state === "submitted" ? null : envelope);
+      setActiveRequestId(loadCustomerActiveRequestId(uid));
+    };
+    syncSubmissionState();
+    const reconcileActiveRequest = async () => {
+      const requestId = loadCustomerActiveRequestId(uid);
+      if (!requestId) return;
+      try {
+        const snapshot = await getDoc(
+          doc(firestore, "customerOrderRequests", requestId),
+        );
+        if (!snapshot.exists()) return;
+        const request = await hydrateCustomerRequest(
+          firestore,
+          snapshot.data() as CustomerOrderRequest,
+        );
+        if (request.ownerUid !== uid || request.id !== requestId) return;
+        if (request.status === waitingForShop) setActiveRequestId(requestId);
+        else {
+          clearCustomerSubmissionEnvelope(uid);
+          setPendingSubmission(null);
+          setActiveRequestId(null);
+        }
+      } catch {
+        // Preserve the exact active ID through temporary status/read failures.
+      }
+    };
+    void reconcileActiveRequest();
+    const handleStorage = () => syncSubmissionState();
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(customerSubmissionStorageEvent, handleStorage);
     return () => {
       stopMenu();
       stopAvailability();
       stopControl();
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(customerSubmissionStorageEvent, handleStorage);
     };
   }, [uid]);
   const executeEnvelope = async (envelope: CustomerSubmissionEnvelope) => {
@@ -153,6 +194,37 @@ export function CustomerProvider({
         orderingControl.message || "ร้านปิดรับคำสั่งซื้อใหม่ชั่วคราว",
       );
     return withCustomerSubmissionLock(uid, async () => {
+      const storedEnvelope = loadCustomerSubmissionEnvelope(uid);
+      if (storedEnvelope) envelope = storedEnvelope;
+      const activeId = loadCustomerActiveRequestId(uid);
+      if (activeId) {
+        try {
+          const activeSnapshot = await getDoc(
+            doc(db!, "customerOrderRequests", activeId),
+          );
+          if (activeSnapshot.exists()) {
+            const activeRequest = await hydrateCustomerRequest(
+              db!,
+              activeSnapshot.data() as CustomerOrderRequest,
+            );
+            if (activeRequest.ownerUid !== uid || activeRequest.id !== activeId)
+              throw new Error("ตรวจสอบคำขอเดิมไม่ได้");
+            if (activeRequest.status === waitingForShop) {
+              setPendingSubmission(null);
+              setActiveRequestId(activeId);
+              return activeRequest;
+            }
+            clearCustomerSubmissionEnvelope(uid);
+            setPendingSubmission(null);
+            setActiveRequestId(null);
+          }
+        } catch (cause) {
+          throw new Error(
+            "มีคำขอเดิมอยู่ แต่ยังเปิดสถานะไม่ได้ ระบบจะเก็บรหัสเดิมและไม่สร้างคำขอใหม่",
+            { cause },
+          );
+        }
+      }
       if (db && envelope.state === "uncertain") {
         try {
           const existing = await getDoc(
@@ -169,8 +241,9 @@ export function CustomerProvider({
               recovered.retryId !== envelope.retryId
             )
               throw new Error("ไม่สามารถตรวจสอบคำขอเดิมได้ กรุณาติดต่อพนักงาน");
-            clearCustomerSubmissionEnvelope(uid);
+            markCustomerSubmissionSubmitted(envelope);
             setPendingSubmission(null);
+            setActiveRequestId(recovered.id);
             recordCustomerSubmissionAccepted(uid);
             return recovered;
           }
@@ -255,8 +328,9 @@ export function CustomerProvider({
                 value.id === envelope.retryId &&
                 value.retryId === envelope.retryId
               ) {
-                clearCustomerSubmissionEnvelope(uid);
+                markCustomerSubmissionSubmitted(envelope);
                 setPendingSubmission(null);
+                setActiveRequestId(value.id);
                 recordCustomerSubmissionAccepted(uid);
                 return value;
               }
@@ -272,8 +346,9 @@ export function CustomerProvider({
           );
         }
       }
-      clearCustomerSubmissionEnvelope(uid);
+      markCustomerSubmissionSubmitted(envelope);
       setPendingSubmission(null);
+      setActiveRequestId(request.id);
       recordCustomerSubmissionAccepted(uid);
       return request;
     });
@@ -283,6 +358,8 @@ export function CustomerProvider({
     input: { customerName?: string; customerNote?: string },
   ) => {
     if (!uid) throw new Error("กำลังเชื่อมต่อระบบ กรุณาลองใหม่");
+    if (activeRequestId)
+      throw new Error("มีคำขอที่รอร้านยืนยันอยู่ กรุณากลับไปดูสถานะคำขอเดิม");
     assertCustomerSubmissionCooldown(uid);
     const envelope = prepareCustomerSubmissionEnvelope(uid, items, input);
     setPendingSubmission(envelope);
@@ -303,6 +380,7 @@ export function CustomerProvider({
         loading,
         orderingControl,
         pendingSubmission,
+        activeRequestId,
         submit,
         retryPending,
       }}

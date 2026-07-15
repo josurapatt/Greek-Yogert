@@ -124,13 +124,26 @@ export default function CustomerOrderingOperationsPanel() {
   const extended = disabledForReview(control);
   return (
     <section className="settings-card customer-ordering-operations">
-      <div>
+      <header className="operations-header">
         <p className="eyebrow">การควบคุม Customer QR</p>
         <h2>{enabled ? "กำลังเปิดรับคำสั่งซื้อ" : "ปิดรับคำสั่งซื้อใหม่"}</h2>
         <p>
-          ตัวชี้วัดเป็นข้อมูลช่วยปฏิบัติงานจากคำค้นแบบจำกัด
-          ไม่ใช่การแจ้งเตือนแบบรับประกันหรือ rate limit ที่ปลอดภัย
+          ตรวจสอบสถานะ เหตุผล ข้อความถึงลูกค้า และสิทธิ์ของบัญชีนี้ก่อนดำเนินการ
         </p>
+      </header>
+      <div className={`operations-state ${enabled ? "enabled" : "disabled"}`}>
+        <strong>1. สถานะการรับคำสั่งซื้อของลูกค้า</strong>
+        <span>
+          {enabled ? "เปิดรับคำสั่งซื้อใหม่" : "ปิดรับคำสั่งซื้อใหม่"}
+        </span>
+        <p>
+          <b>เหตุผลล่าสุด:</b> {control?.reason || "ยังไม่มีเหตุผลที่บันทึกไว้"}
+        </p>
+        {!enabled && control?.message && (
+          <p>
+            <b>ข้อความที่ลูกค้าเห็น:</b> {control.message}
+          </p>
+        )}
       </div>
       {controlMalformed && (
         <p className="validation">
@@ -143,94 +156,106 @@ export default function CustomerOrderingOperationsPanel() {
           กดปิดรับฉุกเฉินเพื่อสร้างสถานะปิดที่ตรวจสอบได้
         </p>
       )}
-      <label>
-        เหตุผล (จำเป็น)
-        <input
-          value={reason}
-          maxLength={200}
-          onChange={(event) => setReason(event.target.value)}
-        />
-      </label>
-      {(enabled || controlMissing) && (
+      <div className="operations-capability" role="status">
+        <strong>2. สิทธิ์ของบัญชี Staff นี้</strong>
+        <span>
+          {user?.canManageCustomerOrdering === true
+            ? "มีสิทธิ์เปิดรับคำสั่งซื้อกลับ"
+            : "ปิดรับคำสั่งซื้อได้ แต่ไม่มีสิทธิ์เปิดกลับ"}
+        </span>
+      </div>
+      <div className="operations-action-form">
+        <h3>3. เหตุผล ข้อความ และการดำเนินการ</h3>
         <label>
-          ข้อความแจ้งลูกค้า
+          เหตุผล (จำเป็น)
           <input
-            value={message}
-            maxLength={160}
-            onChange={(event) => setMessage(event.target.value)}
+            value={reason}
+            maxLength={200}
+            onChange={(event) => setReason(event.target.value)}
           />
         </label>
-      )}
-      {!enabled && !controlMissing && !controlMalformed && (
-        <>
-          <label className="inline-check">
+        {(enabled || controlMissing) && (
+          <label>
+            ข้อความแจ้งลูกค้า
             <input
-              type="checkbox"
-              checked={confirmedEnable}
-              onChange={(event) => setConfirmedEnable(event.target.checked)}
+              value={message}
+              maxLength={160}
+              onChange={(event) => setMessage(event.target.value)}
             />
-            ยืนยันว่าตรวจสอบเหตุการณ์แล้วและต้องการเปิดรับคำสั่งซื้อ
           </label>
-          {extended && (
+        )}
+        {!enabled && !controlMissing && !controlMalformed && (
+          <>
             <label className="inline-check">
               <input
                 type="checkbox"
-                checked={reviewedExtendedDisable}
-                onChange={(event) =>
-                  setReviewedExtendedDisable(event.target.checked)
-                }
+                checked={confirmedEnable}
+                onChange={(event) => setConfirmedEnable(event.target.checked)}
               />
-              ทบทวนตัวชี้วัดหลังปิดรับเกิน 30 นาทีแล้ว
+              ยืนยันว่าตรวจสอบเหตุการณ์แล้วและต้องการเปิดรับคำสั่งซื้อ
             </label>
-          )}
-        </>
-      )}
-      <div className="button-row">
-        {enabled || controlMissing ? (
-          <button
-            className="danger"
-            disabled={busy || !reason.trim()}
-            onClick={() => void change(false)}
-          >
-            ปิดรับคำสั่งซื้อฉุกเฉิน
-          </button>
-        ) : !controlMalformed ? (
-          <button
-            className="primary"
-            disabled={
-              busy ||
-              !reason.trim() ||
-              !confirmedEnable ||
-              user?.canManageCustomerOrdering !== true ||
-              (extended && !reviewedExtendedDisable)
-            }
-            onClick={() => void change(true)}
-          >
-            เปิดรับคำสั่งซื้ออีกครั้ง
-          </button>
-        ) : null}
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => void refresh()}
-        >
-          อัปเดตตัวชี้วัด
-        </button>
-      </div>
-      {!enabled &&
-        !controlMissing &&
-        !controlMalformed &&
-        user?.canManageCustomerOrdering !== true && (
-          <p className="hint">
-            บัญชีนี้ปิดรับคำสั่งซื้อได้ แต่ไม่มี capability
-            สำหรับเปิดรับอีกครั้ง
-          </p>
+            {extended && (
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  checked={reviewedExtendedDisable}
+                  onChange={(event) =>
+                    setReviewedExtendedDisable(event.target.checked)
+                  }
+                />
+                ทบทวนตัวชี้วัดหลังปิดรับเกิน 30 นาทีแล้ว
+              </label>
+            )}
+          </>
         )}
+        <div className="button-row">
+          {enabled || controlMissing ? (
+            <button
+              className="danger"
+              disabled={busy || !reason.trim()}
+              onClick={() => void change(false)}
+            >
+              ปิดรับคำสั่งซื้อฉุกเฉิน
+            </button>
+          ) : !controlMalformed ? (
+            <button
+              className="primary"
+              disabled={
+                busy ||
+                !reason.trim() ||
+                !confirmedEnable ||
+                user?.canManageCustomerOrdering !== true ||
+                (extended && !reviewedExtendedDisable)
+              }
+              onClick={() => void change(true)}
+            >
+              เปิดรับคำสั่งซื้ออีกครั้ง
+            </button>
+          ) : null}
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => void refresh()}
+          >
+            อัปเดตตัวชี้วัด
+          </button>
+        </div>
+      </div>
       {notice && (
         <p className="notice" role="status">
           {notice}
         </p>
       )}
+      <div className="operations-indicator-heading">
+        <div>
+          <h3>4. ตัวชี้วัดการปฏิบัติงาน</h3>
+          <p>
+            ตัวชี้วัดมาจากคำค้นแบบจำกัดและการตรวจสอบด้วยตนเอง
+            ไม่ใช่การบล็อกอัตโนมัติ การแจ้งเตือนแบบรับประกัน หรือ secure rate
+            limit
+          </p>
+        </div>
+      </div>
       <div className="operations-indicators">
         {indicators.map((indicator) => (
           <article

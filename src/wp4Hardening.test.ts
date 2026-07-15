@@ -17,8 +17,10 @@ import {
 import {
   assertCustomerSubmissionCooldown,
   clearCustomerSubmissionEnvelope,
+  loadCustomerActiveRequestId,
   loadCustomerSubmissionEnvelope,
   markCustomerSubmissionUncertain,
+  markCustomerSubmissionSubmitted,
   prepareCustomerSubmissionEnvelope,
   recordCustomerSubmissionAccepted,
   withCustomerSubmissionLock,
@@ -198,6 +200,35 @@ describe("WP4 stable retry envelope", () => {
     expect(() =>
       assertCustomerSubmissionCooldown("owner", 15_000),
     ).not.toThrow();
+  });
+
+  it("keeps one active request after cooldown expiry and across a corrupted envelope", () => {
+    const first = prepareCustomerSubmissionEnvelope("owner", [item("first")], {
+      customerName: "คำขอแรก",
+    });
+    const secondTab = prepareCustomerSubmissionEnvelope(
+      "owner",
+      [item("different")],
+      { customerName: "คำขอใหม่" },
+    );
+    expect(secondTab.retryId).toBe(first.retryId);
+    markCustomerSubmissionSubmitted(first);
+    recordCustomerSubmissionAccepted("owner", 10_000);
+    expect(() =>
+      assertCustomerSubmissionCooldown("owner", 15_000),
+    ).not.toThrow();
+    expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
+
+    const envelopeStorageKey = Object.keys(localStorage).find((key) =>
+      key.startsWith("greek-more-customer-submit-v2:"),
+    )!;
+    localStorage.setItem(envelopeStorageKey, "{corrupted");
+    expect(loadCustomerSubmissionEnvelope("owner")).toBeNull();
+    expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
+    expect(loadCustomerActiveRequestId("different-owner")).toBeNull();
+
+    clearCustomerSubmissionEnvelope("owner");
+    expect(loadCustomerActiveRequestId("owner")).toBeNull();
   });
 
   it("uses a non-blocking browser lock to reject a simultaneous tab", async () => {

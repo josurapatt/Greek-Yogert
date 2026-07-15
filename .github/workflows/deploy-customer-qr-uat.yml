@@ -72,6 +72,16 @@ jobs:
           test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp4
+      - name: Designate the existing Human-UAT Staff account for re-enable retest
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:designate-manager
       - name: Capture read-only WP3 Human UAT diagnostics
         if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         env:

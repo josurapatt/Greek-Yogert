@@ -52,6 +52,8 @@ export default function ProductModal({
     initial?.selectedOptionIds ?? [],
   );
   const [quantity, setQuantity] = useState(initial?.quantity ?? 1);
+  const [selectionLimitError, setSelectionLimitError] = useState("");
+  const [quantityLimitError, setQuantityLimitError] = useState("");
   const [packaging, setPackaging] = useState<ToppingPackaging>(
     normalizeToppingPackaging(initial?.toppingPackaging),
   );
@@ -99,17 +101,23 @@ export default function ProductModal({
 
   const addTopping = (id: string) =>
     setSelected((rows) => {
-      if (rows.length >= optionMaximum) return rows;
+      if (rows.length >= optionMaximum) {
+        setSelectionLimitError(
+          `เลือกแล้ว ${rows.length} อย่าง เมนูนี้เลือกได้สูงสุด ${optionMaximum} อย่าง`,
+        );
+        return rows;
+      }
       if (!isSelectionAvailable(product, id, availability)) return rows;
       if (!rules.allowDuplicateToppings && rows.includes(id)) return rows;
+      setSelectionLimitError("");
       return [...rows, id];
     });
   const removeTopping = (id: string) =>
     setSelected((rows) => {
       const index = rows.lastIndexOf(id);
-      return index < 0
-        ? rows
-        : rows.filter((_, rowIndex) => rowIndex !== index);
+      if (index < 0) return rows;
+      setSelectionLimitError("");
+      return rows.filter((_, rowIndex) => rowIndex !== index);
     });
   const save = () => {
     if (error) return;
@@ -202,6 +210,12 @@ export default function ProductModal({
                 : "เลือกได้อย่างละ 1 ครั้ง"}{" "}
               • พรีเมียม +{rules.premiumIncludedSurcharge} บาท
             </p>
+            <p className="hint">
+              เมนูนี้เลือกได้สูงสุด {optionMaximum} อย่าง
+              {optionMaximum === customerRequestLimits.maxSelectedOptionsPerLine
+                ? " (ขีดจำกัดสูงสุดของคำขอ Customer QR)"
+                : " (ใช้ขีดจำกัดของเมนูนี้)"}
+            </p>
             <div className="topping-list">
               {options.map((option) => {
                 const count = selected.filter((id) => id === option.id).length;
@@ -233,7 +247,6 @@ export default function ProductModal({
                         onClick={() => addTopping(option.id)}
                         disabled={
                           includedFull ||
-                          selected.length >= optionMaximum ||
                           soldOut ||
                           (!rules.allowDuplicateToppings && count > 0)
                         }
@@ -266,7 +279,6 @@ export default function ProductModal({
                       key={option.id}
                       disabled={
                         includedCount < product.includedToppings ||
-                        selected.length >= optionMaximum ||
                         selected.includes(option.id) ||
                         !isSelectionAvailable(product, option.id, availability)
                       }
@@ -294,6 +306,11 @@ export default function ProductModal({
               {selected.length > product.includedToppings &&
                 `(${selected.length - product.includedToppings} เพิ่มพิเศษ)`}
             </p>
+            {selectionLimitError && (
+              <p className="validation" role="alert">
+                {selectionLimitError}
+              </p>
+            )}
           </div>
         )}
         <fieldset className="packaging-choice">
@@ -347,16 +364,29 @@ export default function ProductModal({
         </div>
         <div className="modal-footer">
           <div className="quantity">
-            <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+            <button
+              onClick={() => {
+                setQuantityLimitError("");
+                setQuantity(Math.max(1, quantity - 1));
+              }}
+            >
               <Minus />
             </button>
             <b>{quantity}</b>
             <button
-              disabled={
-                customerLimits &&
-                quantity >= customerRequestLimits.maxQuantityPerLine
-              }
-              onClick={() => setQuantity(quantity + 1)}
+              onClick={() => {
+                if (
+                  customerLimits &&
+                  quantity >= customerRequestLimits.maxQuantityPerLine
+                ) {
+                  setQuantityLimitError(
+                    `รายการนี้มี ${quantity} ถ้วย สั่งได้สูงสุด ${customerRequestLimits.maxQuantityPerLine} ถ้วยต่อรายการ`,
+                  );
+                  return;
+                }
+                setQuantityLimitError("");
+                setQuantity(quantity + 1);
+              }}
             >
               <Plus />
             </button>
@@ -370,6 +400,11 @@ export default function ProductModal({
             {money(unitPrice * quantity)}
           </button>
         </div>
+        {quantityLimitError && (
+          <p className="validation" role="alert">
+            {quantityLimitError}
+          </p>
+        )}
         {error && <p className="validation">{error}</p>}
       </section>
     </div>

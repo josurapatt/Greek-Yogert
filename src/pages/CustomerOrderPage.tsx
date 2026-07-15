@@ -1,6 +1,6 @@
 import { Minus, Pencil, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
 import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import {
@@ -23,6 +23,7 @@ export default function CustomerOrderPage() {
     loading,
     orderingControl = { status: "enabled", enabled: true, message: "" },
     pendingSubmission = null,
+    activeRequestId = null,
     submit,
     retryPending = async () => {
       throw new Error("ไม่พบคำขอที่รอตรวจสอบ");
@@ -35,6 +36,10 @@ export default function CustomerOrderPage() {
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [quantityError, setQuantityError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [sending, setSending] = useState(false);
   const priced = repriceCartItems(
     items,
@@ -46,6 +51,14 @@ export default function CustomerOrderPage() {
   const invalid = priced.find((item) => item.validationError);
   const totals = orderTotals(priced);
   const totalUnits = priced.reduce((sum, item) => sum + item.quantity, 0);
+  const nameError =
+    name.length > customerRequestLimits.maxCustomerNameLength
+      ? `ชื่อเล่นยาวเกิน ${customerRequestLimits.maxCustomerNameLength} ตัวอักษร`
+      : "";
+  const noteError =
+    note.length > customerRequestLimits.maxCustomerNoteLength
+      ? `หมายเหตุยาวเกิน ${customerRequestLimits.maxCustomerNoteLength} ตัวอักษร`
+      : "";
   const capError =
     priced.length > customerRequestLimits.maxProductLines
       ? `สั่งได้ไม่เกิน ${customerRequestLimits.maxProductLines} รายการสินค้า`
@@ -61,18 +74,22 @@ export default function CustomerOrderPage() {
         (sum, item) => sum + (item.id === id ? quantity : item.quantity),
         0,
       );
-      if (
-        !current ||
-        quantity < 1 ||
-        quantity > customerRequestLimits.maxQuantityPerLine ||
-        nextTotal > customerRequestLimits.maxTotalUnits
-      ) {
-        setError(
-          `สั่งได้ไม่เกิน ${customerRequestLimits.maxQuantityPerLine} ถ้วยต่อรายการ และ ${customerRequestLimits.maxTotalUnits} ถ้วยต่อคำขอ`,
-        );
+      if (!current || quantity < 1) return rows;
+      if (quantity > customerRequestLimits.maxQuantityPerLine) {
+        setQuantityError({
+          id,
+          message: `รายการนี้มี ${current.quantity} ถ้วย สั่งได้สูงสุด ${customerRequestLimits.maxQuantityPerLine} ถ้วยต่อรายการ`,
+        });
         return rows;
       }
-      setError("");
+      if (nextTotal > customerRequestLimits.maxTotalUnits) {
+        setQuantityError({
+          id,
+          message: `คำขอนี้มี ${totalUnits} ถ้วย สั่งได้สูงสุด ${customerRequestLimits.maxTotalUnits} ถ้วย หากต้องการมากกว่านี้กรุณาติดต่อร้านเพื่อสั่งแบบจำนวนมาก`,
+        });
+        return rows;
+      }
+      setQuantityError(null);
       return rows.map((item) =>
         item.id === id ? applyCartItemUpdate(item, { quantity }) : item,
       );
@@ -154,6 +171,15 @@ export default function CustomerOrderPage() {
           </button>
         </section>
       )}
+      {activeRequestId && (
+        <section className="notice" role="status">
+          <strong>มีคำขอที่รอร้านยืนยันอยู่</strong>
+          <p>กรุณากลับไปดูคำขอเดิม ระบบจะไม่สร้างคำขอใหม่จากแท็บนี้</p>
+          <Link className="secondary" to={`/order/status/${activeRequestId}`}>
+            กลับไปดูสถานะคำขอเดิม
+          </Link>
+        </section>
+      )}
       <section className="product-grid">
         {products
           .filter((p) => p.active)
@@ -161,7 +187,11 @@ export default function CustomerOrderPage() {
             <button
               className={`product-card product-${index % 5}`}
               key={product.id}
-              disabled={!orderingControl.enabled || Boolean(pendingSubmission)}
+              disabled={
+                !orderingControl.enabled ||
+                Boolean(pendingSubmission) ||
+                Boolean(activeRequestId)
+              }
               onClick={() => setSelected(product)}
             >
               <span className="product-emoji">{product.emoji}</span>
@@ -226,16 +256,17 @@ export default function CustomerOrderPage() {
               <b>{item.quantity}</b>
               <button
                 type="button"
-                disabled={
-                  item.quantity >= customerRequestLimits.maxQuantityPerLine ||
-                  totalUnits >= customerRequestLimits.maxTotalUnits
-                }
                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                 aria-label={`เพิ่มจำนวน ${item.productName}`}
               >
                 <Plus />
               </button>
             </div>
+            {quantityError?.id === item.id && (
+              <p className="validation" role="alert">
+                {quantityError.message}
+              </p>
+            )}
           </div>
         ))}
         {!priced.length && (
@@ -243,16 +274,34 @@ export default function CustomerOrderPage() {
         )}
         <input
           value={name}
-          maxLength={40}
           onChange={(event) => setName(event.target.value)}
           placeholder="ชื่อเล่น (ไม่บังคับ)"
+          aria-describedby="customer-name-limit"
         />
+        <small id="customer-name-limit" className="customer-field-helper">
+          ชื่อเล่น {name.length}/{customerRequestLimits.maxCustomerNameLength}{" "}
+          ตัวอักษร
+        </small>
+        {nameError && (
+          <p className="validation" role="alert">
+            {nameError}
+          </p>
+        )}
         <textarea
           value={note}
-          maxLength={200}
           onChange={(event) => setNote(event.target.value)}
           placeholder="หมายเหตุถึงร้าน (ไม่บังคับ)"
+          aria-describedby="customer-note-limit"
         />
+        <small id="customer-note-limit" className="customer-field-helper">
+          หมายเหตุ {note.length}/{customerRequestLimits.maxCustomerNoteLength}{" "}
+          ตัวอักษร
+        </small>
+        {noteError && (
+          <p className="validation" role="alert">
+            {noteError}
+          </p>
+        )}
         <strong>{money(totals.total)}</strong>
         {capError && <p className="validation">{capError}</p>}
         {error && <p className="validation">{error}</p>}
@@ -262,9 +311,12 @@ export default function CustomerOrderPage() {
             !priced.length ||
             Boolean(invalid) ||
             Boolean(capError) ||
+            Boolean(nameError) ||
+            Boolean(noteError) ||
             sending ||
             !orderingControl.enabled ||
-            Boolean(pendingSubmission)
+            Boolean(pendingSubmission) ||
+            Boolean(activeRequestId)
           }
           onClick={() => void send()}
         >

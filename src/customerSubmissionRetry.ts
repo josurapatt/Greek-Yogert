@@ -11,13 +11,27 @@ export interface CustomerSubmissionEnvelope {
   input: { customerName?: string; customerNote?: string };
   fingerprint: string;
   preparedAt: string;
-  state: "prepared" | "uncertain";
+  state: "prepared" | "uncertain" | "submitted";
+}
+
+interface CustomerActiveRequestPointer {
+  pointerVersion: 1;
+  ownerUid: string;
+  requestId: string;
 }
 
 const envelopeKey = (uid: string) => `greek-more-customer-submit-v2:${uid}`;
 const cooldownKey = (uid: string) =>
   `greek-more-customer-submit-cooldown-v2:${uid}`;
 const lockKey = (uid: string) => `greek-more-customer-submit-lock-v2:${uid}`;
+const activeRequestKey = (uid: string) =>
+  `greek-more-customer-active-request-v2:${uid}`;
+export const customerSubmissionStorageEvent =
+  "greek-more-customer-submission-storage";
+
+function notifyCustomerSubmissionStorage() {
+  window.dispatchEvent(new Event(customerSubmissionStorageEvent));
+}
 
 function submissionFingerprint(
   items: CartItem[],
@@ -51,7 +65,7 @@ export function prepareCustomerSubmissionEnvelope(
 ): CustomerSubmissionEnvelope {
   const fingerprint = submissionFingerprint(items, input);
   const existing = loadCustomerSubmissionEnvelope(uid);
-  if (existing?.fingerprint === fingerprint) return existing;
+  if (existing) return existing;
   const envelope: CustomerSubmissionEnvelope = {
     envelopeVersion: customerSubmissionEnvelopeVersion,
     retryId: crypto.randomUUID(),
@@ -63,6 +77,7 @@ export function prepareCustomerSubmissionEnvelope(
     state: "prepared",
   };
   localStorage.setItem(envelopeKey(uid), JSON.stringify(envelope));
+  notifyCustomerSubmissionStorage();
   return envelope;
 }
 
@@ -71,11 +86,56 @@ export function markCustomerSubmissionUncertain(
 ) {
   const next = { ...envelope, state: "uncertain" as const };
   localStorage.setItem(envelopeKey(envelope.ownerUid), JSON.stringify(next));
+  notifyCustomerSubmissionStorage();
   return next;
+}
+
+export function markCustomerSubmissionSubmitted(
+  envelope: CustomerSubmissionEnvelope,
+) {
+  const next = { ...envelope, state: "submitted" as const };
+  localStorage.setItem(envelopeKey(envelope.ownerUid), JSON.stringify(next));
+  rememberCustomerActiveRequest(envelope.ownerUid, envelope.retryId);
+  return next;
+}
+
+export function rememberCustomerActiveRequest(uid: string, requestId: string) {
+  const pointer: CustomerActiveRequestPointer = {
+    pointerVersion: 1,
+    ownerUid: uid,
+    requestId,
+  };
+  const serialized = JSON.stringify(pointer);
+  if (localStorage.getItem(activeRequestKey(uid)) === serialized) return;
+  localStorage.setItem(activeRequestKey(uid), serialized);
+  notifyCustomerSubmissionStorage();
+}
+
+export function loadCustomerActiveRequestId(uid: string): string | null {
+  const envelope = loadCustomerSubmissionEnvelope(uid);
+  if (envelope?.state === "submitted") {
+    rememberCustomerActiveRequest(uid, envelope.retryId);
+    return envelope.retryId;
+  }
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(activeRequestKey(uid)) ?? "null",
+    ) as CustomerActiveRequestPointer | null;
+    return value?.pointerVersion === 1 &&
+      value.ownerUid === uid &&
+      typeof value.requestId === "string" &&
+      value.requestId.length > 0
+      ? value.requestId
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function clearCustomerSubmissionEnvelope(uid: string) {
   localStorage.removeItem(envelopeKey(uid));
+  localStorage.removeItem(activeRequestKey(uid));
+  notifyCustomerSubmissionStorage();
 }
 
 export function assertCustomerSubmissionCooldown(
