@@ -45,12 +45,13 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - WP3 governance: Complete after exact-head approval, squash merge, and post-merge status update
 - Work Package 4 branch: `feature/anonymous-abuse-controls`
 - Work Package 4 Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
-- Work Package 4 corrected validated implementation head: `953e1eb558c1542882480ca5f8f93492cdcdea9a`
-- Work Package 4 corrected isolated-UAT workflow: `29466663347`, successful
+- Work Package 4 corrected validated implementation head: `8b8ab61961ff85a403203d7f54b399f375fba694`
+- Work Package 4 corrected isolated-UAT workflow: `29476895054`, successful
 - Work Package 4 Projection V2 fingerprint: `wp4-5c4fce122e7d5d4f`
 - Work Package 4 Human-UAT defects and root causes: silent limit controls, inherited grid collapse, cleared status pointer, cooldown-only duplicate guard, and unclear capable-account workflow; corrected and automated-revalidated
 - Work Package 4 implementation and corrected automated isolated-UAT rehearsal: Complete (201 application tests, 22 Rules tests, responsive browser UAT, exact cleanup, enabled Human-retest baseline)
-- Work Package 4 short corrected Human retest, approval, and merge: Pending
+- Work Package 4 short corrected Human retest: Complete; no further defect reported
+- Work Package 4 approval and merge: Pending
 - Production changes during Work Package 4: None
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
@@ -63,13 +64,13 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 4 corrected implementation and automated isolated-UAT rehearsal are complete, but the short Human retest, explicit approval, merge, WP5, and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Work Package 4 corrected implementation, automated isolated-UAT rehearsal, and Human retest are complete, but explicit approval, merge, WP5, and every Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Complete the WP4 short corrected Human retest, approval, and merge, then separately approve the exact Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
+1. Obtain explicit WP4 approval and merge, then separately approve the exact Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
 3. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.

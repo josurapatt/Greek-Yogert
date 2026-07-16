@@ -44,9 +44,9 @@ Each control action writes the private state, safe public state, and append-only
 
 ### Designated isolated-UAT capable account
 
-For WP4 Human retest only, use `greekmore.uat@gmail.com` in Firebase project `greek-yogert-customer-uat-2026`. Guarded administrative tooling verifies the existing Authentication identity and assigns only `role: "staff"`, `active: true`, and `canManageCustomerOrdering: true`; it never requests, prints, or stores the password or UID. Do not use `greekmore.queue@gmail.com`, `greekmore.order@gmail.com`, or a personal account for this capability.
+For WP4 isolated UAT only, use `greekmore.uat@gmail.com` as the capable Staff account and `greekmore.staff.uat@gmail.com` as the ordinary Staff account in Firebase project `greek-yogert-customer-uat-2026`. Guarded administrative tooling verifies the capable authorization unchanged and assigns the ordinary account only `role: "staff"` and `active: true`, explicitly removing any `canManageCustomerOrdering` capability fields. It never requests, prints, or stores a password or UID. Do not use or modify `greekmore.queue@gmail.com`, `greekmore.order@gmail.com`, or a personal account for this authorization workflow.
 
-To switch safely, sign out of the ordinary Staff session, sign in with the dedicated UAT account, open **Customer Requests**, and verify the visible label **มีสิทธิ์เปิดรับคำสั่งซื้อกลับ** before re-enabling. Ordinary Staff must instead see **ปิดรับคำสั่งซื้อได้ แต่ไม่มีสิทธิ์เปิดกลับ**. Re-enable still requires a reason and explicit confirmation. This workflow is UAT-only and does not authorize Production provisioning.
+To switch safely, sign out of the ordinary Staff session, sign in with the capable UAT account, open **Customer Requests**, and verify the visible label **มีสิทธิ์เปิดรับคำสั่งซื้อกลับ** before re-enabling. The ordinary account must instead see **ปิดรับคำสั่งซื้อได้ แต่ไม่มีสิทธิ์เปิดกลับ**: it may perform an emergency disable but may not re-enable. Re-enable still requires a reason and explicit confirmation. This workflow is UAT-only and does not authorize Production provisioning.
 
 ## Emergency disable
 

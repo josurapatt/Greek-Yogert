@@ -8,14 +8,14 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/anonymous-abuse-controls`
-- WP4 corrected implementation head validated in isolated UAT: `953e1eb558c1542882480ca5f8f93492cdcdea9a`
+- WP4 corrected implementation head validated in isolated UAT: `8b8ab61961ff85a403203d7f54b399f375fba694`
 - Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
 - PR state: Draft; not approved, not Ready for review, and not merged
 - Production status: **No-Go**; Production was not accessed or changed during WP4
 
 ## WP4 implementation state
 
-Production Hardening Work Package 4 implementation, Human-UAT defect correction, and automated isolated-UAT rehearsal are complete on the feature branch. A short Human retest, approval, and merge remain pending.
+Production Hardening Work Package 4 implementation, Human-UAT defect correction/retest, and automated isolated-UAT rehearsal are complete on the feature branch. Approval and merge remain pending.
 
 Implemented:
 
@@ -55,12 +55,12 @@ Projection V2 isolated-UAT evidence:
 
 Final corrected automated isolated UAT:
 
-- [Workflow 29466663347](https://github.com/josurapatt/Greek-Yogert/actions/runs/29466663347) succeeded for corrected implementation head `953e1eb558c1542882480ca5f8f93492cdcdea9a`.
+- [Workflow 29476895054](https://github.com/josurapatt/Greek-Yogert/actions/runs/29476895054) succeeded for corrected implementation head `8b8ab61961ff85a403203d7f54b399f375fba694`.
 - Security/control rehearsal passed ordinary-Staff disable, ordinary-Staff re-enable denial, capable-Staff re-enable, capability self-grant denial, and missing/malformed-control fail-closed behavior while preserving Customer status and Staff processing.
 - Browser rehearsal passed visible limit feedback, status-route refresh, same-profile second-tab convergence after cooldown expiry, disabled-intake status access, Staff processing while disabled, responsive Operations layouts at 1440/820/390 px, actual Customer UI submission through Staff confirmation, exact-once confirmation, Queue, History, Reports, Excel, and pagination across the 50-row boundary.
-- Automated status-recovery request `9ac40a21-3be9-4280-a0dc-2b90d5d37961` remained the only owned request before/after cooldown. The preserved `WP4-HUMAN-UAT-DUPLICATE` request `eab2f6d5-4975-416f-a6c3-7d5cca3c15e7` remains pending and readable at [its exact owned status URL](https://greek-yogert-customer-uat-2026.web.app/order/status/eab2f6d5-4975-416f-a6c3-7d5cca3c15e7).
-- Projection integrity remained fingerprint `wp4-5c4fce122e7d5d4f`. Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed. UAT intake was restored to enabled for Human retest.
-- The dedicated isolated-UAT Staff Authentication account was verified and provisioned with `role: "staff"`, `active: true`, and server-controlled `canManageCustomerOrdering: true`. No password or UID was logged or stored in Git.
+- Automated status-recovery request `23f49ee7-66e7-426c-b710-90a0a79ebad7` remained the only owned request before/after cooldown. The preserved `WP4-HUMAN-UAT-DUPLICATE` request `eab2f6d5-4975-416f-a6c3-7d5cca3c15e7` is terminal rejected and remains readable at [its exact owned status URL](https://greek-yogert-customer-uat-2026.web.app/order/status/eab2f6d5-4975-416f-a6c3-7d5cca3c15e7).
+- Projection integrity remained fingerprint `wp4-5c4fce122e7d5d4f`. Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed. UAT intake was restored to enabled.
+- Guarded tooling verified the capable isolated-UAT Staff authorization unchanged and designated the ordinary isolated-UAT Staff as `role: "staff"`, `active: true`, with no `canManageCustomerOrdering` capability. No password or UID was logged or stored in Git.
 
 Defects found and corrected during rehearsal:
 
@@ -79,11 +79,11 @@ Defects found and corrected during rehearsal:
 ### Isolated Customer QR UAT
 
 - Firebase project: `greek-yogert-customer-uat-2026`
-- Customer ordering: enabled for the short corrected Human retest
+- Customer ordering: enabled
 - Projection fingerprint: `wp4-5c4fce122e7d5d4f`
 - Automated WP4 implementation/security/browser rehearsal: passed
 - Corrected automated UAT: passed
-- Remaining Human retest: pending (limits, status/refresh/two-tab, responsive Operations panel, maintenance/status while disabled, and designated-capable re-enable)
+- Corrected Human retest: completed by the User on 2026-07-16; no further defect was reported
 
 ### Production
 
@@ -95,7 +95,6 @@ Defects found and corrected during rehearsal:
 
 ## Remaining gates
 
-- [ ] Short corrected Human retest passes on isolated UAT
 - [ ] PR #8 receives explicit approval
 - [ ] PR #8 changes from Draft only after approval
 - [ ] PR #8 is merged only after approval
@@ -104,4 +103,4 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Run only the short corrected Human retest against isolated UAT. Do not change Production, mark PR #8 Ready, merge, or start WP5 without separate authorization.
+Await explicit approval for PR #8. Do not change Production, mark PR #8 Ready, merge, or start WP5 without separate authorization.
