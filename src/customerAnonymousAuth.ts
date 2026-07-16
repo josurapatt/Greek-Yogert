@@ -103,7 +103,7 @@ export function ensureCustomerAnonymousSession(auth: Auth): Promise<User> {
   initialization = withAuthBootstrapLock(async () => {
     if (auth.currentUser) return auth.currentUser;
     if (hasFreshBootstrapMarker()) {
-      const synchronizedUser = await waitForCurrentUser(auth, 4_000);
+      const synchronizedUser = await waitForCurrentUser(auth, 8_000);
       if (synchronizedUser) return synchronizedUser;
       throw new Error(
         "ไม่สามารถยืนยันตัวตนเดิมในเบราว์เซอร์นี้ได้ ระบบจะไม่สร้างตัวตนหรือคำขอใหม่",

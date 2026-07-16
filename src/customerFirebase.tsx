@@ -21,7 +21,7 @@ import {
 import { defaultProducts } from "./data";
 import { ensureCustomerAnonymousSession } from "./customerAnonymousAuth";
 import { toFirestoreData } from "./firestoreData";
-import { auth, db, firebaseReady } from "./firebase";
+import { auth, authPersistenceReady, db, firebaseReady } from "./firebase";
 import { runtimeConfig } from "./runtimeConfig";
 import {
   createCustomerRequest,
@@ -113,16 +113,28 @@ export function CustomerProvider({
       setLoading(false);
       return;
     }
-    return onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUid(user.uid);
-        setLoading(false);
-      } else if (auth) {
-        void ensureCustomerAnonymousSession(auth).catch(() =>
-          setLoading(false),
-        );
-      }
-    });
+    const customerAuth = auth;
+    let active = true;
+    let stop = () => {};
+    void authPersistenceReady
+      .then(() => {
+        if (!active) return;
+        stop = onAuthStateChanged(customerAuth, (user) => {
+          if (user) {
+            setUid(user.uid);
+            setLoading(false);
+          } else {
+            void ensureCustomerAnonymousSession(customerAuth).catch(() =>
+              setLoading(false),
+            );
+          }
+        });
+      })
+      .catch(() => active && setLoading(false));
+    return () => {
+      active = false;
+      stop();
+    };
   }, [enabled]);
   useEffect(() => {
     if (!db || !uid) return;
