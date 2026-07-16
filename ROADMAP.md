@@ -141,7 +141,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — latest Human-UAT blockers corrected and automated-revalidated; reduced Human retest pending**
+**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — final UX consolidation automated-revalidated; final Human UAT pending**
 
 Current state:
 
@@ -152,13 +152,16 @@ Current state:
 - [x] Asymmetric emergency disable/re-enable authority, server-controlled capability, audit evidence, and fail-closed intake are implemented.
 - [x] Balanced bounded operational indicators, pagination, report/export limits, operational runbook, and six UAT indexes are implemented.
 - [x] Projection V2 dry-run, reviewed atomic apply, idempotency, and final exact-head dry-run passed at fingerprint `wp4-5c4fce122e7d5d4f`.
-- [x] Local automated validation passed: 203 application tests and 22 canonical Firestore Emulator tests, plus lint, typecheck, both builds, formatting, workflow parsing, diff, and secret checks.
+- [x] Local automated validation passed: 213 application tests and 22 canonical Firestore Emulator tests, plus lint, typecheck, both builds, formatting, workflow parsing, diff, and secret checks.
 - [x] Human-UAT defects in limit feedback, Operations layout, Customer status recovery, two-tab active-request convergence, and capable-Staff usability were corrected with regression coverage.
 - [x] Exact-head workflow `29491949583` passed security/control and real synchronized two-tab Customer UI → Staff UI → Queue → History → Reports → Excel browser rehearsal at corrected implementation head `e0656753341641fa3110f3cfa5b32c4861d52069`.
 - [x] Desktop/tablet/mobile Operations layouts, status refresh, disabled-intake status access, cooldown-expired second-tab convergence, and designated capable-Staff re-enable passed in isolated UAT.
+- [x] Customer QR controls were consolidated under the collapsed-by-default Settings section with direct-anchor expansion; Customer Requests is processing-only with search, filters, and pagination; Products is the sole Staff availability UI.
+- [x] The private topping-availability map remains the canonical transactional input for Products, Projection V2, Customer rendering, and trusted confirmation; no legacy or historical records were migrated or rewritten.
+- [x] Exact-head workflow `29501510514` passed the final isolated-UAT deployment, security/control tests, responsive Settings checks, Products-only control check, Customer Requests regression, real Customer-to-Staff flow, Queue, History, Reports, Excel, and cleanup at `2e7180ae5c1a5ab57ef544601428f973764685f8`.
 - [x] The capable UAT Staff authorization was verified unchanged; the dedicated ordinary UAT Staff was designated active without re-enable capability.
 - [x] Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed.
-- [ ] Complete the reduced Human retest after the concurrent Anonymous-UID, duplicate-write, status-read, and ordinary-account sign-in corrections.
+- [ ] Complete final Human UAT for the consolidated Settings, Customer Requests, and Products workflow.
 - [ ] Obtain explicit approval before changing PR #8 from Draft, merging it, or starting WP5.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
@@ -184,7 +187,7 @@ Current state:
 - [x] Production Hardening Work Package 2 squash merge complete
 - [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
 - [x] Production Hardening Work Package 3 exact-head PR approval and squash merge complete
-- [ ] Production Hardening Work Package 4 — corrected implementation and automated isolated-UAT rehearsal complete; reduced Human retest, approval, and merge pending
+- [ ] Production Hardening Work Package 4 — consolidated implementation and automated isolated-UAT rehearsal complete; final Human UAT, approval, and merge pending
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved

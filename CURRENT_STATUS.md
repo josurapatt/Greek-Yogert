@@ -8,14 +8,14 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/anonymous-abuse-controls`
-- WP4 corrected implementation head validated in isolated UAT: `e0656753341641fa3110f3cfa5b32c4861d52069`
+- WP4 consolidated implementation head validated in isolated UAT: `2e7180ae5c1a5ab57ef544601428f973764685f8`
 - Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
 - PR state: Draft; not approved, not Ready for review, and not merged
 - Production status: **No-Go**; Production was not accessed or changed during WP4
 
 ## WP4 implementation state
 
-Production Hardening Work Package 4 implementation and the latest Human-UAT defect correction are automated-revalidated on the feature branch. A reduced Human retest is pending; approval and merge remain pending.
+Production Hardening Work Package 4 implementation and the final operational-control consolidation are automated-revalidated on the feature branch. Final Human UAT, approval, and merge remain pending.
 
 Implemented:
 
@@ -31,12 +31,15 @@ Implemented:
 - Balanced operational indicators use bounded queries and Staff dashboard/manual-review evidence. Thresholds do not automatically block Customers and are not represented as guaranteed real-time alerts.
 - Staff request views, Queue, History, Reports, backup/export, and monitoring paths are bounded and paginated. Six required Firestore indexes are defined and were deployed only to isolated UAT.
 - Projection V2 includes the request policy and operational control in the deterministic fingerprint and preserves atomic dry-run/apply/idempotency behavior.
+- Customer QR operational controls now live only at the bottom of Settings under `การควบคุม Customer QR`. The section is collapsed by default, expands and receives focus for `/settings#customer-ordering`, and retains the existing authorization, audit, atomic-write, operational-indicator, and Projection V2 behavior.
+- Customer Requests is request-processing only: it provides bounded pending-request status, search, filters, 12-row client pagination over the bounded subscription, details, confirmation, and rejection. It contains no ordering-control or UAT projection-seed action, and existing requests remain processable while intake is disabled.
+- Products is the sole Staff UI for product, topping, and separated-packaging availability. The private `settings/toppingAvailability.availability` map is retained as active canonical runtime data, not as a hidden compatibility override: Products writes it transactionally with the public projection and trusted confirmation re-reads it. Historical order snapshots remain unchanged and require no migration.
 
 ## Validation evidence
 
 Local validation for the exact implementation content:
 
-- Application tests: 203 passed across 22 files
+- Application tests: 213 passed across 25 files
 - Canonical Firestore Emulator tests: 22 passed
 - TypeScript: passed
 - Lint: passed
@@ -53,14 +56,15 @@ Projection V2 isolated-UAT evidence:
 - [Idempotency run 29382293555](https://github.com/josurapatt/Greek-Yogert/actions/runs/29382293555): 0 planned and 0 performed writes
 - [Final exact-head dry run 29384022168](https://github.com/josurapatt/Greek-Yogert/actions/runs/29384022168): same fingerprint, all six menus plus availability, policy, and control current; 0 planned and 0 performed writes
 
-Latest corrected automated isolated UAT:
+Latest consolidated automated isolated UAT:
 
-- [Workflow 29491949583](https://github.com/josurapatt/Greek-Yogert/actions/runs/29491949583) succeeded for corrected implementation head `e0656753341641fa3110f3cfa5b32c4861d52069`.
+- [Workflow 29501510514](https://github.com/josurapatt/Greek-Yogert/actions/runs/29501510514) succeeded for consolidated implementation head `2e7180ae5c1a5ab57ef544601428f973764685f8`.
+- Settings collapsed/anchor behavior and desktop/tablet/mobile layouts passed; Customer Requests contained no Operations or projection-seed controls; Products exposed exactly one global packaging control; capable disable/re-enable, maintenance messaging, disabled-intake status access, and Staff processing while disabled passed.
 - Security/control rehearsal passed ordinary-Staff disable, ordinary-Staff re-enable denial, capable-Staff re-enable, capability self-grant denial, and missing/malformed-control fail-closed behavior while preserving Customer status and Staff processing.
 - Browser rehearsal opened both pages before Anonymous Auth initialization, created one anonymous identity, synchronized both submit handlers at the actual write boundary, waited beyond cooldown, invoked the blocked second submit handler, and kept exactly one request parent, one item document, and one summary document. Both tabs converged on request `26d42c21-864d-4349-9ba7-93fa60a5a04b`, refreshed successfully, and cleared the profile-wide pointer only after terminal confirmation.
 - The two preserved failed Human-UAT requests `e93cf4ae-ae6f-4918-8819-c1a26239b0ca` and `8a2e8805-218b-42a5-96d4-8bf443b5dae0` remain pending and have different safe owner references, confirming the concurrent Anonymous-UID initialization race. Each has matching retry ID, item `00`, summary `0`, and consistent ownership metadata. The older preserved-link test is N/A without its original anonymous browser identity; that does not reduce the confirmed same-profile blocker.
 - Projection integrity remained fingerprint `wp4-5c4fce122e7d5d4f`. Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed. UAT intake was restored to enabled.
-- Read-only UAT diagnostics verified Email/Password enabled; both designated Authentication users exist and are enabled; the capable authorization remains `role: "staff"`, `active: true`, `canManageCustomerOrdering: true`; and the ordinary authorization remains active Staff without the capability. The ordinary account's reported `auth/invalid-credential` is reduced to a UID-preserving human password-reset action. No password or UID was logged or stored in Git.
+- Read-only UAT diagnostics verified Email/Password enabled and both designated Authentication users remain enabled with the approved capable/ordinary authorization split. No password update was requested, no ephemeral password secret was present, and no password or UID was logged or stored in Git.
 
 Defects found and corrected during rehearsal:
 
@@ -83,7 +87,7 @@ Defects found and corrected during rehearsal:
 - Projection fingerprint: `wp4-5c4fce122e7d5d4f`
 - Automated WP4 implementation/security/browser rehearsal: passed
 - Corrected automated UAT: passed
-- Corrected Human retest: reduced retest pending after the two-tab/status blocker correction and ordinary-account password reset
+- Final Human UAT: pending for the consolidated Settings, Customer Requests, and Products workflow
 
 ### Production
 
@@ -103,4 +107,4 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Complete the one UID-preserving ordinary-UAT password reset, then run only the reduced Human retest for two-tab convergence, status refresh, ordinary disable/re-enable denial, and capable re-enable. Do not change Production, mark PR #8 Ready, merge, or start WP5.
+Run the final Human UAT checklist for the consolidated Settings, Customer Requests, and Products workflow. Do not change Production, mark PR #8 Ready, merge, or start WP5 before explicit approval.

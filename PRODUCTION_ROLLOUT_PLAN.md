@@ -45,12 +45,12 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - WP3 governance: Complete after exact-head approval, squash merge, and post-merge status update
 - Work Package 4 branch: `feature/anonymous-abuse-controls`
 - Work Package 4 Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
-- Work Package 4 corrected validated implementation head: `e0656753341641fa3110f3cfa5b32c4861d52069`
-- Work Package 4 corrected isolated-UAT workflow: `29491949583`, successful
+- Work Package 4 consolidated validated implementation head: `2e7180ae5c1a5ab57ef544601428f973764685f8`
+- Work Package 4 consolidated isolated-UAT workflow: `29501510514`, successful
 - Work Package 4 Projection V2 fingerprint: `wp4-5c4fce122e7d5d4f`
 - Work Package 4 Human-UAT defects and root causes: silent limit controls, inherited grid collapse, cleared status pointer, cooldown-only duplicate guard, concurrent Anonymous-UID initialization, and unclear capable-account workflow; corrected and automated-revalidated
-- Work Package 4 implementation and corrected automated isolated-UAT rehearsal: Complete (203 application tests, 22 Rules tests, synchronized two-tab browser UAT, exact cleanup, enabled Human-retest baseline)
-- Work Package 4 reduced corrected Human retest: Pending after the two-tab/status correction and UID-preserving ordinary-account password reset
+- Work Package 4 implementation and consolidated automated isolated-UAT rehearsal: Complete (213 application tests, 22 Rules tests, responsive Settings controls, processing-only Customer Requests, Products-only availability control, synchronized two-tab browser UAT, exact cleanup, enabled Human-UAT baseline)
+- Work Package 4 final Human UAT: Pending for the consolidated Settings, Customer Requests, and Products workflow
 - Work Package 4 approval and merge: Pending
 - Production changes during Work Package 4: None
 
@@ -64,7 +64,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 4 corrected implementation and automated isolated-UAT rehearsal are complete, but the reduced Human retest, explicit approval, merge, WP5, and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Work Package 4 consolidated implementation and automated isolated-UAT rehearsal are complete, but final Human UAT, explicit approval, merge, WP5, and every Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
@@ -230,6 +230,13 @@ documents.
 - Existing users, orders, history, reports, and queue data do not require migration.
 - No destructive migration is required.
 
+### WP4 availability-control consolidation
+
+- Products is the only Staff UI for changing product, topping, granola, and separated-packaging availability. Settings has no availability toggle.
+- `settings/toppingAvailability.availability` remains active canonical runtime data because the Products transaction, public Projection V2, Customer menu, and trusted confirmation share it. It is not a second hidden control or a compatibility override.
+- Do not delete or migrate this map during WP4. Existing confirmed and historical order snapshots remain durable and are never repriced or reinterpreted from current availability.
+- Customer QR operational controls are under Settings at `/settings#customer-ordering`; Customer Requests contains only bounded request-processing work.
+
 ### One-time projection requirement
 
 Existing Production products require a one-time projection refresh before Customer Hosting is exposed. Staff writes performed before Customer QR enablement did not synchronize public collections because synchronization is currently feature-flagged.
@@ -341,6 +348,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 - [ ] Production URL loads the approved Hosting release.
 - [ ] Existing Staff Email/Password login succeeds.
 - [ ] Staff home, `/order`, Queue, History, Reports, Products, Settings, and Customer Requests load.
+- [ ] Settings shows one collapsed `การควบคุม Customer QR` section; the direct anchor expands it; Customer Requests has no duplicate ordering controls; Products is the sole availability-control location.
 - [ ] Customer `/order` opens customer ordering, not Staff login.
 - [ ] A new anonymous session is created and its UID is recorded.
 - [ ] Public menu and public availability load with sampled values matching the approved projection.
