@@ -41,7 +41,7 @@ export default function CustomerStatusPage() {
             }
             if (value.status === waitingForShop)
               rememberCustomerActiveRequest(uid, value.id);
-            else clearCustomerSubmissionEnvelope(uid);
+            else clearCustomerSubmissionEnvelope(uid, requestId);
             setError("");
             setRequest(value);
           })

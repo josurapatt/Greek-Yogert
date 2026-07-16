@@ -229,7 +229,9 @@ describe("WP4 stable retry envelope", () => {
     expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
     expect(loadCustomerActiveRequestId("different-owner")).toBeNull();
 
-    clearCustomerSubmissionEnvelope("owner");
+    clearCustomerSubmissionEnvelope("owner", "different-terminal-request");
+    expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
+    clearCustomerSubmissionEnvelope("owner", first.retryId);
     expect(loadCustomerActiveRequestId("owner")).toBeNull();
   });
 

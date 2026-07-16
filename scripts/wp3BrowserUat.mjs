@@ -802,6 +802,7 @@ try {
       !Object.keys(localStorage).some(
         (key) =>
           key.startsWith("greek-more-customer-active-request-v2:") ||
+          key === "greek-more-customer-active-request-profile-v1" ||
           key.startsWith("greek-more-customer-submit-v2:"),
       ),
   );
