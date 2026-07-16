@@ -1,5 +1,6 @@
 import { normalizeProduct } from "./data";
-import { toCustomerPublicProduct } from "./customerOrder";
+import { customerOptionLabels, toCustomerPublicProduct } from "./customerOrder";
+import { productSelectedOptionLimits } from "./customerRequestPolicy";
 import type {
   Product,
   PublicCustomerProduct,
@@ -7,11 +8,26 @@ import type {
 } from "./types";
 
 export const publicProjectionControlId = "current";
-export const publicProjectionSchemaVersion = 1;
+export const publicProjectionSchemaVersion = 2;
+
+export interface PublicCustomerRequestPolicy {
+  schemaVersion: 2;
+  fingerprint: string;
+  productLimits: Record<
+    string,
+    {
+      minimum: number;
+      maximum: number;
+      allowedIds: string[];
+      allowedLabels: string[];
+    }
+  >;
+}
 
 export interface PublicProjection {
   menu: Record<string, PublicCustomerProduct>;
   availability: ToppingAvailability;
+  requestPolicy: PublicCustomerRequestPolicy;
   fingerprint: string;
 }
 
@@ -45,7 +61,7 @@ export function projectionFingerprint(value: unknown): string {
     first = Math.imul(first ^ code, 0x01000193);
     second = Math.imul(second ^ (code + index), 0x85ebca6b);
   }
-  return `wp3-${(first >>> 0).toString(16).padStart(8, "0")}${(second >>> 0)
+  return `wp4-${(first >>> 0).toString(16).padStart(8, "0")}${(second >>> 0)
     .toString(16)
     .padStart(8, "0")}`;
 }
@@ -70,12 +86,44 @@ export function buildPublicProjection(
       left.localeCompare(right),
     ),
   ) as ToppingAvailability;
+  const productLimits = Object.fromEntries(
+    products
+      .map(normalizeProduct)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((product) => {
+        const limits = productSelectedOptionLimits(product);
+        const allowedIds =
+          product.optionMode === "granola"
+            ? product.granolaOptions
+            : product.optionMode === "toppings"
+              ? product.availableToppingIds
+              : [];
+        return [
+          product.id,
+          {
+            ...limits,
+            allowedIds,
+            allowedLabels: customerOptionLabels(product, allowedIds),
+          },
+        ];
+      }),
+  );
   const fingerprint = projectionFingerprint({
     schemaVersion: publicProjectionSchemaVersion,
     menu,
     availability: canonicalAvailability,
+    productLimits,
   });
-  return { menu, availability: canonicalAvailability, fingerprint };
+  return {
+    menu,
+    availability: canonicalAvailability,
+    fingerprint,
+    requestPolicy: {
+      schemaVersion: publicProjectionSchemaVersion,
+      fingerprint,
+      productLimits,
+    },
+  };
 }
 
 export function diffPublicProjection(

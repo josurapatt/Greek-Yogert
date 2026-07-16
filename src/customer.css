@@ -109,3 +109,9 @@
   color: #775e80;
   font-size: 0.9rem;
 }
+.customer-field-helper {
+  display: block;
+  margin-top: -4px;
+  color: #775e80;
+  text-align: right;
+}

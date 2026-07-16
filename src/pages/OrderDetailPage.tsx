@@ -1,5 +1,5 @@
 import { ArrowLeft, Ban, CheckCircle2, Pencil, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -17,6 +17,9 @@ import { updateOrderStatusAndNavigate } from "../orderActions";
 import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import { useCart, useData } from "../store";
 import { orderDetailBackPath } from "../routes";
+import { db } from "../firebase";
+import { getOrderById } from "../staffFirestore";
+import type { ShopOrder } from "../types";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -26,7 +29,30 @@ export default function OrderDetailPage() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const order = orders.find((entry) => entry.id === id);
+  const [loadedOrder, setLoadedOrder] = useState<ShopOrder | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(Boolean(db));
+  const cachedOrder = orders.find((entry) => entry.id === id);
+  const order = cachedOrder ?? loadedOrder;
+  useEffect(() => {
+    if (!db || !id || cachedOrder) {
+      setLoadingOrder(false);
+      return;
+    }
+    let active = true;
+    setLoadingOrder(true);
+    void getOrderById(db, id)
+      .then((value) => active && setLoadedOrder(value))
+      .finally(() => active && setLoadingOrder(false));
+    return () => {
+      active = false;
+    };
+  }, [cachedOrder, id]);
+  if (loadingOrder && !order)
+    return (
+      <div className="page">
+        <p>กำลังเปิดออเดอร์…</p>
+      </div>
+    );
   if (!order)
     return (
       <div className="page">

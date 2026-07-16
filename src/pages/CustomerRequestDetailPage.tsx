@@ -1,5 +1,5 @@
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import OrderItemSummary from "../components/OrderItemSummary";
 import {
@@ -22,13 +22,19 @@ import { formatThaiDateTime, money } from "../lib";
 import { useAuth, useData } from "../store";
 import type { StaffPaymentMethod } from "../types";
 import { runtimeConfig } from "../runtimeConfig";
+import { getCustomerRequestById } from "../staffFirestore";
+import type { CustomerOrderRequest } from "../types";
 
 export default function CustomerRequestDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { customerRequests, dismissCustomerRequest } = useData();
-  const request = customerRequests.find((entry) => entry.id === id);
+  const [loadedRequest, setLoadedRequest] =
+    useState<CustomerOrderRequest | null>(null);
+  const [loadingRequest, setLoadingRequest] = useState(Boolean(db));
+  const cachedRequest = customerRequests.find((entry) => entry.id === id);
+  const request = cachedRequest ?? loadedRequest;
   const [payments, setPayments] = useState<
     Record<string, StaffPaymentMethod | undefined>
   >({});
@@ -39,6 +45,19 @@ export default function CustomerRequestDetailPage() {
     () => Boolean(request?.items.every((item) => payments[item.id])),
     [payments, request],
   );
+  useEffect(() => {
+    if (!db || !id || cachedRequest) {
+      setLoadingRequest(false);
+      return;
+    }
+    let active = true;
+    void getCustomerRequestById(db, id)
+      .then((value) => active && setLoadedRequest(value))
+      .finally(() => active && setLoadingRequest(false));
+    return () => {
+      active = false;
+    };
+  }, [cachedRequest, id]);
   const reconcile = async () => {
     if (db && id && !(await requestIsStillPending(db, id))) {
       dismissCustomerRequest(id);
@@ -46,6 +65,12 @@ export default function CustomerRequestDetailPage() {
     }
     return false;
   };
+  if (loadingRequest && !request)
+    return (
+      <div className="page narrow">
+        <p>กำลังเปิดคำขอ…</p>
+      </div>
+    );
   if (!request)
     return (
       <div className="page narrow">
@@ -93,7 +118,7 @@ export default function CustomerRequestDetailPage() {
     try {
       setBusy(true);
       setError("");
-      await rejectCustomerRequestTransaction(db, id, reason);
+      await rejectCustomerRequestTransaction(db, id, reason, user?.uid);
       dismissCustomerRequest(id);
       navigate("/customer-requests");
     } catch (cause) {

@@ -4,6 +4,7 @@ import {
   customerStorefrontChannel,
 } from "./customerOrder";
 import { orderTotals, prepareOrderItems } from "./lib";
+import { assertCustomerRequestPolicy } from "./customerRequestPolicy";
 import type {
   CartItem,
   CustomerOrderRequest,
@@ -11,10 +12,10 @@ import type {
   ToppingAvailability,
 } from "./types";
 
-const mismatchPrefix = "คำขอไม่ตรงกับเมนูปัจจุบัน";
+export const trustedCustomerMismatchPrefix = "คำขอไม่ตรงกับเมนูปัจจุบัน";
 
 function mismatch(reason: string): never {
-  throw new Error(`${mismatchPrefix}: ${reason}`);
+  throw new Error(`${trustedCustomerMismatchPrefix}: ${reason}`);
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
@@ -83,6 +84,15 @@ export function rebuildTrustedCustomerConfirmation(
   privateProducts: Product[],
   availability: ToppingAvailability,
 ): TrustedCustomerConfirmation {
+  try {
+    assertCustomerRequestPolicy(request, privateProducts, {
+      allowLegacyPending: true,
+      requireSubmittedAt:
+        request.schemaVersion === 2 && Object.hasOwn(request, "submittedAt"),
+    });
+  } catch (cause) {
+    mismatch(cause instanceof Error ? cause.message : "รูปแบบคำขอไม่ถูกต้อง");
+  }
   if (request.channel !== customerStorefrontChannel)
     mismatch("ช่องทางการสั่งซื้อไม่ใช่หน้าร้าน");
   if (!Array.isArray(request.items) || !request.items.length)

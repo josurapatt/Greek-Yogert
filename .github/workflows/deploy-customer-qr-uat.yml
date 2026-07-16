@@ -8,17 +8,28 @@ on:
       - "**.md"
 jobs:
   deploy-customer-uat:
-    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
+    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary' || github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify exact source checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: pnpm/action-setup@v4
         with: { version: 11.7.0 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test && pnpm lint
+      - run: pnpm test && pnpm test:rules && pnpm lint
       - name: Build isolated Customer QR UAT app
         env:
           VITE_APP_ENVIRONMENT: customer-qr-uat
@@ -38,6 +49,20 @@ jobs:
           test "$VITE_APP_ENVIRONMENT" = "customer-qr-uat"
           test "$VITE_CUSTOMER_QR_ENABLED" = "true"
           pnpm build
+      - name: Capture preserved WP4 Human-UAT evidence before deployment
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:human-diagnostics
       - name: Deploy isolated UAT Firebase resources
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
@@ -47,8 +72,51 @@ jobs:
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          pnpm dlx firebase-tools@latest deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
+          node scripts/disableUatCustomerOrdering.mjs
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
+      - name: Run WP4 security and operational-control UAT
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4
+      - name: Verify capable and designate ordinary Human-UAT Staff accounts
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:designate-staff
+      - name: Securely update the existing ordinary UAT Staff password when requested
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD: ${{ secrets.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          if [ -z "$CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD" ]; then
+            echo "No ephemeral ordinary Staff password is present; secure update not requested."
+            exit 0
+          fi
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:set-ordinary-password
       - name: Capture read-only WP3 Human UAT diagnostics
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -59,8 +127,10 @@ jobs:
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp3:diagnose
       - name: Install isolated UAT browser
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary' || github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
         run: pnpm exec playwright install --with-deps chromium
       - name: Run WP3 browser UAT and clean temporary data
+        if: github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary'
         env:
           CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
@@ -70,3 +140,45 @@ jobs:
           test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp3:browser
+      - name: Run WP4 Customer-to-Staff browser rehearsal and exact cleanup
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:browser
+      - name: Run reduced existing ordinary-Staff browser UAT
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD: ${{ secrets.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          if [ -z "$CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD" ]; then
+            echo "No ephemeral ordinary Staff password is present; reduced account UAT not requested."
+            exit 0
+          fi
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_API_KEY"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:ordinary-staff-browser
+      - name: Fail-close UAT intake after a WP4 workflow failure
+        if: failure() && (github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls')
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node scripts/disableUatCustomerOrdering.mjs

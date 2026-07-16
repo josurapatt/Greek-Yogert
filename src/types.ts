@@ -29,6 +29,7 @@ export interface Product {
   description: string[];
   optionMode: OptionMode;
   includedToppings: number;
+  maxSelectedOptions?: number;
   granolaOptions: string[];
   availableToppingIds: string[];
   premiumToppingIds?: string[];
@@ -51,6 +52,7 @@ export interface PublicCustomerProduct {
   storefrontPrice: number;
   optionMode: OptionMode;
   includedToppings: number;
+  maxSelectedOptions: number;
   granolaOptions: string[];
   availableToppingIds: string[];
   premiumToppingIds?: string[];
@@ -124,7 +126,9 @@ export type CustomerRequestStatus =
   | "ยกเลิก";
 
 export interface CustomerOrderRequest {
+  schemaVersion?: number;
   id: string;
+  retryId?: string;
   ownerUid: string;
   status: CustomerRequestStatus;
   channel: "หน้าร้าน";
@@ -136,6 +140,7 @@ export interface CustomerOrderRequest {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  submittedAt?: unknown;
   confirmedOrderId?: string;
   queueNumber?: string;
   paymentMethod?: StaffPaymentMethod;

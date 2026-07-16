@@ -23,4 +23,6 @@ export const firebaseReady = Object.values(config).every((value) =>
 const app = firebaseReady ? initializeApp(config) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
-if (auth) void setPersistence(auth, browserLocalPersistence);
+export const authPersistenceReady = auth
+  ? setPersistence(auth, browserLocalPersistence)
+  : Promise.resolve();

@@ -14,7 +14,13 @@
     "projection:public": "node scripts/runPublicProjection.mjs",
     "uat:wp3:diagnose": "node scripts/runWp3HumanUatDiagnostic.mjs",
     "uat:wp3:browser": "node scripts/wp3BrowserUat.mjs",
+    "uat:wp4:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp3": "node scripts/runWp3UatValidation.mjs",
+    "uat:wp4": "node scripts/runWp4UatValidation.mjs",
+    "uat:wp4:human-diagnostics": "node scripts/wp4HumanRequestDiagnostics.mjs",
+    "uat:wp4:designate-staff": "node scripts/designateUatCustomerOrderingManager.mjs",
+    "uat:wp4:set-ordinary-password": "node scripts/setOrdinaryUatStaffPassword.mjs",
+    "uat:wp4:ordinary-staff-browser": "node scripts/wp4OrdinaryStaffBrowserUat.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

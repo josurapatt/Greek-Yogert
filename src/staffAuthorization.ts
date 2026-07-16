@@ -1,6 +1,16 @@
 export interface StaffAuthorizationDocument {
   role?: unknown;
   active?: unknown;
+  canManageCustomerOrdering?: unknown;
+}
+
+export function canManageCustomerOrdering(
+  value: StaffAuthorizationDocument | undefined,
+): boolean {
+  return (
+    isAuthorizedStaffDocument(value) &&
+    value?.canManageCustomerOrdering === true
+  );
 }
 
 export function isAuthorizedStaffDocument(

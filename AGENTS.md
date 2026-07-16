@@ -345,6 +345,14 @@ Customers must not:
 - assign payment, queue number, confirmed order ID, or staff status
 - execute queue-counter logic
 
+WP4 Customer request invariants:
+
+- New schema-V2 requests use one atomic parent/item/summary batch with a stable request ID; partial creation must never be accepted.
+- Legacy parent-embedded, confirmed, and historical requests remain readable and must not be rewritten or repriced.
+- Missing or malformed runtime ordering control fails closed only for new Customer intake; Customer status and Staff processing remain available.
+- Any active Staff may disable intake. Re-enable additionally requires server-controlled `canManageCustomerOrdering: true`; clients cannot grant it.
+- Bounded/paginated Staff reads must show incompleteness, and exports must not present partial data as complete.
+
 ---
 
 ## 8. Staff Confirmation Invariants

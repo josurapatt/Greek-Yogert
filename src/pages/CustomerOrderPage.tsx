@@ -1,6 +1,6 @@
 import { Minus, Pencil, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ProductModal from "../components/ProductModal";
 import ToppingPackagingDetails from "../components/ToppingPackagingDetails";
 import {
@@ -13,10 +13,22 @@ import { toppings } from "../data";
 import { customerStorefrontChannel } from "../customerOrder";
 import { useCustomer } from "../customerFirebase";
 import { runtimeConfig } from "../runtimeConfig";
+import { customerRequestLimits } from "../customerRequestPolicy";
 import type { CartItem, Product } from "../types";
 
 export default function CustomerOrderPage() {
-  const { products, availability, loading, submit } = useCustomer();
+  const {
+    products,
+    availability,
+    loading,
+    orderingControl = { status: "enabled", enabled: true, message: "" },
+    pendingSubmission = null,
+    activeRequestId = null,
+    submit,
+    retryPending = async () => {
+      throw new Error("ไม่พบคำขอที่รอตรวจสอบ");
+    },
+  } = useCustomer();
   const navigate = useNavigate();
   const [items, setItems] = useState<CartItem[]>([]);
   const [selected, setSelected] = useState<Product | null>(null);
@@ -24,6 +36,10 @@ export default function CustomerOrderPage() {
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [quantityError, setQuantityError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [sending, setSending] = useState(false);
   const priced = repriceCartItems(
     items,
@@ -34,14 +50,50 @@ export default function CustomerOrderPage() {
   );
   const invalid = priced.find((item) => item.validationError);
   const totals = orderTotals(priced);
+  const totalUnits = priced.reduce((sum, item) => sum + item.quantity, 0);
+  const nameError =
+    name.length > customerRequestLimits.maxCustomerNameLength
+      ? `ชื่อเล่นยาวเกิน ${customerRequestLimits.maxCustomerNameLength} ตัวอักษร`
+      : "";
+  const noteError =
+    note.length > customerRequestLimits.maxCustomerNoteLength
+      ? `หมายเหตุยาวเกิน ${customerRequestLimits.maxCustomerNoteLength} ตัวอักษร`
+      : "";
+  const capError =
+    priced.length > customerRequestLimits.maxProductLines
+      ? `สั่งได้ไม่เกิน ${customerRequestLimits.maxProductLines} รายการสินค้า`
+      : totalUnits > customerRequestLimits.maxTotalUnits
+        ? `สั่งได้ไม่เกิน ${customerRequestLimits.maxTotalUnits} ถ้วยต่อคำขอ หากต้องการจำนวนมากกรุณาติดต่อร้าน`
+        : totals.total > customerRequestLimits.maxRequestTotal
+          ? `ยอดคำขอต้องไม่เกิน ${customerRequestLimits.maxRequestTotal.toLocaleString("th-TH")} บาท`
+          : "";
   const updateQuantity = (id: string, quantity: number) =>
-    setItems((rows) =>
-      rows.map((item) =>
-        item.id === id
-          ? applyCartItemUpdate(item, { quantity: Math.max(1, quantity) })
-          : item,
-      ),
-    );
+    setItems((rows) => {
+      const current = rows.find((item) => item.id === id);
+      const nextTotal = rows.reduce(
+        (sum, item) => sum + (item.id === id ? quantity : item.quantity),
+        0,
+      );
+      if (!current || quantity < 1) return rows;
+      if (quantity > customerRequestLimits.maxQuantityPerLine) {
+        setQuantityError({
+          id,
+          message: `รายการนี้มี ${current.quantity} ถ้วย สั่งได้สูงสุด ${customerRequestLimits.maxQuantityPerLine} ถ้วยต่อรายการ`,
+        });
+        return rows;
+      }
+      if (nextTotal > customerRequestLimits.maxTotalUnits) {
+        setQuantityError({
+          id,
+          message: `คำขอนี้มี ${totalUnits} ถ้วย สั่งได้สูงสุด ${customerRequestLimits.maxTotalUnits} ถ้วย หากต้องการมากกว่านี้กรุณาติดต่อร้านเพื่อสั่งแบบจำนวนมาก`,
+        });
+        return rows;
+      }
+      setQuantityError(null);
+      return rows.map((item) =>
+        item.id === id ? applyCartItemUpdate(item, { quantity }) : item,
+      );
+    });
   const remove = (id: string) =>
     setItems((rows) => rows.filter((item) => item.id !== id));
   const edit = (item: CartItem) => {
@@ -70,6 +122,21 @@ export default function CustomerOrderPage() {
       setSending(false);
     }
   };
+  const retry = async () => {
+    try {
+      setSending(true);
+      setError("");
+      const request = await retryPending();
+      setItems([]);
+      navigate(`/order/status/${request.id}`, { replace: true });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "ตรวจสอบคำขอเดิมไม่สำเร็จ",
+      );
+    } finally {
+      setSending(false);
+    }
+  };
   if (loading)
     return (
       <main className="customer-page">
@@ -85,6 +152,34 @@ export default function CustomerOrderPage() {
         <h1>สั่ง Greek &amp; More</h1>
         <p>คำสั่งซื้อจะรอร้านยืนยันก่อนรับเลขคิว</p>
       </header>
+      {!orderingControl.enabled && (
+        <section className="notice" role="status">
+          <strong>ปิดรับคำสั่งซื้อใหม่ชั่วคราว</strong>
+          <p>{orderingControl.message}</p>
+        </section>
+      )}
+      {pendingSubmission && (
+        <section className="notice" role="status">
+          <strong>มีคำขอเดิมที่ยังต้องตรวจสอบ</strong>
+          <p>ระบบจะใช้รหัสเดิมเพื่อป้องกันคำขอซ้ำ กรุณาอย่าสร้างรายการใหม่</p>
+          <button
+            className="secondary"
+            disabled={sending}
+            onClick={() => void retry()}
+          >
+            ตรวจสอบและส่งคำขอเดิมอีกครั้ง
+          </button>
+        </section>
+      )}
+      {activeRequestId && (
+        <section className="notice" role="status">
+          <strong>มีคำขอที่รอร้านยืนยันอยู่</strong>
+          <p>กรุณากลับไปดูคำขอเดิม ระบบจะไม่สร้างคำขอใหม่จากแท็บนี้</p>
+          <Link className="secondary" to={`/order/status/${activeRequestId}`}>
+            กลับไปดูสถานะคำขอเดิม
+          </Link>
+        </section>
+      )}
       <section className="product-grid">
         {products
           .filter((p) => p.active)
@@ -92,6 +187,11 @@ export default function CustomerOrderPage() {
             <button
               className={`product-card product-${index % 5}`}
               key={product.id}
+              disabled={
+                !orderingControl.enabled ||
+                Boolean(pendingSubmission) ||
+                Boolean(activeRequestId)
+              }
               onClick={() => setSelected(product)}
             >
               <span className="product-emoji">{product.emoji}</span>
@@ -162,6 +262,11 @@ export default function CustomerOrderPage() {
                 <Plus />
               </button>
             </div>
+            {quantityError?.id === item.id && (
+              <p className="validation" role="alert">
+                {quantityError.message}
+              </p>
+            )}
           </div>
         ))}
         {!priced.length && (
@@ -169,21 +274,50 @@ export default function CustomerOrderPage() {
         )}
         <input
           value={name}
-          maxLength={40}
           onChange={(event) => setName(event.target.value)}
           placeholder="ชื่อเล่น (ไม่บังคับ)"
+          aria-describedby="customer-name-limit"
         />
+        <small id="customer-name-limit" className="customer-field-helper">
+          ชื่อเล่น {name.length}/{customerRequestLimits.maxCustomerNameLength}{" "}
+          ตัวอักษร
+        </small>
+        {nameError && (
+          <p className="validation" role="alert">
+            {nameError}
+          </p>
+        )}
         <textarea
           value={note}
-          maxLength={200}
           onChange={(event) => setNote(event.target.value)}
           placeholder="หมายเหตุถึงร้าน (ไม่บังคับ)"
+          aria-describedby="customer-note-limit"
         />
+        <small id="customer-note-limit" className="customer-field-helper">
+          หมายเหตุ {note.length}/{customerRequestLimits.maxCustomerNoteLength}{" "}
+          ตัวอักษร
+        </small>
+        {noteError && (
+          <p className="validation" role="alert">
+            {noteError}
+          </p>
+        )}
         <strong>{money(totals.total)}</strong>
+        {capError && <p className="validation">{capError}</p>}
         {error && <p className="validation">{error}</p>}
         <button
           className="primary"
-          disabled={!priced.length || Boolean(invalid) || sending}
+          disabled={
+            !priced.length ||
+            Boolean(invalid) ||
+            Boolean(capError) ||
+            Boolean(nameError) ||
+            Boolean(noteError) ||
+            sending ||
+            !orderingControl.enabled ||
+            Boolean(pendingSubmission) ||
+            Boolean(activeRequestId)
+          }
           onClick={() => void send()}
         >
           ส่งคำขอให้ร้านยืนยัน
@@ -195,13 +329,25 @@ export default function CustomerOrderPage() {
           channel={customerStorefrontChannel}
           initial={editingItem ?? undefined}
           availability={availability}
+          customerLimits
           onClose={closeEditor}
           onSave={(item) => {
-            setItems((rows) =>
-              editingItem
-                ? rows.map((row) => (row.id === editingItem.id ? item : row))
-                : [...rows, item],
-            );
+            const next = editingItem
+              ? items.map((row) => (row.id === editingItem.id ? item : row))
+              : [...items, item];
+            const nextUnits = next.reduce((sum, row) => sum + row.quantity, 0);
+            if (
+              next.length > customerRequestLimits.maxProductLines ||
+              nextUnits > customerRequestLimits.maxTotalUnits ||
+              item.quantity > customerRequestLimits.maxQuantityPerLine
+            ) {
+              setError(
+                `สั่งได้ไม่เกิน ${customerRequestLimits.maxProductLines} รายการ, ${customerRequestLimits.maxQuantityPerLine} ถ้วยต่อรายการ และ ${customerRequestLimits.maxTotalUnits} ถ้วยต่อคำขอ`,
+              );
+              return;
+            }
+            setItems(next);
+            setError("");
             closeEditor();
           }}
         />
