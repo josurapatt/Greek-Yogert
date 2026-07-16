@@ -1,0 +1,303 @@
+name: WP5 Full Isolated Production Release Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-character WP5 source SHA to rehearse
+        required: true
+        type: string
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wp5-full-isolated-release-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearse-isolated-release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == true &&
+      github.head_ref == 'feature/full-isolated-production-release-rehearsal')
+    runs-on: ubuntu-latest
+    environment: customer-qr-uat
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
+      HEAD_BRANCH: ${{ github.head_ref || github.ref_name }}
+      CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+      CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+      CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+      CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+      WP5_WORKFLOW_IDENTITY: wp5-isolated-production-release-rehearsal
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/wp5-customer-uat-service-account.json
+    steps:
+      - name: Checkout exact WP5 release candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact source, branch, and isolated identity
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test "${#SOURCE_SHA}" -eq 40
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$HEAD_BRANCH" = "feature/full-isolated-production-release-rehearsal"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_FIREBASE_PROJECT_ID" = "$CUSTOMER_UAT_FIREBASE_PROJECT_ID"
+          test "$WP5_WORKFLOW_IDENTITY" = "wp5-isolated-production-release-rehearsal"
+          for variable in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON; do
+            test -n "${!variable}" || { echo "Missing required isolated UAT configuration: $variable"; exit 1; }
+          done
+          node -e 'const value=JSON.parse(process.env.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON); if(value.project_id!=="greek-yogert-customer-uat-2026"||value.project_id==="greek-yogert") process.exit(1)'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prepare isolated UAT credentials without logging values
+        env:
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,"utf8")); if(value.project_id!=="greek-yogert-customer-uat-2026") process.exit(1)'
+
+      - name: Capture sanitized pre-release UAT state
+        run: >-
+          pnpm uat:wp5:state -- --command capture --phase pre-release
+          --output "$RUNNER_TEMP/wp5-pre-release-state.json"
+
+      - name: Validate exact clean pre-release boundary
+        run: node scripts/wp5ValidatePreState.mjs --file "$RUNNER_TEMP/wp5-pre-release-state.json"
+
+      - name: Run complete application and canonical Rules validation
+        run: |
+          pnpm test
+          pnpm test:rules
+          pnpm lint
+
+      - name: Build safeguarded Production-disabled candidate
+        env:
+          VITE_APP_ENVIRONMENT: production
+          VITE_CUSTOMER_QR_ENABLED: "false"
+          VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+        run: |
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_CUSTOMER_QR_ENABLED" = "false"
+          pnpm build
+
+      - name: Build existing isolated-UAT-enabled candidate
+        env:
+          VITE_APP_ENVIRONMENT: customer-qr-uat
+          VITE_CUSTOMER_QR_ENABLED: "true"
+          VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+        run: pnpm build
+
+      - name: Build production-like isolated release candidate
+        env:
+          VITE_APP_ENVIRONMENT: release-rehearsal
+          VITE_CUSTOMER_QR_ENABLED: "true"
+          VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+        run: |
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_APP_ENVIRONMENT" = "release-rehearsal"
+          test "$VITE_CUSTOMER_QR_ENABLED" = "true"
+          pnpm build
+          rm -rf "$RUNNER_TEMP/wp5-enabled-dist"
+          cp -a dist "$RUNNER_TEMP/wp5-enabled-dist"
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 > "$RUNNER_TEMP/wp5-enabled-baseline.txt"
+
+      - name: Disable intake before isolated Firebase changes
+        run: >-
+          pnpm uat:wp5:state -- --command set-control --enabled false
+          --confirm WP5_SET_CUSTOMER_ORDERING
+          --output "$RUNNER_TEMP/wp5-pre-deploy-disable.json"
+
+      - name: Deploy exact candidate Rules and indexes to isolated UAT only
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only firestore:rules,firestore:indexes --non-interactive
+
+      - name: Verify index readiness and preservation
+        run: |
+          pnpm uat:wp5:state -- --command capture --phase post-rules-indexes --output "$RUNNER_TEMP/wp5-post-rules-indexes.json"
+          node scripts/wp5CompareState.mjs --before "$RUNNER_TEMP/wp5-pre-release-state.json" --after "$RUNNER_TEMP/wp5-post-rules-indexes.json"
+
+      - name: Dry-run and review Public Projection V2
+        id: projection
+        run: |
+          node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode dry-run > "$RUNNER_TEMP/wp5-projection-dry-run.json"
+          node scripts/wp5ReviewProjection.mjs --file "$RUNNER_TEMP/wp5-projection-dry-run.json"
+          fingerprint=$(node -e 'const value=require(process.argv[1]); process.stdout.write(value.fingerprint)' "$RUNNER_TEMP/wp5-projection-dry-run.json")
+          stale_delete=$(node -e 'const value=require(process.argv[1]); process.stdout.write(value.publicTarget.staleDocuments.length ? "true" : "false")' "$RUNNER_TEMP/wp5-projection-dry-run.json")
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          echo "stale_delete=$stale_delete" >> "$GITHUB_OUTPUT"
+
+      - name: Apply the exact reviewed Public Projection V2 fingerprint
+        env:
+          REVIEWED_FINGERPRINT: ${{ steps.projection.outputs.fingerprint }}
+          ALLOW_REVIEWED_STALE_DELETE: ${{ steps.projection.outputs.stale_delete }}
+        run: |
+          test -n "$REVIEWED_FINGERPRINT"
+          node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode apply --expected-fingerprint "$REVIEWED_FINGERPRINT" --confirm APPLY_PUBLIC_PROJECTION --allow-stale-delete "$ALLOW_REVIEWED_STALE_DELETE" > "$RUNNER_TEMP/wp5-projection-apply.json"
+          node scripts/wp5ReviewProjection.mjs --file "$RUNNER_TEMP/wp5-projection-apply.json"
+
+      - name: Prove Public Projection V2 idempotency
+        env:
+          REVIEWED_FINGERPRINT: ${{ steps.projection.outputs.fingerprint }}
+        run: |
+          node scripts/runPublicProjection.mjs --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --mode dry-run --expected-fingerprint "$REVIEWED_FINGERPRINT" > "$RUNNER_TEMP/wp5-projection-idempotency.json"
+          node scripts/wp5ReviewProjection.mjs --file "$RUNNER_TEMP/wp5-projection-idempotency.json"
+          node -e 'const value=require(process.argv[1]); if(value.writeCount!==0||value.writesPerformed!==0) process.exit(1)' "$RUNNER_TEMP/wp5-projection-idempotency.json"
+
+      - name: Exercise existing designated Staff authorization
+        run: >-
+          pnpm uat:wp5:state -- --command exercise-staff
+          --output "$RUNNER_TEMP/wp5-designated-staff.json"
+
+      - name: Deploy production-like candidate to isolated UAT Hosting only
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting --non-interactive
+
+      - name: Install isolated browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify production-like Hosting entry point
+        run: pnpm uat:wp5:hosting-probe -- --mode enabled
+
+      - name: Run full Customer-to-Staff browser smoke and cleanup
+        env:
+          CUSTOMER_UAT_DESIGNATED_STAFF: "true"
+          CUSTOMER_UAT_REHEARSAL_MARKER_PREFIX: WP5-AUTO-UI
+        run: node scripts/wp3BrowserUat.mjs > "$RUNNER_TEMP/wp5-browser-evidence.json"
+
+      - name: Run existing ordinary-Staff browser control rehearsal
+        env:
+          CUSTOMER_UAT_ORDINARY_STAFF_CUSTOM_TOKEN: "true"
+        run: node scripts/wp4OrdinaryStaffBrowserUat.mjs > "$RUNNER_TEMP/wp5-ordinary-staff-browser.json"
+
+      - name: Capture bounded monitoring-window evidence
+        run: >-
+          pnpm uat:wp5:state -- --command capture --phase monitoring-window
+          --output "$RUNNER_TEMP/wp5-monitoring-state.json"
+
+      - name: Disable intake and deploy Customer-disabled rollback build
+        env:
+          VITE_APP_ENVIRONMENT: release-rehearsal
+          VITE_CUSTOMER_QR_ENABLED: "false"
+          VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+        run: |
+          pnpm uat:wp5:state -- --command set-control --enabled false --confirm WP5_SET_CUSTOMER_ORDERING --output "$RUNNER_TEMP/wp5-rollback-disable.json"
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_CUSTOMER_QR_ENABLED" = "false"
+          pnpm build
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting --non-interactive
+          pnpm uat:wp5:hosting-probe -- --mode disabled > "$RUNNER_TEMP/wp5-rollback-probe.json"
+
+      - name: Restore exact enabled Hosting candidate and intake
+        run: |
+          rm -rf dist
+          cp -a "$RUNNER_TEMP/wp5-enabled-dist" dist
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1 > "$RUNNER_TEMP/wp5-restored-baseline.txt"
+          test "$(cat "$RUNNER_TEMP/wp5-enabled-baseline.txt")" = "$(cat "$RUNNER_TEMP/wp5-restored-baseline.txt")"
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting --non-interactive
+          pnpm uat:wp5:hosting-probe -- --mode enabled > "$RUNNER_TEMP/wp5-restored-hosting-probe.json"
+          pnpm uat:wp5:state -- --command set-control --enabled true --confirm WP5_SET_CUSTOMER_ORDERING --output "$RUNNER_TEMP/wp5-rollback-restoration.json"
+
+      - name: Re-run critical post-restoration security checks
+        run: node scripts/wp5AnonymousSecurityProbe.mjs > "$RUNNER_TEMP/wp5-post-restore-security.json"
+
+      - name: Verify final state and exact cleanup
+        run: |
+          enabled_baseline=$(cat "$RUNNER_TEMP/wp5-enabled-baseline.txt")
+          restored_baseline=$(cat "$RUNNER_TEMP/wp5-restored-baseline.txt")
+          pnpm uat:wp5:state -- --command final --enabled-baseline "$enabled_baseline" --restored-baseline "$restored_baseline" --output "$RUNNER_TEMP/wp5-final-state.json"
+
+      - name: Generate and validate deterministic non-secret release manifest
+        env:
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+        run: |
+          rollback_baseline=$(cat "$RUNNER_TEMP/wp5-enabled-baseline.txt")
+          pnpm uat:wp5:manifest -- --source-sha "$SOURCE_SHA" --target-project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --vite-project "$VITE_FIREBASE_PROJECT_ID" --environment release-rehearsal --customer-qr-enabled true --projection-dry-run "$RUNNER_TEMP/wp5-projection-dry-run.json" --projection-apply "$RUNNER_TEMP/wp5-projection-apply.json" --projection-idempotency "$RUNNER_TEMP/wp5-projection-idempotency.json" --browser-evidence "$RUNNER_TEMP/wp5-browser-evidence.json" --final-state "$RUNNER_TEMP/wp5-final-state.json" --rollback-baseline "$rollback_baseline" --output "$RUNNER_TEMP/wp5-release-manifest.json"
+
+      - name: Upload sanitized WP5 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp5-isolated-release-rehearsal-${{ github.event.pull_request.head.sha || inputs.source_sha }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/wp5-release-manifest.json
+            ${{ runner.temp }}/wp5-pre-release-state.json
+            ${{ runner.temp }}/wp5-post-rules-indexes.json
+            ${{ runner.temp }}/wp5-projection-dry-run.json
+            ${{ runner.temp }}/wp5-projection-apply.json
+            ${{ runner.temp }}/wp5-projection-idempotency.json
+            ${{ runner.temp }}/wp5-designated-staff.json
+            ${{ runner.temp }}/wp5-browser-evidence.json
+            ${{ runner.temp }}/wp5-ordinary-staff-browser.json
+            ${{ runner.temp }}/wp5-monitoring-state.json
+            ${{ runner.temp }}/wp5-rollback-probe.json
+            ${{ runner.temp }}/wp5-restored-hosting-probe.json
+            ${{ runner.temp }}/wp5-post-restore-security.json
+            ${{ runner.temp }}/wp5-final-state.json
+
+      - name: Fail closed after any rehearsal failure
+        if: failure()
+        continue-on-error: true
+        run: >-
+          pnpm uat:wp5:state -- --command set-control --enabled false
+          --confirm WP5_SET_CUSTOMER_ORDERING
+          --output "$RUNNER_TEMP/wp5-failure-disable.json"
+
+      - name: Remove temporary credential file
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
