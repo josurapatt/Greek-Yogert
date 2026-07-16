@@ -126,6 +126,16 @@ let validationFailure;
 const cleanupFailures = [];
 const temporaryAnonymousUids = new Set();
 
+function recordCleanupFailure(operation, cause) {
+  cleanupFailures.push({
+    operation,
+    code:
+      cause && typeof cause === "object" && typeof cause.code === "string"
+        ? cause.code
+        : "unknown",
+  });
+}
+
 async function restoreAsCapableStaff() {
   const customToken = await adminAuth.createCustomToken(capableAccount.uid);
   capableClientApp = initializeClientApp(
@@ -420,33 +430,38 @@ try {
       .doc("settings/customerOrdering")
       .get()
       .catch((cause) => {
-        cleanupFailures.push(cause);
+        recordCleanupFailure("read-ordering-control", cause);
         return null;
       });
     if (current?.data()?.enabled === false)
       await restoreAsCapableStaff().catch((cause) =>
-        cleanupFailures.push(cause),
+        recordCleanupFailure("restore-ordering-control", cause),
       );
   }
   if (capableClientAuth)
     await signOut(capableClientAuth).catch((cause) =>
-      cleanupFailures.push(cause),
+      recordCleanupFailure("sign-out-capable-client", cause),
     );
   if (capableClientApp)
     await deleteApp(capableClientApp).catch((cause) =>
-      cleanupFailures.push(cause),
+      recordCleanupFailure("delete-capable-client", cause),
     );
   if (browser)
-    await browser.close().catch((cause) => cleanupFailures.push(cause));
+    await browser
+      .close()
+      .catch((cause) => recordCleanupFailure("close-browser", cause));
   for (const uid of temporaryAnonymousUids)
-    await adminAuth
-      .deleteUser(uid)
-      .catch((cause) => cleanupFailures.push(cause));
+    await adminAuth.deleteUser(uid).catch((cause) => {
+      if (cause?.code !== "auth/user-not-found")
+        recordCleanupFailure("delete-temporary-anonymous-user", cause);
+    });
 }
 
 if (cleanupFailures.length)
   throw new Error(
-    `Ordinary Staff browser UAT cleanup failed for ${cleanupFailures.length} resources`,
+    `Ordinary Staff browser UAT cleanup failed: ${cleanupFailures
+      .map(({ operation, code }) => `${operation} (${code})`)
+      .join(", ")}`,
     { cause: validationFailure },
   );
 if (validationFailure) throw validationFailure;
