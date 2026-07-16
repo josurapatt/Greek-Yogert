@@ -573,9 +573,12 @@ try {
     .getByRole("button")
     .filter({ hasText: "Apple Ohlala" });
   await blockedProduct.evaluate((button) => {
-    button.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    const propsKey = Object.keys(button).find((key) =>
+      key.startsWith("__reactProps$"),
     );
+    if (!propsKey || typeof button[propsKey]?.onClick !== "function")
+      throw new Error("Blocked product handler is unavailable");
+    button[propsKey].onClick();
   });
   await secondCustomerPage
     .getByRole("button", { name: "ช็อกโกแลต", exact: true })
@@ -591,9 +594,12 @@ try {
     name: "ส่งคำขอให้ร้านยืนยัน",
   });
   await blockedSubmit.evaluate((button) => {
-    button.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    const propsKey = Object.keys(button).find((key) =>
+      key.startsWith("__reactProps$"),
     );
+    if (!propsKey || typeof button[propsKey]?.onClick !== "function")
+      throw new Error("Blocked submit handler is unavailable");
+    button[propsKey].onClick();
   });
   await secondCustomerPage.locator(".customer-cart .validation").waitFor();
 
