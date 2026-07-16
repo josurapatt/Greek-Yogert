@@ -42,6 +42,12 @@ Each control action writes the private state, safe public state, and append-only
 - Client code cannot create or edit authorization documents or grant this capability.
 - WP4 may provision the capability only on a designated isolated-UAT Staff account. Production authorization is outside scope.
 
+### Designated isolated-UAT capable account
+
+For WP4 Human retest only, use `greekmore.uat@gmail.com` in Firebase project `greek-yogert-customer-uat-2026`. Guarded administrative tooling verifies the existing Authentication identity and assigns only `role: "staff"`, `active: true`, and `canManageCustomerOrdering: true`; it never requests, prints, or stores the password or UID. Do not use `greekmore.queue@gmail.com`, `greekmore.order@gmail.com`, or a personal account for this capability.
+
+To switch safely, sign out of the ordinary Staff session, sign in with the dedicated UAT account, open **Customer Requests**, and verify the visible label **มีสิทธิ์เปิดรับคำสั่งซื้อกลับ** before re-enabling. Ordinary Staff must instead see **ปิดรับคำสั่งซื้อได้ แต่ไม่มีสิทธิ์เปิดกลับ**. Re-enable still requires a reason and explicit confirmation. This workflow is UAT-only and does not authorize Production provisioning.
+
 ## Emergency disable
 
 1. Open **Customer Requests** and locate **การควบคุม Customer QR**.

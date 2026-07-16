@@ -141,7 +141,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — implementation and automated isolated-UAT rehearsal complete; reduced Human UAT pending**
+**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — Human-UAT defects corrected and automated isolated-UAT rehearsal complete; short Human retest pending**
 
 Current state:
 
@@ -152,10 +152,12 @@ Current state:
 - [x] Asymmetric emergency disable/re-enable authority, server-controlled capability, audit evidence, and fail-closed intake are implemented.
 - [x] Balanced bounded operational indicators, pagination, report/export limits, operational runbook, and six UAT indexes are implemented.
 - [x] Projection V2 dry-run, reviewed atomic apply, idempotency, and final exact-head dry-run passed at fingerprint `wp4-5c4fce122e7d5d4f`.
-- [x] Local automated validation passed: 194 application tests and 22 canonical Firestore Emulator tests, plus lint, typecheck, builds, formatting, workflow parsing, diff, and secret checks.
-- [x] Exact-head automated isolated UAT passed security/control and real Customer UI → Staff UI → Queue → History → Reports → Excel browser rehearsal.
+- [x] Local automated validation passed: 201 application tests and 22 canonical Firestore Emulator tests, plus lint, typecheck, both builds, formatting, workflow parsing, diff, and secret checks.
+- [x] Human-UAT defects in limit feedback, Operations layout, Customer status recovery, two-tab active-request convergence, and capable-Staff usability were corrected with regression coverage.
+- [x] Exact-head workflow `29466663347` passed security/control and real Customer UI → Staff UI → Queue → History → Reports → Excel browser rehearsal at corrected implementation head `953e1eb558c1542882480ca5f8f93492cdcdea9a`.
+- [x] Desktop/tablet/mobile Operations layouts, status refresh, disabled-intake status access, cooldown-expired second-tab convergence, and designated capable-Staff re-enable passed in isolated UAT.
 - [x] Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed.
-- [ ] Run the reduced Human UAT checklist in isolated UAT.
+- [ ] Run the short corrected Human retest in isolated UAT.
 - [ ] Obtain explicit approval before changing PR #8 from Draft, merging it, or starting WP5.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
@@ -181,7 +183,7 @@ Current state:
 - [x] Production Hardening Work Package 2 squash merge complete
 - [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
 - [x] Production Hardening Work Package 3 exact-head PR approval and squash merge complete
-- [ ] Production Hardening Work Package 4 — implementation and automated isolated-UAT rehearsal complete; reduced Human UAT, approval, and merge pending
+- [ ] Production Hardening Work Package 4 — corrected implementation and automated isolated-UAT rehearsal complete; short Human retest, approval, and merge pending
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
