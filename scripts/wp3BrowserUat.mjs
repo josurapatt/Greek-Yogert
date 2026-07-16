@@ -1243,22 +1243,8 @@ try {
   await staffPage.waitForURL(`${baseUrl}/queue`);
   if (useDesignatedStaff) {
     const legacyMarker = `${marker}-LEGACY`;
-    const activePrivateProducts = await firestore
-      .collection("products")
-      .where("active", "==", true)
-      .get();
-    const legacyProduct =
-      activePrivateProducts.docs.find(
-        (entry) => entry.data().optionMode === "none",
-      ) ??
-      activePrivateProducts.docs.find(
-        (entry) => entry.data().optionMode !== "toppings",
-      );
-    assert(
-      legacyProduct,
-      "No active legacy-compatible UAT product is available",
-    );
     await staffPage.goto(`${baseUrl}/order`, { waitUntil: "domcontentloaded" });
+    const channelCards = staffPage.locator(".channel-card");
     const storefrontChannel = staffPage
       .locator(".channel-card")
       .filter({ hasText: "หน้าร้าน" });
@@ -1268,28 +1254,45 @@ try {
           document.querySelector(".product-card"),
       ),
     );
-    if ((await storefrontChannel.count()) === 1)
+    if ((await channelCards.count()) > 0) {
+      assert(
+        (await storefrontChannel.count()) === 1,
+        "The Staff storefront channel is unavailable",
+      );
       await storefrontChannel.click();
-    await (
-      await unique(
-        staffPage
-          .locator(".product-card")
-          .filter({ hasText: legacyProduct.data().name }),
-        "legacy-compatible Staff product",
-      )
-    ).click();
-    const legacyChoices = staffPage.locator(".modal-card .choice:enabled");
-    if (legacyProduct.data().optionMode !== "none") {
-      await legacyChoices.first().waitFor();
-      await legacyChoices.first().click();
     }
     await (
       await unique(
-        staffPage
-          .locator(".modal-card .primary")
-          .filter({ hasText: "เพิ่มลงตะกร้า" }),
-        "legacy Staff add-to-cart action",
+        staffPage.locator(".product-card").first(),
+        "legacy-compatible Staff product",
       )
+    ).click();
+    const legacyModal = staffPage.locator(".modal-card");
+    await legacyModal.waitFor();
+    const legacyChoices = staffPage.locator(".modal-card .choice:enabled");
+    if ((await legacyChoices.count()) > 0) await legacyChoices.first().click();
+    const legacyAddButton = legacyModal
+      .locator(".primary")
+      .filter({ hasText: "เพิ่มลงตะกร้า" });
+    const firstToppingIncrease = legacyModal
+      .locator(".topping-row")
+      .first()
+      .locator("button")
+      .last();
+    for (
+      let attempt = 0;
+      !(await legacyAddButton.isEnabled()) &&
+      (await firstToppingIncrease.count()) > 0 &&
+      attempt < 10;
+      attempt += 1
+    )
+      await firstToppingIncrease.click();
+    assert(
+      await legacyAddButton.isEnabled(),
+      "The current Staff product could not satisfy its option requirements",
+    );
+    await (
+      await unique(legacyAddButton, "legacy Staff add-to-cart action")
     ).click();
     await staffPage.goto(`${baseUrl}/cart`, { waitUntil: "domcontentloaded" });
     await staffPage.getByPlaceholder("ลูกค้าทั่วไป").fill(legacyMarker);
