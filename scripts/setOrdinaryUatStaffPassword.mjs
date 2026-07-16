@@ -7,12 +7,10 @@ const expectedProjectId = "greek-yogert-customer-uat-2026";
 const expectedCapableEmail = "greekmore.uat@gmail.com";
 const expectedOrdinaryEmail = "greekmore.staff.uat@gmail.com";
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
-const capableEmail = process.env.CUSTOMER_UAT_MANAGER_EMAIL
-  ?.trim()
-  .toLowerCase();
-const ordinaryEmail = process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL
-  ?.trim()
-  .toLowerCase();
+const capableEmail =
+  process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
+const ordinaryEmail =
+  process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL?.trim().toLowerCase();
 const password = process.env.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD;
 
 if (projectId !== expectedProjectId)
@@ -23,7 +21,11 @@ if (capableEmail !== expectedCapableEmail)
   throw new Error("The exact capable UAT Staff account is required");
 if (ordinaryEmail !== expectedOrdinaryEmail)
   throw new Error("The exact ordinary UAT Staff account is required");
-if (typeof password !== "string" || password.length < 8 || password.length > 128)
+if (
+  typeof password !== "string" ||
+  password.length < 8 ||
+  password.length > 128
+)
   throw new Error("The hidden UAT password must contain 8 to 128 characters");
 
 const app = initializeApp({ credential: applicationDefault(), projectId });
@@ -35,12 +37,16 @@ const [capableBefore, ordinaryBefore] = await Promise.all([
   auth.getUserByEmail(ordinaryEmail),
 ]);
 if (capableBefore.disabled || ordinaryBefore.disabled)
-  throw new Error("Both approved UAT Staff Authentication users must be active");
+  throw new Error(
+    "Both approved UAT Staff Authentication users must be active",
+  );
 if (
   capableBefore.email?.toLowerCase() !== capableEmail ||
   ordinaryBefore.email?.toLowerCase() !== ordinaryEmail
 )
-  throw new Error("An approved UAT Authentication email does not match exactly");
+  throw new Error(
+    "An approved UAT Authentication email does not match exactly",
+  );
 
 const [capableAuthorizationBefore, ordinaryAuthorizationBefore] =
   await Promise.all([
@@ -91,13 +97,17 @@ const capableAuthBoundaryBefore = {
 
 await auth.updateUser(ordinaryBefore.uid, { password });
 
-const [capableAfter, ordinaryAfter, capableAuthorizationAfter, ordinaryAuthorizationAfter] =
-  await Promise.all([
-    auth.getUser(capableBefore.uid),
-    auth.getUser(ordinaryBefore.uid),
-    firestore.doc(`users/${capableBefore.uid}`).get(),
-    firestore.doc(`users/${ordinaryBefore.uid}`).get(),
-  ]);
+const [
+  capableAfter,
+  ordinaryAfter,
+  capableAuthorizationAfter,
+  ordinaryAuthorizationAfter,
+] = await Promise.all([
+  auth.getUser(capableBefore.uid),
+  auth.getUser(ordinaryBefore.uid),
+  firestore.doc(`users/${capableBefore.uid}`).get(),
+  firestore.doc(`users/${ordinaryBefore.uid}`).get(),
+]);
 const ordinaryAuthBoundaryAfter = {
   uid: ordinaryAfter.uid,
   email: ordinaryAfter.email,
