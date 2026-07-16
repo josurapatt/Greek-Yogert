@@ -762,8 +762,12 @@ try {
   await staffPage.goto(`${baseUrl}/products`, {
     waitUntil: "domcontentloaded",
   });
+  const productAvailabilityControl = staffPage.locator(
+    ".global-packaging-control",
+  );
+  await productAvailabilityControl.waitFor();
   assert(
-    (await staffPage.locator(".global-packaging-control").count()) === 1,
+    (await productAvailabilityControl.count()) === 1,
     "Products is not the sole Staff-facing global topping packaging control",
   );
   await staffPage.goto(`${baseUrl}/settings#customer-ordering`, {
