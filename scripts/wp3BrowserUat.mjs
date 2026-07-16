@@ -113,6 +113,36 @@ async function unique(locator, description) {
   return locator;
 }
 
+async function invokeReactClick(locator, description, startAt = 0) {
+  await locator.evaluate(
+    async (button, input) => {
+      if (input.startAt > Date.now())
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, input.startAt - Date.now()),
+        );
+      const propsKey = Object.keys(button).find((key) =>
+        key.startsWith("__reactProps$"),
+      );
+      if (!propsKey || typeof button[propsKey]?.onClick !== "function")
+        throw new Error(`${input.description} handler is unavailable`);
+      button[propsKey].onClick();
+    },
+    { description, startAt },
+  );
+}
+
+async function convergeCustomerPageToStatus(page) {
+  await page.waitForFunction(() => {
+    if (window.location.pathname.includes("/order/status/")) return true;
+    return [...document.querySelectorAll("a")].some((entry) =>
+      entry.textContent?.includes("กลับไปดูสถานะคำขอเดิม"),
+    );
+  });
+  if (!new URL(page.url()).pathname.includes("/order/status/"))
+    await page.getByRole("link", { name: "กลับไปดูสถานะคำขอเดิม" }).click();
+  await page.waitForURL(/\/order\/status\//);
+}
+
 function businessDate() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Bangkok",
@@ -400,14 +430,23 @@ try {
     (await firstSubmit.isEnabled()) && (await secondSubmit.isEnabled()),
     "Both Customer tabs were not ready before the shared-boundary race",
   );
+  const synchronizedClickAt = Date.now() + 750;
   await Promise.all([
-    firstSubmit.evaluate((button) => button.click()),
-    secondSubmit.evaluate((button) => button.click()),
+    invokeReactClick(
+      firstSubmit,
+      "first-tab Customer submit",
+      synchronizedClickAt,
+    ),
+    invokeReactClick(
+      secondSubmit,
+      "second-tab Customer submit",
+      synchronizedClickAt,
+    ),
   ]);
   try {
     await Promise.all([
-      customerPage.waitForURL(/\/order\/status\//),
-      secondCustomerPage.waitForURL(/\/order\/status\//),
+      convergeCustomerPageToStatus(customerPage),
+      convergeCustomerPageToStatus(secondCustomerPage),
     ]);
   } catch (cause) {
     const [persisted, privateControl, publicControl, policy, projection] =
@@ -572,14 +611,7 @@ try {
   const blockedProduct = secondCustomerPage
     .getByRole("button")
     .filter({ hasText: "Apple Ohlala" });
-  await blockedProduct.evaluate((button) => {
-    const propsKey = Object.keys(button).find((key) =>
-      key.startsWith("__reactProps$"),
-    );
-    if (!propsKey || typeof button[propsKey]?.onClick !== "function")
-      throw new Error("Blocked product handler is unavailable");
-    button[propsKey].onClick();
-  });
+  await invokeReactClick(blockedProduct, "blocked product");
   await secondCustomerPage
     .getByRole("button", { name: "ช็อกโกแลต", exact: true })
     .click();
@@ -593,14 +625,7 @@ try {
   const blockedSubmit = secondCustomerPage.getByRole("button", {
     name: "ส่งคำขอให้ร้านยืนยัน",
   });
-  await blockedSubmit.evaluate((button) => {
-    const propsKey = Object.keys(button).find((key) =>
-      key.startsWith("__reactProps$"),
-    );
-    if (!propsKey || typeof button[propsKey]?.onClick !== "function")
-      throw new Error("Blocked submit handler is unavailable");
-    button[propsKey].onClick();
-  });
+  await invokeReactClick(blockedSubmit, "blocked submit");
   await secondCustomerPage.locator(".customer-cart .validation").waitFor();
 
   const [ownerRequestsAfter, markerRequestsAfter] = await Promise.all([
