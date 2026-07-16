@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { applicationDefault, initializeApp } from "firebase-admin/app";
+import { readFileSync } from "node:fs";
+import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import { deleteApp, initializeApp as initializeClientApp } from "firebase/app";
@@ -28,6 +29,7 @@ const ordinaryEmail = process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL
   ?.trim()
   .toLowerCase();
 const ordinaryPassword = process.env.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD;
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 
 if (projectId !== expectedProjectId)
@@ -45,12 +47,31 @@ if (
   ordinaryPassword.length > 128
 )
   throw new Error("The ephemeral ordinary Staff password is unavailable");
+if (!credentialsPath)
+  throw new Error("The isolated UAT service-account credential is unavailable");
+
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(readFileSync(credentialsPath, "utf8"));
+} catch {
+  throw new Error("The isolated UAT service-account credential is malformed");
+}
+if (
+  serviceAccount?.type !== "service_account" ||
+  serviceAccount.project_id !== expectedProjectId ||
+  typeof serviceAccount.client_email !== "string" ||
+  !serviceAccount.client_email.endsWith(
+    `@${expectedProjectId}.iam.gserviceaccount.com`,
+  ) ||
+  typeof serviceAccount.private_key !== "string"
+)
+  throw new Error("The service-account credential is outside the UAT boundary");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const adminApp = initializeApp({ credential: applicationDefault(), projectId });
+const adminApp = initializeApp({ credential: cert(serviceAccount), projectId });
 const adminAuth = getAdminAuth(adminApp);
 const adminFirestore = getAdminFirestore(adminApp);
 const [capableAccount, ordinaryAccount] = await Promise.all([
