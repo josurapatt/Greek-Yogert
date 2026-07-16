@@ -124,7 +124,7 @@ let capableClientFirestore;
 let controlRestored = false;
 let validationFailure;
 const cleanupFailures = [];
-const temporaryAnonymousUids = new Set();
+const temporaryAnonymousIdentities = new Map();
 
 function recordCleanupFailure(operation, cause) {
   cleanupFailures.push({
@@ -350,7 +350,8 @@ try {
       response.url().includes("accounts:signUp")
     ) {
       const body = await response.json().catch(() => null);
-      if (body?.localId) temporaryAnonymousUids.add(body.localId);
+      if (body?.localId && body?.idToken)
+        temporaryAnonymousIdentities.set(body.localId, body.idToken);
     }
   });
   await customerPage.goto(`${baseUrl}/order`, {
@@ -450,11 +451,23 @@ try {
     await browser
       .close()
       .catch((cause) => recordCleanupFailure("close-browser", cause));
-  for (const uid of temporaryAnonymousUids)
-    await adminAuth.deleteUser(uid).catch((cause) => {
-      if (cause?.code !== "auth/user-not-found")
-        recordCleanupFailure("delete-temporary-anonymous-user", cause);
+  for (const idToken of temporaryAnonymousIdentities.values()) {
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      },
+    ).catch((cause) => {
+      recordCleanupFailure("delete-temporary-anonymous-user", cause);
+      return null;
     });
+    if (response && !response.ok)
+      recordCleanupFailure("delete-temporary-anonymous-user", {
+        code: `identity-http-${response.status}`,
+      });
+  }
 }
 
 if (cleanupFailures.length)
