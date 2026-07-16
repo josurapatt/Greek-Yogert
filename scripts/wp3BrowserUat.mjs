@@ -35,6 +35,7 @@ let queueNumber;
 let validationFailure;
 let humanUatEvidence = null;
 const paginationOrderIds = [];
+const temporaryRequestIds = new Set();
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -448,6 +449,7 @@ try {
         })),
       };
     });
+    persisted.docs.forEach((entry) => temporaryRequestIds.add(entry.id));
     throw new Error(
       `Customer submit did not navigate: ${JSON.stringify({
         url: customerPage.url(),
@@ -486,6 +488,7 @@ try {
     );
   }
   requestId = new URL(customerPage.url()).pathname.split("/").at(-1);
+  temporaryRequestIds.add(requestId);
   const secondTabRequestId = new URL(secondCustomerPage.url()).pathname
     .split("/")
     .at(-1);
@@ -1074,14 +1077,22 @@ try {
     );
     await batch.commit().catch((cause) => cleanupFailures.push(cause));
   }
-  if (requestId)
-    await deleteTemporaryOperationalAudit(requestId).catch((cause) =>
+  await firestore
+    .collection("customerOrderRequests")
+    .where("customerName", "==", marker)
+    .get()
+    .then((snapshot) =>
+      snapshot.docs.forEach((entry) => temporaryRequestIds.add(entry.id)),
+    )
+    .catch((cause) => cleanupFailures.push(cause));
+  for (const id of temporaryRequestIds) {
+    await deleteTemporaryOperationalAudit(id).catch((cause) =>
       cleanupFailures.push(cause),
     );
-  if (requestId)
-    await deleteNormalizedRequest(requestId).catch((cause) =>
+    await deleteNormalizedRequest(id).catch((cause) =>
       cleanupFailures.push(cause),
     );
+  }
   await deleteTemporaryOperationalAudit(negativeRequestId).catch((cause) =>
     cleanupFailures.push(cause),
   );
@@ -1101,16 +1112,14 @@ try {
     await deleteIdentity(identity).catch((cause) =>
       cleanupFailures.push(cause),
     );
-  if (requestId) {
+  for (const id of temporaryRequestIds) {
     const [parent, items, groups, audits] = await Promise.all([
-      firestore.doc(`customerOrderRequests/${requestId}`).get(),
-      firestore.collection(`customerOrderRequests/${requestId}/items`).get(),
-      firestore
-        .collection(`customerOrderRequests/${requestId}/itemGroups`)
-        .get(),
+      firestore.doc(`customerOrderRequests/${id}`).get(),
+      firestore.collection(`customerOrderRequests/${id}/items`).get(),
+      firestore.collection(`customerOrderRequests/${id}/itemGroups`).get(),
       firestore
         .collection("customerOrderingAuditEvents")
-        .where("requestId", "==", requestId)
+        .where("requestId", "==", id)
         .get(),
     ]).catch((cause) => {
       cleanupFailures.push(cause);
