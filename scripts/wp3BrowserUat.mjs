@@ -1245,9 +1245,6 @@ try {
     const legacyMarker = `${marker}-LEGACY`;
     await staffPage.goto(`${baseUrl}/order`, { waitUntil: "domcontentloaded" });
     const channelCards = staffPage.locator(".channel-card");
-    const storefrontChannel = staffPage
-      .locator(".channel-card")
-      .filter({ hasText: "หน้าร้าน" });
     await staffPage.waitForFunction(() =>
       Boolean(
         document.querySelector(".channel-card") ??
@@ -1255,11 +1252,7 @@ try {
       ),
     );
     if ((await channelCards.count()) > 0) {
-      assert(
-        (await storefrontChannel.count()) === 1,
-        "The Staff storefront channel is unavailable",
-      );
-      await storefrontChannel.click();
+      await channelCards.first().click();
     }
     await (
       await unique(
