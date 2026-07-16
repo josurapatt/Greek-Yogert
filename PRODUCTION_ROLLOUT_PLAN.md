@@ -45,12 +45,14 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - WP3 governance: Complete after exact-head approval, squash merge, and post-merge status update
 - Work Package 4 branch: `feature/anonymous-abuse-controls`
 - Work Package 4 Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
-- Work Package 4 consolidated validated implementation head: `2e7180ae5c1a5ab57ef544601428f973764685f8`
-- Work Package 4 consolidated isolated-UAT workflow: `29501510514`, successful
+- Work Package 4 final Human-UAT implementation head: `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`
+- Work Package 4 final isolated-UAT workflow: `29503666183`, successful
 - Work Package 4 Projection V2 fingerprint: `wp4-5c4fce122e7d5d4f`
 - Work Package 4 Human-UAT defects and root causes: silent limit controls, inherited grid collapse, cleared status pointer, cooldown-only duplicate guard, concurrent Anonymous-UID initialization, and unclear capable-account workflow; corrected and automated-revalidated
 - Work Package 4 implementation and consolidated automated isolated-UAT rehearsal: Complete (213 application tests, 22 Rules tests, responsive Settings controls, processing-only Customer Requests, Products-only availability control, synchronized two-tab browser UAT, exact cleanup, enabled Human-UAT baseline)
-- Work Package 4 final Human UAT: Pending for the consolidated Settings, Customer Requests, and Products workflow
+- Work Package 4 final Human UAT: Passed all 10 functional items
+- Work Package 4 Customer Requests search-icon Human recheck: Passed
+- Work Package 4 known defects: None
 - Work Package 4 approval and merge: Pending
 - Production changes during Work Package 4: None
 
@@ -64,7 +66,7 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 4 consolidated implementation and automated isolated-UAT rehearsal are complete, but final Human UAT, explicit approval, merge, WP5, and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Work Package 4 implementation, automated isolated UAT, and final Human UAT are complete, but explicit squash-merge approval, merge, WP5, and every Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 

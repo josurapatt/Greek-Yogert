@@ -8,14 +8,14 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/anonymous-abuse-controls`
-- WP4 consolidated implementation head validated in isolated UAT: `2e7180ae5c1a5ab57ef544601428f973764685f8`
+- WP4 final Human-UAT implementation head: `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`
 - Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
-- PR state: Draft; not approved, not Ready for review, and not merged
+- PR state gate: exact-head Ready transition authorized after final checks; squash merge still requires explicit human approval
 - Production status: **No-Go**; Production was not accessed or changed during WP4
 
 ## WP4 implementation state
 
-Production Hardening Work Package 4 implementation and the final operational-control consolidation are automated-revalidated on the feature branch. Final Human UAT, approval, and merge remain pending.
+Production Hardening Work Package 4 implementation, automated isolated UAT, final Human UAT, and the Customer Requests search-icon recheck are complete on the feature branch. No known defects remain. Exact-head Ready verification and explicit squash-merge approval remain pending.
 
 Implemented:
 
@@ -56,9 +56,10 @@ Projection V2 isolated-UAT evidence:
 - [Idempotency run 29382293555](https://github.com/josurapatt/Greek-Yogert/actions/runs/29382293555): 0 planned and 0 performed writes
 - [Final exact-head dry run 29384022168](https://github.com/josurapatt/Greek-Yogert/actions/runs/29384022168): same fingerprint, all six menus plus availability, policy, and control current; 0 planned and 0 performed writes
 
-Latest consolidated automated isolated UAT:
+Latest final automated isolated UAT:
 
-- [Workflow 29501510514](https://github.com/josurapatt/Greek-Yogert/actions/runs/29501510514) succeeded for consolidated implementation head `2e7180ae5c1a5ab57ef544601428f973764685f8`.
+- [Workflow 29503666183](https://github.com/josurapatt/Greek-Yogert/actions/runs/29503666183) succeeded for final implementation head `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`.
+- Desktop, tablet, and mobile browser checks verified the Customer Requests search icon remains centered inside the input, with correct padding, alignment, focus/hover behavior, keyboard navigation, accessible naming, and no overflow.
 - Settings collapsed/anchor behavior and desktop/tablet/mobile layouts passed; Customer Requests contained no Operations or projection-seed controls; Products exposed exactly one global packaging control; capable disable/re-enable, maintenance messaging, disabled-intake status access, and Staff processing while disabled passed.
 - Security/control rehearsal passed ordinary-Staff disable, ordinary-Staff re-enable denial, capable-Staff re-enable, capability self-grant denial, and missing/malformed-control fail-closed behavior while preserving Customer status and Staff processing.
 - Browser rehearsal opened both pages before Anonymous Auth initialization, created one anonymous identity, synchronized both submit handlers at the actual write boundary, waited beyond cooldown, invoked the blocked second submit handler, and kept exactly one request parent, one item document, and one summary document. Both tabs converged on request `26d42c21-864d-4349-9ba7-93fa60a5a04b`, refreshed successfully, and cleared the profile-wide pointer only after terminal confirmation.
@@ -77,6 +78,7 @@ Defects found and corrected during rehearsal:
 - The five-second cooldown was the only post-success duplicate guard, and initial Anonymous sign-in could race before local persistence completed, producing different UIDs in two tabs. Auth persistence/bootstrap and submission locks are now browser-profile scoped; an identity change fails closed; the active pointer cannot be replaced; and the pointer plus exact owned request is revalidated while holding the lock immediately before `writeBatch.commit()`.
 - Re-enable authorization worked but the capable account and visible proof were unclear. The panel now shows explicit capable/ordinary Thai labels, and the exact isolated-UAT account is designated through guarded admin tooling.
 - The final browser failure was a test-harness race against the Operations panel's initial fail-closed render. The rehearsal now waits for the authoritative runtime state and uses non-checkbox action selectors.
+- The Customer Requests search icon floated above the input because undefined `sr-only` styling left redundant label spans in normal grid flow. The spans were removed, the existing accessible names were retained, and the icon is now centered deterministically inside the input. Final Human recheck passed.
 
 ## Environment status
 
@@ -87,7 +89,9 @@ Defects found and corrected during rehearsal:
 - Projection fingerprint: `wp4-5c4fce122e7d5d4f`
 - Automated WP4 implementation/security/browser rehearsal: passed
 - Corrected automated UAT: passed
-- Final Human UAT: pending for the consolidated Settings, Customer Requests, and Products workflow
+- Final Human UAT: passed all 10 functional items
+- Customer Requests search-icon Human recheck: passed
+- Known defects: none
 
 ### Production
 
@@ -99,12 +103,11 @@ Defects found and corrected during rehearsal:
 
 ## Remaining gates
 
-- [ ] PR #8 receives explicit approval
-- [ ] PR #8 changes from Draft only after approval
-- [ ] PR #8 is merged only after approval
+- [ ] PR #8 receives explicit squash-merge approval at the final Ready head
+- [ ] PR #8 is squash-merged only after that approval
 - [ ] WP5 full isolated Production release rehearsal completes
 - [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
 
 ## Immediate next action
 
-Run the final Human UAT checklist for the consolidated Settings, Customer Requests, and Products workflow. Do not change Production, mark PR #8 Ready, merge, or start WP5 before explicit approval.
+Complete exact-head validation, change PR #8 to Ready for Review, and stop for explicit human squash-merge approval. Do not merge, change Production, or start WP5.

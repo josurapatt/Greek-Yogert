@@ -141,7 +141,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — final UX consolidation automated-revalidated; final Human UAT pending**
+**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — implementation and final Human UAT complete; exact-head squash-merge approval pending**
 
 Current state:
 
@@ -159,10 +159,11 @@ Current state:
 - [x] Customer QR controls were consolidated under the collapsed-by-default Settings section with direct-anchor expansion; Customer Requests is processing-only with search, filters, and pagination; Products is the sole Staff availability UI.
 - [x] The private topping-availability map remains the canonical transactional input for Products, Projection V2, Customer rendering, and trusted confirmation; no legacy or historical records were migrated or rewritten.
 - [x] Exact-head workflow `29501510514` passed the final isolated-UAT deployment, security/control tests, responsive Settings checks, Products-only control check, Customer Requests regression, real Customer-to-Staff flow, Queue, History, Reports, Excel, and cleanup at `2e7180ae5c1a5ab57ef544601428f973764685f8`.
+- [x] Exact-head workflow `29503666183` passed final isolated UAT at `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`, including desktop/tablet/mobile Customer Requests search-icon geometry, focus/hover, keyboard, accessibility, and regression checks.
 - [x] The capable UAT Staff authorization was verified unchanged; the dedicated ordinary UAT Staff was designated active without re-enable capability.
 - [x] Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed.
-- [ ] Complete final Human UAT for the consolidated Settings, Customer Requests, and Products workflow.
-- [ ] Obtain explicit approval before changing PR #8 from Draft, merging it, or starting WP5.
+- [x] Final Human UAT passed all 10 functional items; the Customer Requests search-icon Human recheck also passed; no known defects remain.
+- [ ] Obtain explicit approval before squash-merging PR #8 or starting WP5.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -187,7 +188,7 @@ Current state:
 - [x] Production Hardening Work Package 2 squash merge complete
 - [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
 - [x] Production Hardening Work Package 3 exact-head PR approval and squash merge complete
-- [ ] Production Hardening Work Package 4 — consolidated implementation and automated isolated-UAT rehearsal complete; final Human UAT, approval, and merge pending
+- [ ] Production Hardening Work Package 4 — implementation, automated isolated UAT, and final Human UAT complete; exact-head squash-merge approval and merge pending
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
