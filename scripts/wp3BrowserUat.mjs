@@ -1311,7 +1311,7 @@ try {
     legacyOrderId = legacyOrders.docs[0].id;
     await staffPage.getByRole("link").filter({ hasText: legacyMarker }).click();
     await staffPage.getByRole("button", { name: "ยกเลิกออเดอร์" }).click();
-    await staffPage.waitForURL(`${baseUrl}/queue`);
+    await staffPage.getByRole("button", { name: "นำกลับเข้าคิว" }).waitFor();
   }
   await (
     await unique(
