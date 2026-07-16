@@ -1,11 +1,29 @@
 import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { readFileSync } from "node:fs";
 
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const managerEmail =
   process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
 const allowedManagerEmail = "greekmore.uat@gmail.com";
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+function readCredentialPrincipal() {
+  if (!credentialsPath) return "unknown UAT CI principal";
+  try {
+    const value = JSON.parse(readFileSync(credentialsPath, "utf8"));
+    const email =
+      typeof value.client_email === "string" ? value.client_email : "";
+    if (
+      email.endsWith("@greek-yogert-customer-uat-2026.iam.gserviceaccount.com")
+    )
+      return email;
+  } catch {
+    // Never include credential file contents in the failure output.
+  }
+  return "unknown UAT CI principal";
+}
 
 if (projectId !== "greek-yogert-customer-uat-2026")
   throw new Error(
@@ -27,6 +45,10 @@ try {
   if (cause?.code === "auth/user-not-found")
     throw new Error(
       "The approved isolated-UAT Firebase Authentication account does not exist",
+    );
+  if (cause?.code === "auth/insufficient-permission")
+    throw new Error(
+      `UAT CI principal ${readCredentialPrincipal()} requires Firebase Authentication Viewer in project ${projectId}`,
     );
   throw cause;
 }
