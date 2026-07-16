@@ -49,6 +49,20 @@ jobs:
           test "$VITE_APP_ENVIRONMENT" = "customer-qr-uat"
           test "$VITE_CUSTOMER_QR_ENABLED" = "true"
           pnpm build
+      - name: Capture preserved WP4 Human-UAT evidence before deployment
+        if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp4:human-diagnostics
       - name: Deploy isolated UAT Firebase resources
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
