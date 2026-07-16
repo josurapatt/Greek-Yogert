@@ -573,8 +573,9 @@ try {
     .getByRole("button")
     .filter({ hasText: "Apple Ohlala" });
   await blockedProduct.evaluate((button) => {
-    button.removeAttribute("disabled");
-    button.click();
+    button.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
   });
   await secondCustomerPage
     .getByRole("button", { name: "ช็อกโกแลต", exact: true })
@@ -590,8 +591,9 @@ try {
     name: "ส่งคำขอให้ร้านยืนยัน",
   });
   await blockedSubmit.evaluate((button) => {
-    button.removeAttribute("disabled");
-    button.click();
+    button.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
   });
   await secondCustomerPage.locator(".customer-cart .validation").waitFor();
 
