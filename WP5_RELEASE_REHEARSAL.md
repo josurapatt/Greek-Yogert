@@ -8,7 +8,7 @@ disabled and Production remains No-Go.
 
 The dedicated workflow is
 `.github/workflows/full-isolated-production-release-rehearsal.yml`. It can run
-only from the WP5 Draft PR branch or by a manual exact-SHA dispatch, uses only
+only from the WP5 PR branch or by a manual exact-SHA dispatch, uses only
 the `customer-qr-uat` GitHub environment, rejects the Production project, and
 never calls a Production workflow.
 
@@ -180,63 +180,61 @@ Official references:
 
 ## Verified automated evidence
 
-The Draft PR's implementation-head rehearsal [29513578393](https://github.com/josurapatt/Greek-Yogert/actions/runs/29513578393) succeeded at exact SHA `9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df` against only `greek-yogert-customer-uat-2026`.
+The PR's final implementation-head rehearsal [29514726894](https://github.com/josurapatt/Greek-Yogert/actions/runs/29514726894) succeeded at exact SHA `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` against only `greek-yogert-customer-uat-2026`.
 
 - 235 application tests across 27 files and 22 canonical Firestore Emulator tests passed; lint, TypeScript, all three builds, formatting, workflow/static checks, diff integrity, and credential scans passed.
 - Rules SHA-256 was `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`; indexes SHA-256 was `90e5075281d826511a99bc42433f8c86753455284bfd8eba143f0e242e32e991`; all six composite indexes were Ready.
 - Projection V2 fingerprint was `wp4-5c4fce122e7d5d4f`. Dry-run, reviewed apply, and idempotency each required 0 writes because the isolated target was already current; forbidden namespaces were absent.
 - The full production-like Customer-to-Staff and direct legacy Staff browser flows passed, as did ordinary disable, ordinary re-enable denial, client self-grant denial, capable restore, bounded monitoring, Customer-disabled rollback, byte-identical enabled restoration, and post-restore anonymous security denials.
 - Final state was Customer Ordering enabled, both Auth providers ready, designated Staff unchanged, and 0 temporary WP5 requests/Orders. Only bounded control-audit evidence was retained.
-- Rollback bundle SHA-256 was `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; release-manifest SHA-256 was `a5adc794793b258b4092dbea59e4226cd48fb410bfd832626bf296c834183466`.
-- Sanitized evidence artifact `wp5-isolated-release-rehearsal-9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df` is retained for 30 days. No Production project, workflow, Authentication, IAM, Firestore, Hosting, API, billing, or business data was accessed or changed.
+- Rollback bundle SHA-256 was `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; release-manifest SHA-256 was `4506ed9e00878c1fb1ed373706020da7bcfb4257f75b3c404002908b7cd48b16`.
+- Sanitized evidence artifact `wp5-isolated-release-rehearsal-b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` is retained for 30 days. No Production project, workflow, Authentication, IAM, Firestore, Hosting, API, billing, or business data was accessed or changed.
 
-Automated evidence does not complete WP5. The Human UAT checklist below remains mandatory, and the PR remains Draft/open/unmerged.
+Final Human UAT passed with no known defects. Trusted-mismatch no-write protection and audit evidence were accepted from this automated evidence without requiring manual repetition. PR #9 remains open and unmerged; exact-head approval and merge remain separate.
 
 ## WP5 Human UAT checklist
 
-Run only after the Draft PR's exact-head automated workflow succeeds. Human UAT
-does not approve Ready status, merge, or Production.
+The following checklist records the final Human UAT accepted on 2026-07-16.
+Human UAT does not approve merge or Production.
 
-- [ ] Record the exact Draft PR head SHA and matching successful workflow run.
-- [ ] Confirm the visible URL is the isolated UAT Hosting domain.
-- [ ] Sign in with the designated capable Staff account; do not change its
+- [x] Record exact implementation head `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` and successful workflow `29514726894`.
+- [x] Confirm the visible URL is the isolated UAT Hosting domain.
+- [x] Sign in with the designated capable Staff account; do not change its
       password or authorization.
-- [ ] Verify Home, Staff Order, Queue, History, Reports, Products, Settings, and
+- [x] Verify Home, Staff Order, Queue, History, Reports, Products, Settings, and
       Customer Requests.
-- [ ] Confirm the Staff header shows Production display behavior and no
+- [x] Confirm the Staff header shows Production display behavior and no
       Demo/UAT label or seed action is visible.
-- [ ] Confirm Settings Customer QR is collapsed by default.
-- [ ] Open `/settings#customer-ordering`; confirm expansion and focus.
-- [ ] Confirm Customer Requests has no ordering controls and Products is the
+- [x] Confirm Settings Customer QR is collapsed by default.
+- [x] Open `/settings#customer-ordering`; confirm expansion and focus.
+- [x] Confirm Customer Requests has no ordering controls and Products is the
       sole availability-control UI.
-- [ ] Open `/order` in a fresh customer profile and confirm the production-like
+- [x] Open `/order` in a fresh customer profile and confirm the production-like
       Customer flow with no UAT label.
-- [ ] Compare sampled public menu, availability, packaging, and option labels
+- [x] Compare sampled public menu, availability, packaging, and option labels
       with Products/current UAT configuration.
-- [ ] Create one low-value two-line request with packaging/options and the
+- [x] Create one low-value two-line request with packaging/options and the
       unique Human marker.
-- [ ] Confirm pending status, refresh persistence, and same-profile two-tab
+- [x] Confirm pending status, refresh persistence, and same-profile two-tab
       convergence on exactly one request.
-- [ ] Confirm it through Staff with mixed payment; verify exactly one Order and
+- [x] Confirm it through Staff with mixed payment; verify exactly one Order and
       one queue allocation.
-- [ ] Verify confirmed Customer status, Queue details, then complete or cancel
+- [x] Verify confirmed Customer status, Queue details, then complete or cancel
       using the agreed safe UAT fixture.
-- [ ] Verify History, Reports, and Excel values and labels.
-- [ ] Submit the controlled trusted mismatch; verify visible rejection, no
-      Order, no queue allocation, and no partial write.
-- [ ] Create one direct legacy-compatible Staff Order and verify Queue,
+- [x] Verify History, Reports, and Excel values and labels.
+- [x] Accept the automated controlled trusted-mismatch evidence: visible rejection, no Order, no queue allocation, and no partial write; manual repetition was not required.
+- [x] Create one direct legacy-compatible Staff Order and verify Queue,
       History, Reports, and Excel.
-- [ ] Sign in as ordinary Staff, disable intake, and verify the configured
+- [x] Sign in as ordinary Staff, disable intake, and verify the configured
       maintenance message.
-- [ ] Verify an existing Customer status and existing request processing while
+- [x] Verify an existing Customer status and existing request processing while
       intake is disabled.
-- [ ] Confirm ordinary Staff cannot re-enable or self-grant capability.
-- [ ] Sign in as capable Staff, re-enable with a reason and explicit
-      confirmation, and verify audit evidence.
-- [ ] Check Thai boundary feedback, cooldown-expired duplicate prevention,
+- [x] Confirm ordinary Staff cannot re-enable or self-grant capability.
+- [x] Sign in as capable Staff and re-enable; accept the automated reason, explicit-confirmation, and audit evidence without requiring manual audit inspection.
+- [x] Check Thai boundary feedback, cooldown-expired duplicate prevention,
       terminal pointer clearing, and readable Warning/Critical indicators.
-- [ ] Confirm the final isolated-UAT Customer Ordering state is enabled and no
+- [x] Confirm the final isolated-UAT Customer Ordering state is enabled and no
       temporary Human-UAT request/Order remains, except deliberately retained
       bounded audit evidence.
-- [ ] Confirm Production was not accessed, Production Customer QR is disabled,
-      the PR remains Draft/open/unmerged, and Production remains No-Go.
+- [x] Confirm Production was not accessed, Production Customer QR is disabled,
+      PR #9 remains open/unmerged, and Production remains No-Go.

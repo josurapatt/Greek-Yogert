@@ -9,9 +9,9 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/full-isolated-production-release-rehearsal`
 - WP5 base `main` SHA: `bcac47999734d2dfbb887401908b5423dae8e9b1`
-- WP5 verified automated-rehearsal head: `9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df`
-- WP5 PR: [#9 — Full isolated Production release rehearsal](https://github.com/josurapatt/Greek-Yogert/pull/9) — Draft, open, and unmerged
-- WP5 exact-head workflow: [29513578393](https://github.com/josurapatt/Greek-Yogert/actions/runs/29513578393) — successful
+- WP5 verified automated-rehearsal head: `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d`
+- WP5 PR: [#9 — Full isolated Production release rehearsal](https://github.com/josurapatt/Greek-Yogert/pull/9) — open and unmerged; Ready-for-Review transition authorized only after the final documentation head passes every required check
+- WP5 exact-head workflow: [29514726894](https://github.com/josurapatt/Greek-Yogert/actions/runs/29514726894) — successful
 - WP4 final Human-UAT implementation head: `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`
 - WP4 approved PR head: `b69c220b973d537b15dbb05bbd6317e83d192eba`
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
@@ -21,7 +21,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## WP5 implementation and automated rehearsal state
 
-Production Hardening Work Package 5 implementation and the exact-head full isolated Production release rehearsal are complete on the Draft PR branch. Human UAT is pending, so WP5 is not complete and the PR must remain Draft/open/unmerged.
+Production Hardening Work Package 5 implementation, exact-head full isolated Production release rehearsal, rollback rehearsal, and final Human UAT are complete with no known defects. Trusted-mismatch no-write protection and control-audit evidence were accepted from the automated evidence. The PR may move to Ready for Review only after the documentation follow-up head passes every final check; merge still requires separate explicit exact-head approval.
 
 Implemented and verified:
 
@@ -34,7 +34,7 @@ Implemented and verified:
 
 ## WP4 implementation state
 
-Production Hardening Work Package 4 implementation, automated isolated UAT, final Human UAT, Customer Requests search-icon recheck, exact-head approval, and squash merge are complete on `main`. No known WP4 defects remain. WP5 automated work is recorded above; WP5 Human UAT remains pending.
+Production Hardening Work Package 4 implementation, automated isolated UAT, final Human UAT, Customer Requests search-icon recheck, exact-head approval, and squash merge are complete on `main`. No known WP4 defects remain. WP5 automated and Human-UAT evidence is recorded above.
 
 Implemented:
 
@@ -101,7 +101,7 @@ Defects found and corrected during rehearsal:
 
 ## WP5 automated release-rehearsal evidence
 
-- [Exact-head workflow 29513578393](https://github.com/josurapatt/Greek-Yogert/actions/runs/29513578393) succeeded at `9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df` and uploaded the sanitized artifact `wp5-isolated-release-rehearsal-9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df`.
+- [Exact-head workflow 29514726894](https://github.com/josurapatt/Greek-Yogert/actions/runs/29514726894) succeeded at `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` and uploaded the sanitized artifact `wp5-isolated-release-rehearsal-b11ed1a1b1a3265460e0ac75f266fbdb93dd662d`.
 - Application tests: 235 passed across 27 files. Canonical Firestore Emulator tests: 22 passed. Lint, TypeScript, Production-disabled build, ordinary UAT-enabled build, production-like release-rehearsal build, formatting, workflow validation, diff checks, and credential scans passed.
 - Canonical Rules SHA-256: `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`. Canonical indexes SHA-256: `90e5075281d826511a99bc42433f8c86753455284bfd8eba143f0e242e32e991`. All six required composite indexes were Ready.
 - Projection V2 fingerprint remained `wp4-5c4fce122e7d5d4f`. Dry-run planned 0 writes, reviewed apply performed 0 writes because UAT was already current, and the idempotency dry-run planned 0 writes. No forbidden namespace was included.
@@ -109,8 +109,16 @@ Defects found and corrected during rehearsal:
 - Existing designated accounts passed capable/ordinary authorization checks. Ordinary Staff disable passed; ordinary re-enable and client self-grant were denied; capable restore passed. Their passwords, designated identities, and authorization documents were not mutated.
 - Rollback deployed a Customer-disabled Hosting build while keeping hardened Rules and six indexes active, then restored the exact saved enabled bundle. Rollback bundle SHA-256: `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`.
 - Post-restore security passed: public menu readable; private collections, request listing, and another owner's request denied. Final cleanup passed with zero temporary WP5 requests and Orders, Customer Ordering enabled, designated Staff unchanged, both Auth providers ready, and bounded control-audit evidence retained.
-- Release manifest SHA-256: `a5adc794793b258b4092dbea59e4226cd48fb410bfd832626bf296c834183466`.
+- Release manifest SHA-256: `4506ed9e00878c1fb1ed373706020da7bcfb4257f75b3c404002908b7cd48b16`.
 - No Production Authentication, IAM, Firestore, Hosting, workflow, API, billing, or business data was accessed or changed.
+
+## WP5 final Human UAT evidence
+
+- Production-like Staff UI/routes, Settings collapse/anchor/Customer QR controls, Products-only availability, and Customer menu consistency: passed.
+- Customer request, refresh, same-profile two-tab convergence, mixed-payment confirmation, single Order/queue allocation, Customer status, Queue, History, Reports, Excel, and legacy direct Staff Order: passed.
+- Ordinary Staff disable/re-enable denial, capable Staff restore, Thai limits, duplicate prevention, terminal clearing, final enabled state, and cleanup: passed.
+- Trusted mismatch no-write protection and audit evidence: automated evidence accepted; additional manual repetition was not required.
+- Reported defects: none.
 
 ## Environment status
 
@@ -119,10 +127,10 @@ Defects found and corrected during rehearsal:
 - Firebase project: `greek-yogert-customer-uat-2026`
 - Customer ordering: enabled
 - Projection fingerprint: `wp4-5c4fce122e7d5d4f`
-- WP5 production-like automated release rehearsal: passed at exact implementation head `9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df`
+- WP5 production-like automated release rehearsal: passed at exact implementation head `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d`
 - Rollback and exact enabled-candidate restoration: passed
 - Final temporary WP5 request/Order counts: 0/0
-- WP5 Human UAT: pending
+- WP5 Human UAT: passed with no known defects
 - Automated WP4 implementation/security/browser rehearsal: passed
 - Corrected automated UAT: passed
 - Final Human UAT: passed all 10 functional items
@@ -140,10 +148,11 @@ Defects found and corrected during rehearsal:
 ## Remaining gates
 
 - [x] WP5 implementation and exact-head automated isolated Production release rehearsal complete
-- [ ] WP5 Human UAT completes with no unresolved defects
-- [ ] WP5 Draft PR receives exact-head approval, becomes Ready only after explicit approval, and is merged only after separate explicit approval
+- [x] WP5 Human UAT complete with no known defects; trusted mismatch and audit evidence accepted from automation
+- [ ] PR #9 final documentation head passes all validation and is changed to Ready for Review
+- [ ] PR #9 receives separate explicit exact-head human approval before squash merge
 - [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
 
 ## Immediate next action
 
-Run the `WP5_RELEASE_REHEARSAL.md` Human UAT checklist against the Draft PR's exact successful head. Do not mark the PR Ready, merge it, or change Production without separate explicit approval.
+Validate the documentation follow-up at its exact head, change PR #9 to Ready for Review only if every check passes, then stop and request explicit exact-head human approval before squash merge. Production remains No-Go.
