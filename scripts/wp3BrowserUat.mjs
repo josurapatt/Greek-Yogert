@@ -553,6 +553,10 @@ try {
     secondCustomerPage.reload({ waitUntil: "domcontentloaded" }),
   ]);
   await Promise.all([
+    convergeCustomerPageToStatus(customerPage),
+    convergeCustomerPageToStatus(secondCustomerPage),
+  ]);
+  await Promise.all([
     customerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor(),
     secondCustomerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor(),
   ]);
@@ -777,6 +781,7 @@ try {
     })
     .waitFor();
   await customerPage.reload({ waitUntil: "domcontentloaded" });
+  await convergeCustomerPageToStatus(customerPage);
   await customerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor();
 
   await staffPage.goto(`${baseUrl}/customer-requests/${requestId}`, {
