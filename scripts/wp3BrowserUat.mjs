@@ -1243,24 +1243,46 @@ try {
   await staffPage.waitForURL(`${baseUrl}/queue`);
   if (useDesignatedStaff) {
     const legacyMarker = `${marker}-LEGACY`;
+    const activePrivateProducts = await firestore
+      .collection("products")
+      .where("active", "==", true)
+      .get();
+    const legacyProduct =
+      activePrivateProducts.docs.find(
+        (entry) => entry.data().optionMode === "none",
+      ) ??
+      activePrivateProducts.docs.find(
+        (entry) => entry.data().optionMode !== "toppings",
+      );
+    assert(
+      legacyProduct,
+      "No active legacy-compatible UAT product is available",
+    );
     await staffPage.goto(`${baseUrl}/order`, { waitUntil: "domcontentloaded" });
     const storefrontChannel = staffPage
       .locator(".channel-card")
       .filter({ hasText: "หน้าร้าน" });
+    await staffPage.waitForFunction(() =>
+      Boolean(
+        document.querySelector(".channel-card") ??
+          document.querySelector(".product-card"),
+      ),
+    );
     if ((await storefrontChannel.count()) === 1)
       await storefrontChannel.click();
     await (
       await unique(
-        staffPage.locator(".product-card").filter({ hasText: "Apple Ohlala" }),
+        staffPage
+          .locator(".product-card")
+          .filter({ hasText: legacyProduct.data().name }),
         "legacy-compatible Staff product",
       )
     ).click();
-    await (
-      await unique(
-        staffPage.getByRole("button", { name: "ช็อกโกแลต", exact: true }),
-        "legacy Staff granola option",
-      )
-    ).click();
+    const legacyChoices = staffPage.locator(".modal-card .choice:enabled");
+    if (legacyProduct.data().optionMode !== "none") {
+      await legacyChoices.first().waitFor();
+      await legacyChoices.first().click();
+    }
     await (
       await unique(
         staffPage
