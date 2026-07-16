@@ -27,6 +27,7 @@ const humanUatMarker = "WP4-HUMAN-UAT-DUPLICATE";
 const cleanupFailures = [];
 let staffIdentity;
 let customerIdentity;
+const customerIdentities = new Map();
 let browser;
 let requestId;
 let orderId;
@@ -187,22 +188,42 @@ try {
     viewport: { width: 390, height: 844 },
   });
   const customerPage = await customerContext.newPage();
+  const secondCustomerPage = await customerContext.newPage();
   const customerErrors = await attachConsoleCapture(customerPage);
-  customerPage.on("response", async (response) => {
-    if (
-      !customerIdentity &&
-      response.url().includes("identitytoolkit.googleapis.com") &&
-      response.url().includes("accounts:signUp") &&
-      response.ok()
-    ) {
-      const value = await response.json();
-      if (value.localId && value.idToken) customerIdentity = value;
-    }
-  });
+  const secondCustomerErrors = await attachConsoleCapture(secondCustomerPage);
+  const captureCustomerIdentity = (page) =>
+    page.on("response", async (response) => {
+      if (
+        response.url().includes("identitytoolkit.googleapis.com") &&
+        response.url().includes("accounts:signUp") &&
+        response.ok()
+      ) {
+        const value = await response.json();
+        if (value.localId && value.idToken) {
+          customerIdentities.set(value.localId, value);
+          customerIdentity ??= value;
+        }
+      }
+    });
+  captureCustomerIdentity(customerPage);
+  captureCustomerIdentity(secondCustomerPage);
 
-  await customerPage.goto(`${baseUrl}/order`, {
-    waitUntil: "domcontentloaded",
-  });
+  await Promise.all([
+    customerPage.goto(`${baseUrl}/order`, { waitUntil: "domcontentloaded" }),
+    secondCustomerPage.goto(`${baseUrl}/order`, {
+      waitUntil: "domcontentloaded",
+    }),
+  ]);
+  await Promise.all([
+    customerPage
+      .getByRole("button")
+      .filter({ hasText: "Apple Ohlala" })
+      .waitFor(),
+    secondCustomerPage
+      .getByRole("button")
+      .filter({ hasText: "Apple Ohlala" })
+      .waitFor(),
+  ]);
   await (
     await unique(
       customerPage.getByRole("button").filter({ hasText: "Size S" }),
@@ -331,14 +352,62 @@ try {
   );
   await nameField.fill(marker);
   await noteField.fill("isolated browser UAT");
+
   await (
     await unique(
-      customerPage.getByRole("button", { name: "ส่งคำขอให้ร้านยืนยัน" }),
-      "Customer submit action",
+      secondCustomerPage
+        .getByRole("button")
+        .filter({ hasText: "Apple Ohlala" }),
+      "second-tab Apple Ohlala Customer product",
     )
   ).click();
+  await (
+    await unique(
+      secondCustomerPage.getByRole("button", {
+        name: "ช็อกโกแลต",
+        exact: true,
+      }),
+      "second-tab granola flavor option",
+    )
+  ).click();
+  await (
+    await unique(
+      secondCustomerPage
+        .getByRole("button")
+        .filter({ hasText: "เพิ่มลงตะกร้า" }),
+      "second-tab add-to-cart action",
+    )
+  ).click();
+  await secondCustomerPage
+    .getByPlaceholder("ชื่อเล่น (ไม่บังคับ)")
+    .fill(marker);
+  await secondCustomerPage
+    .getByPlaceholder("หมายเหตุถึงร้าน (ไม่บังคับ)")
+    .fill("isolated browser UAT");
+
+  const firstSubmit = await unique(
+    customerPage.getByRole("button", { name: "ส่งคำขอให้ร้านยืนยัน" }),
+    "first-tab Customer submit action",
+  );
+  const secondSubmit = await unique(
+    secondCustomerPage.getByRole("button", {
+      name: "ส่งคำขอให้ร้านยืนยัน",
+    }),
+    "second-tab Customer submit action",
+  );
+  assert(
+    (await firstSubmit.isEnabled()) && (await secondSubmit.isEnabled()),
+    "Both Customer tabs were not ready before the shared-boundary race",
+  );
+  await Promise.all([
+    firstSubmit.evaluate((button) => button.click()),
+    secondSubmit.evaluate((button) => button.click()),
+  ]);
   try {
-    await customerPage.waitForURL(/\/order\/status\//);
+    await Promise.all([
+      customerPage.waitForURL(/\/order\/status\//),
+      secondCustomerPage.waitForURL(/\/order\/status\//),
+    ]);
   } catch (cause) {
     const [persisted, privateControl, publicControl, policy, projection] =
       await Promise.all([
@@ -382,6 +451,7 @@ try {
     throw new Error(
       `Customer submit did not navigate: ${JSON.stringify({
         url: customerPage.url(),
+        secondTabUrl: secondCustomerPage.url(),
         validationMessages: await customerPage
           .locator(".validation")
           .allTextContents(),
@@ -389,6 +459,7 @@ try {
           .locator('[role="status"]')
           .allTextContents(),
         consoleErrors: customerErrors(),
+        secondTabConsoleErrors: secondCustomerErrors(),
         persistedRequestIds: persisted.docs.map((entry) => entry.id),
         retainedEnvelope,
         privateControl: {
@@ -415,19 +486,69 @@ try {
     );
   }
   requestId = new URL(customerPage.url()).pathname.split("/").at(-1);
+  const secondTabRequestId = new URL(secondCustomerPage.url()).pathname
+    .split("/")
+    .at(-1);
   assert(requestId, "Customer UI did not expose the created request ID");
+  assert(
+    secondTabRequestId === requestId,
+    "The two Customer tabs did not converge on the same request ID",
+  );
   assert(
     customerIdentity?.localId,
     "Customer Anonymous identity was not captured",
   );
+  assert(
+    customerIdentities.size === 1,
+    "The shared browser context created more than one Anonymous identity",
+  );
   await customerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor();
-  await customerPage.reload({ waitUntil: "domcontentloaded" });
-  await customerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor();
+  await secondCustomerPage
+    .getByRole("heading", { name: "รอร้านยืนยัน" })
+    .waitFor();
+  await Promise.all([
+    customerPage.reload({ waitUntil: "domcontentloaded" }),
+    secondCustomerPage.reload({ waitUntil: "domcontentloaded" }),
+  ]);
+  await Promise.all([
+    customerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor(),
+    secondCustomerPage.getByRole("heading", { name: "รอร้านยืนยัน" }).waitFor(),
+  ]);
   const ownerRequestsBefore = await firestore
     .collection("customerOrderRequests")
     .where("ownerUid", "==", customerIdentity.localId)
     .get();
-  const secondCustomerPage = await customerContext.newPage();
+  const markerRequestsBefore = await firestore
+    .collection("customerOrderRequests")
+    .where("customerName", "==", marker)
+    .get();
+  assert(
+    ownerRequestsBefore.size === 1 &&
+      markerRequestsBefore.size === 1 &&
+      markerRequestsBefore.docs[0].id === requestId,
+    "The two-tab race created more than one parent Customer request",
+  );
+  const normalizedParent = markerRequestsBefore.docs[0].data();
+  const [normalizedItems, normalizedGroups] = await Promise.all([
+    firestore.collection(`customerOrderRequests/${requestId}/items`).get(),
+    firestore.collection(`customerOrderRequests/${requestId}/itemGroups`).get(),
+  ]);
+  assert(
+    normalizedItems.size === normalizedParent.itemIds?.length &&
+      normalizedGroups.size === normalizedParent.itemGroupIds?.length &&
+      normalizedItems.docs.every(
+        (entry) =>
+          entry.data().ownerUid === customerIdentity.localId &&
+          entry.data().requestId === requestId,
+      ) &&
+      normalizedGroups.docs.every(
+        (entry) =>
+          entry.data().ownerUid === customerIdentity.localId &&
+          entry.data().requestId === requestId,
+      ),
+    "The converged request did not contain one exact normalized child/group set",
+  );
+
   await secondCustomerPage.goto(`${baseUrl}/order`, {
     waitUntil: "domcontentloaded",
   });
@@ -444,18 +565,51 @@ try {
     (await secondCustomerPage.locator(".product-card:enabled").count()) === 0,
     "Cooldown expiry enabled a second normal-UI submission",
   );
-  const ownerRequestsAfter = await firestore
-    .collection("customerOrderRequests")
-    .where("ownerUid", "==", customerIdentity.localId)
-    .get();
+
+  const blockedProduct = secondCustomerPage
+    .getByRole("button")
+    .filter({ hasText: "Apple Ohlala" });
+  await blockedProduct.evaluate((button) => {
+    button.removeAttribute("disabled");
+    button.click();
+  });
+  await secondCustomerPage
+    .getByRole("button", { name: "ช็อกโกแลต", exact: true })
+    .click();
+  await secondCustomerPage
+    .getByRole("button")
+    .filter({ hasText: "เพิ่มลงตะกร้า" })
+    .click();
+  await secondCustomerPage
+    .getByPlaceholder("ชื่อเล่น (ไม่บังคับ)")
+    .fill(marker);
+  const blockedSubmit = secondCustomerPage.getByRole("button", {
+    name: "ส่งคำขอให้ร้านยืนยัน",
+  });
+  await blockedSubmit.evaluate((button) => {
+    button.removeAttribute("disabled");
+    button.click();
+  });
+  await secondCustomerPage.locator(".customer-cart .validation").waitFor();
+
+  const [ownerRequestsAfter, markerRequestsAfter] = await Promise.all([
+    firestore
+      .collection("customerOrderRequests")
+      .where("ownerUid", "==", customerIdentity.localId)
+      .get(),
+    firestore
+      .collection("customerOrderRequests")
+      .where("customerName", "==", marker)
+      .get(),
+  ]);
   assert(
     ownerRequestsAfter.size === ownerRequestsBefore.size &&
-      ownerRequestsAfter.docs.some((entry) => entry.id === requestId),
-    "Same-profile tabs did not converge on one pending request",
+      markerRequestsAfter.size === markerRequestsBefore.size &&
+      ownerRequestsAfter.docs.some((entry) => entry.id === requestId) &&
+      markerRequestsAfter.docs.some((entry) => entry.id === requestId),
+    "The post-cooldown actual submit handler created another request",
   );
-  await secondCustomerPage
-    .getByRole("link", { name: "กลับไปดูสถานะคำขอเดิม" })
-    .click();
+  await existingStatusLink.click();
   await secondCustomerPage.waitForURL(`${baseUrl}/order/status/${requestId}`);
   await secondCustomerPage
     .getByRole("heading", { name: "รอร้านยืนยัน" })
@@ -463,6 +617,10 @@ try {
   assert(
     customerErrors().length === 0,
     `Customer UI console errors: ${customerErrors().join(" | ")}`,
+  );
+  assert(
+    secondCustomerErrors().length === 0,
+    `Second Customer tab console errors: ${secondCustomerErrors().join(" | ")}`,
   );
 
   const date = businessDate();
@@ -554,7 +712,23 @@ try {
   await operationsPanel
     .getByRole("button", { name: "ปิดรับคำสั่งซื้อฉุกเฉิน" })
     .click();
-  await operationsPanel
+  let disabledControl = null;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    disabledControl = (
+      await firestore.doc("settings/customerOrdering").get()
+    ).data();
+    if (disabledControl?.enabled === false) break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  assert(
+    disabledControl?.enabled === false,
+    "The capable Staff disable action did not reach the UAT write boundary",
+  );
+  await staffPage.reload({ waitUntil: "domcontentloaded" });
+  const reloadedOperationsPanel = staffPage.locator(
+    ".customer-ordering-operations",
+  );
+  await reloadedOperationsPanel
     .locator(".operations-state.disabled")
     .getByText("ปิดรับคำสั่งซื้อใหม่", { exact: true })
     .waitFor();
@@ -844,9 +1018,16 @@ try {
       },
       twoTabConvergence: {
         requestId,
+        tabsOpenedBeforeAuthentication: true,
+        simultaneousWriteBoundaryAttempt: true,
+        anonymousIdentityCount: customerIdentities.size,
         cooldownExpired: true,
+        postCooldownSubmitHandlerAttempt: true,
         ownerRequestCountBefore: ownerRequestsBefore.size,
         ownerRequestCountAfter: ownerRequestsAfter.size,
+        markerRequestCountAfter: markerRequestsAfter.size,
+        normalizedItemDocumentCount: normalizedItems.size,
+        normalizedSummaryDocumentCount: normalizedGroups.size,
         secondSubmissionEnabled: false,
       },
       runtimeControl: {
@@ -916,9 +1097,10 @@ try {
   await deleteIdentity(staffIdentity).catch((cause) =>
     cleanupFailures.push(cause),
   );
-  await deleteIdentity(customerIdentity).catch((cause) =>
-    cleanupFailures.push(cause),
-  );
+  for (const identity of customerIdentities.values())
+    await deleteIdentity(identity).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
   if (requestId) {
     const [parent, items, groups, audits] = await Promise.all([
       firestore.doc(`customerOrderRequests/${requestId}`).get(),

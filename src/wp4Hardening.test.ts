@@ -15,9 +15,11 @@ import {
   parsePublicCustomerOrderingControl,
 } from "./customerOrderingControl";
 import {
+  assertCustomerProfileSubmissionAvailable,
   assertCustomerSubmissionCooldown,
   clearCustomerSubmissionEnvelope,
   loadCustomerActiveRequestId,
+  loadCustomerProfileActiveRequest,
   loadCustomerSubmissionEnvelope,
   markCustomerSubmissionUncertain,
   markCustomerSubmissionSubmitted,
@@ -231,22 +233,40 @@ describe("WP4 stable retry envelope", () => {
     expect(loadCustomerActiveRequestId("owner")).toBeNull();
   });
 
-  it("uses a non-blocking browser lock to reject a simultaneous tab", async () => {
+  it("fails closed when the browser-profile identity changes", () => {
+    const first = prepareCustomerSubmissionEnvelope(
+      "owner",
+      [item("first")],
+      {},
+    );
+    markCustomerSubmissionSubmitted(first);
+
+    expect(loadCustomerProfileActiveRequest("different-owner")).toEqual({
+      status: "blocked",
+      requestId: first.retryId,
+    });
+    expect(() =>
+      assertCustomerProfileSubmissionAvailable("different-owner"),
+    ).toThrow("ไม่สร้างคำขอใหม่");
+    clearCustomerSubmissionEnvelope("different-owner");
+    expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
+  });
+
+  it("queues browser-profile submissions behind one shared lock", async () => {
     const requestLock = vi.fn(
-      async (
-        _name: string,
-        _options: { ifAvailable: boolean },
-        callback: (lock: null) => Promise<unknown>,
-      ) => callback(null),
+      async (_name: string, callback: () => Promise<unknown>) => callback(),
     );
     Object.defineProperty(navigator, "locks", {
       configurable: true,
       value: { request: requestLock },
     });
     await expect(
-      withCustomerSubmissionLock("owner", async () => "unexpected"),
-    ).rejects.toThrow("แท็บอื่น");
-    expect(requestLock.mock.calls[0][1]).toEqual({ ifAvailable: true });
+      withCustomerSubmissionLock("owner", async () => "completed"),
+    ).resolves.toBe("completed");
+    expect(requestLock.mock.calls[0][0]).toBe(
+      "greek-more-customer-submit:profile-v1",
+    );
+    expect(requestLock.mock.calls[0]).toHaveLength(2);
     Reflect.deleteProperty(navigator, "locks");
   });
 });

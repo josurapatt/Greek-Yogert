@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   doc,
@@ -19,6 +19,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { defaultProducts } from "./data";
+import { ensureCustomerAnonymousSession } from "./customerAnonymousAuth";
 import { toFirestoreData } from "./firestoreData";
 import { auth, db, firebaseReady } from "./firebase";
 import { runtimeConfig } from "./runtimeConfig";
@@ -40,9 +41,11 @@ import {
 } from "./customerOrderingControl";
 import {
   assertCustomerSubmissionCooldown,
+  assertCustomerProfileSubmissionAvailable,
   clearCustomerSubmissionEnvelope,
   customerSubmissionStorageEvent,
   loadCustomerActiveRequestId,
+  loadCustomerProfileActiveRequest,
   loadCustomerSubmissionEnvelope,
   markCustomerSubmissionUncertain,
   markCustomerSubmissionSubmitted,
@@ -114,7 +117,11 @@ export function CustomerProvider({
       if (user) {
         setUid(user.uid);
         setLoading(false);
-      } else if (auth) void signInAnonymously(auth);
+      } else if (auth) {
+        void ensureCustomerAnonymousSession(auth).catch(() =>
+          setLoading(false),
+        );
+      }
     });
   }, [enabled]);
   useEffect(() => {
@@ -167,7 +174,7 @@ export function CustomerProvider({
         if (request.ownerUid !== uid || request.id !== requestId) return;
         if (request.status === waitingForShop) setActiveRequestId(requestId);
         else {
-          clearCustomerSubmissionEnvelope(uid);
+          clearCustomerSubmissionEnvelope(uid, requestId);
           setPendingSubmission(null);
           setActiveRequestId(null);
         }
@@ -193,37 +200,53 @@ export function CustomerProvider({
       throw new Error(
         orderingControl.message || "ร้านปิดรับคำสั่งซื้อใหม่ชั่วคราว",
       );
+    const resolveActiveRequest = async (activeId: string) => {
+      try {
+        const activeSnapshot = await getDoc(
+          doc(db!, "customerOrderRequests", activeId),
+        );
+        if (!activeSnapshot.exists())
+          throw new Error("ไม่พบคำขอเดิมที่บันทึกไว้");
+        const activeRequest = await hydrateCustomerRequest(
+          db!,
+          activeSnapshot.data() as CustomerOrderRequest,
+        );
+        if (activeRequest.ownerUid !== uid || activeRequest.id !== activeId)
+          throw new Error("ตรวจสอบคำขอเดิมไม่ได้");
+        if (activeRequest.status === waitingForShop) {
+          setPendingSubmission(null);
+          setActiveRequestId(activeId);
+          return activeRequest;
+        }
+        clearCustomerSubmissionEnvelope(uid, activeId);
+        setPendingSubmission(null);
+        setActiveRequestId(null);
+        return null;
+      } catch (cause) {
+        throw new Error(
+          "มีคำขอเดิมอยู่ แต่ยังเปิดสถานะไม่ได้ ระบบจะเก็บรหัสเดิมและไม่สร้างคำขอใหม่",
+          { cause },
+        );
+      }
+    };
+
     return withCustomerSubmissionLock(uid, async () => {
       const storedEnvelope = loadCustomerSubmissionEnvelope(uid);
       if (storedEnvelope) envelope = storedEnvelope;
-      const activeId = loadCustomerActiveRequestId(uid);
-      if (activeId) {
-        try {
-          const activeSnapshot = await getDoc(
-            doc(db!, "customerOrderRequests", activeId),
-          );
-          if (activeSnapshot.exists()) {
-            const activeRequest = await hydrateCustomerRequest(
-              db!,
-              activeSnapshot.data() as CustomerOrderRequest,
-            );
-            if (activeRequest.ownerUid !== uid || activeRequest.id !== activeId)
-              throw new Error("ตรวจสอบคำขอเดิมไม่ได้");
-            if (activeRequest.status === waitingForShop) {
-              setPendingSubmission(null);
-              setActiveRequestId(activeId);
-              return activeRequest;
-            }
-            clearCustomerSubmissionEnvelope(uid);
-            setPendingSubmission(null);
-            setActiveRequestId(null);
-          }
-        } catch (cause) {
-          throw new Error(
-            "มีคำขอเดิมอยู่ แต่ยังเปิดสถานะไม่ได้ ระบบจะเก็บรหัสเดิมและไม่สร้างคำขอใหม่",
-            { cause },
-          );
-        }
+      if (envelope.ownerUid !== uid)
+        throw new Error(
+          "ตัวตนสำหรับคำขอเปลี่ยนไป ระบบจะไม่สร้างคำขอใหม่ กรุณาติดต่อพนักงาน",
+        );
+      const profileState = loadCustomerProfileActiveRequest(uid);
+      if (profileState.status === "blocked")
+        throw new Error(
+          "ตัวตนสำหรับคำขอเปลี่ยนไป ระบบจะไม่สร้างคำขอใหม่ กรุณาติดต่อพนักงาน",
+        );
+      if (profileState.status === "active") {
+        const activeRequest = await resolveActiveRequest(
+          profileState.pointer.requestId,
+        );
+        if (activeRequest) return activeRequest;
       }
       if (db && envelope.state === "uncertain") {
         try {
@@ -279,8 +302,19 @@ export function CustomerProvider({
         envelope.input,
       );
       if (db) {
+        const firestore = db;
+        const boundaryState = loadCustomerProfileActiveRequest(uid);
+        if (boundaryState.status === "blocked")
+          throw new Error(
+            "ตัวตนสำหรับคำขอเปลี่ยนไป ระบบจะไม่สร้างคำขอใหม่ กรุณาติดต่อพนักงาน",
+          );
+        if (boundaryState.status === "active") {
+          const activeRequest = await resolveActiveRequest(
+            boundaryState.pointer.requestId,
+          );
+          if (activeRequest) return activeRequest;
+        }
         try {
-          const firestore = db;
           const { parent, itemDocuments, groups } =
             splitCustomerRequestForWrite(request);
           const batch = writeBatch(firestore);
@@ -358,6 +392,7 @@ export function CustomerProvider({
     input: { customerName?: string; customerNote?: string },
   ) => {
     if (!uid) throw new Error("กำลังเชื่อมต่อระบบ กรุณาลองใหม่");
+    assertCustomerProfileSubmissionAvailable(uid);
     if (activeRequestId)
       throw new Error("มีคำขอที่รอร้านยืนยันอยู่ กรุณากลับไปดูสถานะคำขอเดิม");
     assertCustomerSubmissionCooldown(uid);

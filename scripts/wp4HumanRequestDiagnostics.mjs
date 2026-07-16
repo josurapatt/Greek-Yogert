@@ -24,6 +24,19 @@ const app = initializeApp({ credential: applicationDefault(), projectId });
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+async function getIdentityPlatformConfig() {
+  const accessToken = await app.options.credential.getAccessToken();
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`,
+    { headers: { Authorization: `Bearer ${accessToken.access_token}` } },
+  );
+  if (!response.ok)
+    throw new Error(
+      `Unable to inspect isolated-UAT Authentication provider configuration (${response.status})`,
+    );
+  return response.json();
+}
+
 const ownerHash = (uid) =>
   typeof uid === "string" && uid.length > 0
     ? createHash("sha256").update(uid).digest("hex").slice(0, 12)
@@ -48,22 +61,22 @@ const capableAccount = await safeAuthUser(capableEmail);
 const ordinaryAccount = await safeAuthUser(ordinaryEmail);
 
 const [
-  authConfig,
+  identityConfig,
   capableAuthorization,
   ordinaryAuthorization,
   privateControl,
   publicControl,
   recentRequests,
 ] = await Promise.all([
-  auth.projectConfigManager().getProjectConfig(),
+  getIdentityPlatformConfig(),
   capableAccount.uid
     ? db.collection("users").doc(capableAccount.uid).get()
     : Promise.resolve(null),
   ordinaryAccount.uid
     ? db.collection("users").doc(ordinaryAccount.uid).get()
     : Promise.resolve(null),
-  db.collection("operationalControls").doc("customerOrdering").get(),
-  db.collection("publicOperationalControls").doc("customerOrdering").get(),
+  db.doc("settings/customerOrdering").get(),
+  db.doc("publicSettings/customerOrdering").get(),
   db
     .collection("customerOrderRequests")
     .orderBy("submittedAt", "desc")
@@ -86,7 +99,7 @@ for (const requestDocument of recentRequests.docs) {
 
   const [items, groups] = await Promise.all([
     requestDocument.ref.collection("items").get(),
-    requestDocument.ref.collection("groups").get(),
+    requestDocument.ref.collection("itemGroups").get(),
   ]);
   const itemIds = items.docs.map((document) => document.id).sort();
   const groupIds = groups.docs.map((document) => document.id).sort();
@@ -95,7 +108,7 @@ for (const requestDocument of recentRequests.docs) {
     requestId: requestDocument.id,
     status: request.status ?? null,
     schemaVersion: request.schemaVersion ?? null,
-    clientRetryIdMatchesRequestId: request.clientRetryId === requestDocument.id,
+    retryIdMatchesRequestId: request.retryId === requestDocument.id,
     ownerReference: ownerHash(ownerUid),
     submittedAtMillis: timestampMillis(request.submittedAt),
     itemIds,
@@ -146,7 +159,7 @@ const result = {
       : null,
   },
   authentication: {
-    emailPasswordEnabled: authConfig.signIn?.email?.enabled === true,
+    emailPasswordEnabled: identityConfig.signIn?.email?.enabled === true,
     capableUser: {
       exists: capableAccount.exists,
       disabled: capableAccount.disabled,
