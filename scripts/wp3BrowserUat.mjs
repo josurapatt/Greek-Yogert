@@ -1287,7 +1287,13 @@ try {
     await (
       await unique(legacyAddButton, "legacy Staff add-to-cart action")
     ).click();
-    await staffPage.goto(`${baseUrl}/cart`, { waitUntil: "domcontentloaded" });
+    await (
+      await unique(
+        staffPage.locator(".cart-button"),
+        "legacy Staff cart navigation",
+      )
+    ).click();
+    await staffPage.waitForURL(`${baseUrl}/cart`);
     await staffPage.getByPlaceholder("ลูกค้าทั่วไป").fill(legacyMarker);
     await staffPage.getByLabel("สด", { exact: true }).check();
     await staffPage.getByRole("button", { name: "ส่งออเดอร์" }).click();
