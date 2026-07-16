@@ -89,12 +89,24 @@ describe("Customer Requests consolidation", () => {
     ).toBeNull();
     expect(view.container.querySelector("#customer-ordering")).toBeNull();
     expect(screen.queryByRole("button", { name: /Seed/ })).toBeNull();
+    const search = screen.getByLabelText("ค้นหาคำขอ") as HTMLInputElement;
+    const searchLabel = search.closest("label")!;
+    const searchIcon = searchLabel.querySelector("svg")!;
+    expect(searchLabel.querySelector(".sr-only")).toBeNull();
+    expect(searchLabel.children).toHaveLength(2);
+    expect(searchIcon.getAttribute("aria-hidden")).toBe("true");
+    expect(search.getAttribute("aria-label")).toBe("ค้นหาคำขอ");
+    expect(
+      screen.getByLabelText("กรองคำขอ").closest("label")?.children,
+    ).toHaveLength(1);
+    search.focus();
+    expect(document.activeElement).toBe(search);
     expect(view.container.querySelectorAll(".queue-card")).toHaveLength(12);
     expect(screen.getByText("หน้า 1 จาก 2")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "ถัดไป" }));
     expect(view.container.querySelectorAll(".queue-card")).toHaveLength(1);
 
-    fireEvent.change(screen.getByLabelText("ค้นหาคำขอ"), {
+    fireEvent.change(search, {
       target: { value: "เฉพาะคนนี้" },
     });
     expect(view.container.querySelectorAll(".queue-card")).toHaveLength(1);
@@ -104,7 +116,7 @@ describe("Customer Requests consolidation", () => {
         .getAttribute("href"),
     ).toBe("/customer-requests/request-01");
 
-    fireEvent.change(screen.getByLabelText("ค้นหาคำขอ"), {
+    fireEvent.change(search, {
       target: { value: "" },
     });
     fireEvent.change(screen.getByLabelText("กรองคำขอ"), {

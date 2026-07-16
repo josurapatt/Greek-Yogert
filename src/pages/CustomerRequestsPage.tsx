@@ -128,7 +128,6 @@ export default function CustomerRequestsPage() {
         <div className="filters customer-request-filters">
           <label className="search">
             <Search aria-hidden="true" />
-            <span className="sr-only">ค้นหาคำขอ</span>
             <input
               aria-label="ค้นหาคำขอ"
               placeholder="ค้นหาชื่อลูกค้า หมายเหตุ หรือรหัสคำขอ"
@@ -140,7 +139,6 @@ export default function CustomerRequestsPage() {
             />
           </label>
           <label>
-            <span className="sr-only">กรองคำขอ</span>
             <select
               aria-label="กรองคำขอ"
               value={filter}

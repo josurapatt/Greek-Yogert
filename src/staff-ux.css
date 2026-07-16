@@ -251,6 +251,12 @@
   margin-bottom: 1rem;
 }
 
+.customer-request-filters .search svg {
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .customer-request-pagination {
   display: flex;
   justify-content: center;

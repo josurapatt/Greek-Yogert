@@ -685,6 +685,7 @@ try {
     .waitFor({ state: "visible" });
 
   const responsiveLayouts = [];
+  const customerRequestSearchLayouts = [];
   for (const viewport of [
     { name: "desktop", width: 1440, height: 1000 },
     { name: "tablet", width: 820, height: 1000 },
@@ -693,6 +694,88 @@ try {
     await staffPage.setViewportSize({
       width: viewport.width,
       height: viewport.height,
+    });
+    await staffPage.goto(`${baseUrl}/customer-requests`, {
+      waitUntil: "domcontentloaded",
+    });
+    const requestFilters = staffPage.locator(".customer-request-filters");
+    await requestFilters.waitFor();
+    const requestSearch = requestFilters.locator(".search");
+    const requestSearchInput = requestSearch.locator("input");
+    const requestFilterSelect = requestFilters.locator("select");
+    const searchLayout = await requestSearch.evaluate((label) => {
+      const input = label.querySelector("input");
+      const icon = label.querySelector("svg");
+      const filters = label.parentElement;
+      const select = filters?.querySelector("select");
+      if (!input || !icon || !filters || !select)
+        throw new Error("Customer Requests search controls are incomplete");
+      const labelRect = label.getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+      const selectRect = select.getBoundingClientRect();
+      return {
+        labelHeight: labelRect.height,
+        inputHeight: inputRect.height,
+        iconInsideInput:
+          iconRect.left >= inputRect.left + 8 &&
+          iconRect.right <= inputRect.right - 8 &&
+          iconRect.top >= inputRect.top &&
+          iconRect.bottom <= inputRect.bottom,
+        verticalCenterDelta: Math.abs(
+          iconRect.top +
+            iconRect.height / 2 -
+            (inputRect.top + inputRect.height / 2),
+        ),
+        paddingLeft: Number.parseFloat(getComputedStyle(input).paddingLeft),
+        controlsAligned:
+          Math.abs(
+            inputRect.top +
+              inputRect.height / 2 -
+              (selectRect.top + selectRect.height / 2),
+          ) <= 1 ||
+          (selectRect.top >= inputRect.bottom &&
+            Math.abs(inputRect.left - selectRect.left) <= 1 &&
+            Math.abs(inputRect.width - selectRect.width) <= 1),
+        overflow: filters.scrollWidth > filters.clientWidth + 1,
+        accessibleName: input.getAttribute("aria-label"),
+        iconHidden: icon.getAttribute("aria-hidden") === "true",
+      };
+    });
+    assert(
+      searchLayout.iconInsideInput &&
+        searchLayout.verticalCenterDelta <= 1 &&
+        searchLayout.labelHeight === searchLayout.inputHeight &&
+        searchLayout.paddingLeft >= 40 &&
+        searchLayout.controlsAligned &&
+        !searchLayout.overflow &&
+        Boolean(searchLayout.accessibleName) &&
+        searchLayout.iconHidden,
+      `Customer Requests search layout failed at ${viewport.name}: ${JSON.stringify(searchLayout)}`,
+    );
+    await requestSearchInput.hover();
+    await requestSearchInput.focus();
+    assert(
+      await requestSearchInput.evaluate((input) => {
+        const style = getComputedStyle(input);
+        return (
+          input === document.activeElement &&
+          input.matches(":hover") &&
+          style.boxShadow !== "none"
+        );
+      }),
+      `Customer Requests search focus/hover failed at ${viewport.name}`,
+    );
+    await staffPage.keyboard.press("Tab");
+    assert(
+      await requestFilterSelect.evaluate(
+        (select) => select === document.activeElement,
+      ),
+      `Customer Requests keyboard navigation failed at ${viewport.name}`,
+    );
+    customerRequestSearchLayouts.push({
+      viewport: viewport.name,
+      ...searchLayout,
     });
     await staffPage.goto(`${baseUrl}/settings`, {
       waitUntil: "domcontentloaded",
@@ -1114,6 +1197,7 @@ try {
         capableReenable: "passed",
       },
       responsiveOperationsLayout: responsiveLayouts,
+      customerRequestSearchLayout: customerRequestSearchLayouts,
       paymentValidation: "visible-and-cleared",
       customerStatus: "updated",
       duplicateConfirmation: "blocked-without-write",
