@@ -1,10 +1,9 @@
 import { Download, FileJson, Upload } from "lucide-react";
 import { useRef, useState } from "react";
-import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
-import { firebaseReady } from "../firebase";
+import CustomerOrderingSettingsSection from "../components/CustomerOrderingSettingsSection";
+import { db, firebaseReady } from "../firebase";
 import { formatThaiDateTime } from "../lib";
 import { useAuth, useData } from "../store";
-import { db } from "../firebase";
 import { loadAllOrdersForBackup } from "../staffFirestore";
 
 export default function SettingsPage() {
@@ -81,10 +80,6 @@ export default function SettingsPage() {
       </div>
       {message && <div className="notice success">{message}</div>}
       <section className="settings-card">
-        <div className="settings-icon pink">🥄</div>
-        <GlobalPackagingAvailabilityToggle className="settings-global-packaging-control" />
-      </section>
-      <section className="settings-card">
         <div className="settings-icon">
           <FileJson />
         </div>
@@ -149,6 +144,7 @@ export default function SettingsPage() {
           จากนั้น deploy rules เพื่อป้องกันบุคคลภายนอก
         </div>
       )}
+      <CustomerOrderingSettingsSection />
     </div>
   );
 }

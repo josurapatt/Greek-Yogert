@@ -22,18 +22,18 @@ const expectedCapableEmail = "greekmore.uat@gmail.com";
 const expectedOrdinaryEmail = "greekmore.staff.uat@gmail.com";
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
-const capableEmail = process.env.CUSTOMER_UAT_MANAGER_EMAIL
-  ?.trim()
-  .toLowerCase();
-const ordinaryEmail = process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL
-  ?.trim()
-  .toLowerCase();
+const capableEmail =
+  process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
+const ordinaryEmail =
+  process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL?.trim().toLowerCase();
 const ordinaryPassword = process.env.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD;
 const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 
 if (projectId !== expectedProjectId)
-  throw new Error("Ordinary Staff browser UAT requires the exact isolated project");
+  throw new Error(
+    "Ordinary Staff browser UAT requires the exact isolated project",
+  );
 if (projectId === "greek-yogert")
   throw new Error("Production browser UAT is prohibited");
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
@@ -99,7 +99,9 @@ assert(
   "The ordinary UAT Staff boundary is unavailable",
 );
 
-const originalPrivate = await adminFirestore.doc("settings/customerOrdering").get();
+const originalPrivate = await adminFirestore
+  .doc("settings/customerOrdering")
+  .get();
 const originalPublic = await adminFirestore
   .doc("publicSettings/customerOrdering")
   .get();
@@ -154,7 +156,8 @@ async function restoreAsCapableStaff() {
     );
     const previous = await transaction.get(privateRef);
     assert(
-      previous.data()?.schemaVersion === 1 && previous.data()?.enabled === false,
+      previous.data()?.schemaVersion === 1 &&
+        previous.data()?.enabled === false,
       "Capable Staff restore requires a verified disabled control",
     );
     const timestamp = serverTimestamp();
@@ -205,6 +208,13 @@ try {
   await staffPage.goto(`${baseUrl}/customer-requests`, {
     waitUntil: "domcontentloaded",
   });
+  assert(
+    (await staffPage.locator(".customer-ordering-operations").count()) === 0,
+    "Customer Requests still contains Customer QR operations controls",
+  );
+  await staffPage.goto(`${baseUrl}/settings#customer-ordering`, {
+    waitUntil: "domcontentloaded",
+  });
   const panel = staffPage.locator(".customer-ordering-operations");
   await panel.waitFor();
   await panel
@@ -237,7 +247,10 @@ try {
   }
   const disabledData = disabledPrivate.data();
   const disabledPublicData = disabledPublic.data();
-  assert(disabledData?.enabled === false, "Ordinary Staff disable did not apply");
+  assert(
+    disabledData?.enabled === false,
+    "Ordinary Staff disable did not apply",
+  );
   assert(
     disabledData.updatedBy === ordinaryAccount.uid &&
       disabledData.reason === reason &&
@@ -309,7 +322,9 @@ try {
 
   await restoreAsCapableStaff();
   await customerPage.reload({ waitUntil: "domcontentloaded" });
-  await customerPage.getByRole("heading", { name: "สั่ง Greek & More" }).waitFor();
+  await customerPage
+    .getByRole("heading", { name: "สั่ง Greek & More" })
+    .waitFor();
   await customerPage.waitForFunction(
     () =>
       ![...document.querySelectorAll('[role="status"]')].some((entry) =>
@@ -321,13 +336,17 @@ try {
     "Customer intake did not resume after the capable Staff restore",
   );
 
-  const [finalPrivate, finalPublic, capableAuthorizationAfter, ordinaryAuthorizationAfter] =
-    await Promise.all([
-      adminFirestore.doc("settings/customerOrdering").get(),
-      adminFirestore.doc("publicSettings/customerOrdering").get(),
-      adminFirestore.doc(`users/${capableAccount.uid}`).get(),
-      adminFirestore.doc(`users/${ordinaryAccount.uid}`).get(),
-    ]);
+  const [
+    finalPrivate,
+    finalPublic,
+    capableAuthorizationAfter,
+    ordinaryAuthorizationAfter,
+  ] = await Promise.all([
+    adminFirestore.doc("settings/customerOrdering").get(),
+    adminFirestore.doc("publicSettings/customerOrdering").get(),
+    adminFirestore.doc(`users/${capableAccount.uid}`).get(),
+    adminFirestore.doc(`users/${ordinaryAccount.uid}`).get(),
+  ]);
   assert(
     finalPrivate.data()?.enabled === true &&
       finalPublic.data()?.enabled === true &&
@@ -368,16 +387,24 @@ try {
         return null;
       });
     if (current?.data()?.enabled === false)
-      await restoreAsCapableStaff().catch((cause) => cleanupFailures.push(cause));
+      await restoreAsCapableStaff().catch((cause) =>
+        cleanupFailures.push(cause),
+      );
   }
   if (capableClientAuth)
-    await signOut(capableClientAuth).catch((cause) => cleanupFailures.push(cause));
+    await signOut(capableClientAuth).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
   if (capableClientApp)
-    await deleteApp(capableClientApp).catch((cause) => cleanupFailures.push(cause));
+    await deleteApp(capableClientApp).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
   if (browser)
     await browser.close().catch((cause) => cleanupFailures.push(cause));
   for (const uid of temporaryAnonymousUids)
-    await adminAuth.deleteUser(uid).catch((cause) => cleanupFailures.push(cause));
+    await adminAuth
+      .deleteUser(uid)
+      .catch((cause) => cleanupFailures.push(cause));
 }
 
 if (cleanupFailures.length)

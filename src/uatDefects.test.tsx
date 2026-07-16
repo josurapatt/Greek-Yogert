@@ -86,7 +86,7 @@ describe("manual UAT defect regressions", () => {
     ).toBe(false);
   });
 
-  it("exposes and persists the global separated-packaging setting", () => {
+  it("keeps the separated-packaging control out of Settings", () => {
     const setToppingAvailability = vi.fn();
     mocks.useData.mockReturnValue({
       products: [],
@@ -96,14 +96,16 @@ describe("manual UAT defect regressions", () => {
       importBackup: vi.fn(),
     });
 
-    render(<SettingsPage />);
-    const toggle = screen.getByRole("checkbox") as HTMLInputElement;
-    expect(toggle.checked).toBe(true);
-    fireEvent.click(toggle);
-    expect(setToppingAvailability).toHaveBeenCalledWith(
-      separatedPackagingAvailabilityId,
-      false,
+    const view = render(
+      <MemoryRouter initialEntries={["/settings"]}>
+        <SettingsPage />
+      </MemoryRouter>,
     );
+    expect(
+      view.container.querySelector(".global-packaging-control"),
+    ).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(setToppingAvailability).not.toHaveBeenCalled();
   });
 
   it("uses the shared global packaging toggle directly on Products", () => {

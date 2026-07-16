@@ -1,5 +1,5 @@
-import { doc, runTransaction } from "firebase/firestore";
-import { useState } from "react";
+import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { db } from "../firebase";
 import { customerPaymentMethods } from "../customerOrder";
@@ -18,12 +18,6 @@ import {
   customerConfirmationFailureMessage,
   logCustomerConfirmationFailure,
 } from "../customerConfirmationUx";
-import CustomerOrderingOperationsPanel from "../components/CustomerOrderingOperationsPanel";
-import {
-  buildPublicProjection,
-  publicProjectionControlId,
-  publicProjectionSchemaVersion,
-} from "../publicProjection";
 
 export default function CustomerRequestsPage() {
   const { user } = useAuth();
@@ -31,11 +25,12 @@ export default function CustomerRequestsPage() {
     customerRequests: requests,
     customerRequestsIncomplete,
     dismissCustomerRequest,
-    products,
-    toppingAvailability,
   } = useData();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "named" | "with-note">("all");
+  const [page, setPage] = useState(1);
   const confirm = async (
     request: CustomerOrderRequest,
     paymentMethod: StaffPaymentMethod,
@@ -82,39 +77,30 @@ export default function CustomerRequestsPage() {
       setBusy(null);
     }
   };
-  const pending = pendingCustomerRequests(requests);
-  const seed = async () => {
-    if (!db || busy) return;
-    try {
-      setBusy("seed");
-      await runTransaction(db, async (transaction) => {
-        const projection = buildPublicProjection(products, toppingAvailability);
-        Object.entries(projection.menu).forEach(([id, product]) =>
-          transaction.set(doc(db!, "publicMenu", id), product),
+  const pending = useMemo(() => pendingCustomerRequests(requests), [requests]);
+  const filteredPending = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase("th");
+    return pending.filter((request) => {
+      if (filter === "named" && !request.customerName?.trim()) return false;
+      if (filter === "with-note" && !request.customerNote?.trim()) return false;
+      if (!needle) return true;
+      return [request.id, request.customerName, request.customerNote]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLocaleLowerCase("th").includes(needle),
         );
-        transaction.set(doc(db!, "publicSettings", "toppingAvailability"), {
-          availability: projection.availability,
-        });
-        transaction.set(
-          doc(db!, "publicSettings", "customerRequestPolicy"),
-          projection.requestPolicy,
-        );
-        transaction.set(
-          doc(db!, "publicProjectionControl", publicProjectionControlId),
-          {
-            schemaVersion: publicProjectionSchemaVersion,
-            fingerprint: projection.fingerprint,
-            menuIds: Object.keys(projection.menu).sort(),
-          },
-        );
-      });
-      setMessage("ซิงก์เมนูและนโยบาย Projection V2 สำหรับ UAT แล้ว");
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "seed ไม่สำเร็จ");
-    } finally {
-      setBusy(null);
-    }
-  };
+    });
+  }, [filter, pending, query]);
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(filteredPending.length / pageSize));
+  const visiblePending = filteredPending.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount));
+  }, [pageCount]);
   return (
     <div className="page">
       <div className="page-heading">
@@ -127,17 +113,7 @@ export default function CustomerRequestsPage() {
           <h1>คำขอจากลูกค้า</h1>
           <p>คำขอจะได้รับเลขคิวเมื่อร้านยืนยันเท่านั้น</p>
         </div>
-        {runtimeConfig.isCustomerQrUat && (
-          <button
-            className="secondary"
-            disabled={busy === "seed"}
-            onClick={() => void seed()}
-          >
-            Seed เมนู UAT
-          </button>
-        )}
       </div>
-      <CustomerOrderingOperationsPanel />
       {message && (
         <p className="notice" role="status">
           {message}
@@ -148,53 +124,112 @@ export default function CustomerRequestsPage() {
           แสดงคำขอที่รอล่าสุดแบบจำกัด อาจมีคำขอเก่ากว่านี้ กรุณาตรวจสอบตัวชี้วัด
         </p>
       )}
+      {pending.length > 0 && (
+        <div className="filters customer-request-filters">
+          <label className="search">
+            <Search aria-hidden="true" />
+            <span className="sr-only">ค้นหาคำขอ</span>
+            <input
+              aria-label="ค้นหาคำขอ"
+              placeholder="ค้นหาชื่อลูกค้า หมายเหตุ หรือรหัสคำขอ"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <label>
+            <span className="sr-only">กรองคำขอ</span>
+            <select
+              aria-label="กรองคำขอ"
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value as typeof filter);
+                setPage(1);
+              }}
+            >
+              <option value="all">คำขอทั้งหมด</option>
+              <option value="named">มีชื่อลูกค้า</option>
+              <option value="with-note">มีหมายเหตุ</option>
+            </select>
+          </label>
+        </div>
+      )}
       {!pending.length ? (
         <div className="empty">ไม่มีคำขอที่รอยืนยัน</div>
+      ) : !filteredPending.length ? (
+        <div className="empty">ไม่พบคำขอที่ตรงกับการค้นหาและตัวกรอง</div>
       ) : (
-        <section className="queue-grid">
-          {pending.map((request) => (
-            <article className="queue-card" key={request.id}>
-              <h2>
-                <Link to={`/customer-requests/${request.id}`}>
-                  {request.customerName || "ลูกค้าทั่วไป"}
-                </Link>
-              </h2>
-              <p>
-                {formatThaiDateTime(request.createdAt)} • {request.itemCount}{" "}
-                รายการ • {money(request.total)}
-              </p>
-              {request.customerNote && <p>หมายเหตุ: {request.customerNote}</p>}
-              {request.items.map((item) => (
-                <OrderItemSummary item={item} key={item.id} />
-              ))}
-              <div className="button-row">
-                <Link
-                  className="secondary"
-                  to={`/customer-requests/${request.id}`}
-                >
-                  ดูรายละเอียด
-                </Link>
-                {customerPaymentMethods.map((method) => (
-                  <button
-                    className="primary"
-                    disabled={busy === request.id}
-                    key={method}
-                    onClick={() => void confirm(request, method)}
-                  >
-                    ยืนยัน • {method}
-                  </button>
+        <>
+          <section className="queue-grid">
+            {visiblePending.map((request) => (
+              <article className="queue-card" key={request.id}>
+                <h2>
+                  <Link to={`/customer-requests/${request.id}`}>
+                    {request.customerName || "ลูกค้าทั่วไป"}
+                  </Link>
+                </h2>
+                <p>
+                  {formatThaiDateTime(request.createdAt)} • {request.itemCount}{" "}
+                  รายการ • {money(request.total)}
+                </p>
+                {request.customerNote && (
+                  <p>หมายเหตุ: {request.customerNote}</p>
+                )}
+                {request.items.map((item) => (
+                  <OrderItemSummary item={item} key={item.id} />
                 ))}
-                <button
-                  className="secondary"
-                  disabled={busy === request.id}
-                  onClick={() => void reject(request)}
-                >
-                  ปฏิเสธ
-                </button>
-              </div>
-            </article>
-          ))}
-        </section>
+                <div className="button-row">
+                  <Link
+                    className="secondary"
+                    to={`/customer-requests/${request.id}`}
+                  >
+                    ดูรายละเอียด
+                  </Link>
+                  {customerPaymentMethods.map((method) => (
+                    <button
+                      className="primary"
+                      disabled={busy === request.id}
+                      key={method}
+                      onClick={() => void confirm(request, method)}
+                    >
+                      ยืนยัน • {method}
+                    </button>
+                  ))}
+                  <button
+                    className="secondary"
+                    disabled={busy === request.id}
+                    onClick={() => void reject(request)}
+                  >
+                    ปฏิเสธ
+                  </button>
+                </div>
+              </article>
+            ))}
+          </section>
+          {pageCount > 1 && (
+            <nav className="customer-request-pagination" aria-label="หน้าคำขอ">
+              <button
+                className="secondary"
+                disabled={page === 1}
+                onClick={() => setPage((current) => current - 1)}
+              >
+                ก่อนหน้า
+              </button>
+              <span aria-live="polite">
+                หน้า {page} จาก {pageCount}
+              </span>
+              <button
+                className="secondary"
+                disabled={page === pageCount}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                ถัดไป
+              </button>
+            </nav>
+          )}
+        </>
       )}
     </div>
   );

@@ -693,7 +693,20 @@ try {
       width: viewport.width,
       height: viewport.height,
     });
-    await staffPage.goto(`${baseUrl}/customer-requests`, {
+    await staffPage.goto(`${baseUrl}/settings`, {
+      waitUntil: "domcontentloaded",
+    });
+    const settingsControl = staffPage.locator("#customer-ordering details");
+    await settingsControl.waitFor();
+    assert(
+      !(await settingsControl.evaluate((details) => details.open)),
+      `Customer QR Settings section was not collapsed by default at ${viewport.name}`,
+    );
+    assert(
+      (await staffPage.locator(".global-packaging-control").count()) === 0,
+      "Settings still contains a topping availability control",
+    );
+    await staffPage.goto(`${baseUrl}/settings#customer-ordering`, {
       waitUntil: "domcontentloaded",
     });
     const operations = staffPage.locator(".customer-ordering-operations");
@@ -738,6 +751,22 @@ try {
   }
   await staffPage.setViewportSize({ width: 1440, height: 1000 });
   await staffPage.goto(`${baseUrl}/customer-requests`, {
+    waitUntil: "domcontentloaded",
+  });
+  assert(
+    (await staffPage.locator(".customer-ordering-operations").count()) === 0 &&
+      (await staffPage.locator("#customer-ordering").count()) === 0 &&
+      (await staffPage.getByRole("button", { name: /Seed/ }).count()) === 0,
+    "Customer Requests still contains Customer QR operations controls",
+  );
+  await staffPage.goto(`${baseUrl}/products`, {
+    waitUntil: "domcontentloaded",
+  });
+  assert(
+    (await staffPage.locator(".global-packaging-control").count()) === 1,
+    "Products is not the sole Staff-facing global topping packaging control",
+  );
+  await staffPage.goto(`${baseUrl}/settings#customer-ordering`, {
     waitUntil: "domcontentloaded",
   });
   const operationsPanel = staffPage.locator(".customer-ordering-operations");
@@ -845,7 +874,7 @@ try {
       ),
   );
 
-  await staffPage.goto(`${baseUrl}/customer-requests`, {
+  await staffPage.goto(`${baseUrl}/settings#customer-ordering`, {
     waitUntil: "domcontentloaded",
   });
   const reenablePanel = staffPage.locator(".customer-ordering-operations");
