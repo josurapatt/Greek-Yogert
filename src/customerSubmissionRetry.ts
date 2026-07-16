@@ -113,6 +113,11 @@ export function rememberCustomerActiveRequest(uid: string, requestId: string) {
   };
   const serialized = JSON.stringify(pointer);
   const currentProfileValue = localStorage.getItem(profileActiveRequestKey);
+  if (
+    currentProfileValue === serialized &&
+    localStorage.getItem(activeRequestKey(uid)) === serialized
+  )
+    return true;
   if (currentProfileValue !== null) {
     try {
       const current = JSON.parse(

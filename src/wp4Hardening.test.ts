@@ -254,6 +254,28 @@ describe("WP4 stable retry envelope", () => {
     expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
   });
 
+  it("does not emit recursive storage events for an unchanged active pointer", () => {
+    const first = prepareCustomerSubmissionEnvelope(
+      "owner",
+      [item("first")],
+      {},
+    );
+    markCustomerSubmissionSubmitted(first);
+    const storageEvent = vi.fn();
+    window.addEventListener(
+      "greek-more-customer-submission-storage",
+      storageEvent,
+    );
+
+    expect(loadCustomerActiveRequestId("owner")).toBe(first.retryId);
+    expect(storageEvent).not.toHaveBeenCalled();
+
+    window.removeEventListener(
+      "greek-more-customer-submission-storage",
+      storageEvent,
+    );
+  });
+
   it("queues browser-profile submissions behind one shared lock", async () => {
     const requestLock = vi.fn(
       async (_name: string, callback: () => Promise<unknown>) => callback(),
