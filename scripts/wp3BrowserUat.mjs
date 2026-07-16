@@ -1296,8 +1296,9 @@ try {
     await staffPage.waitForURL(`${baseUrl}/cart`);
     await staffPage.getByPlaceholder("ลูกค้าทั่วไป").fill(legacyMarker);
     await staffPage.getByLabel("สด", { exact: true }).check();
-    await staffPage.getByRole("button", { name: "ส่งออเดอร์" }).click();
-    await staffPage.waitForURL(`${baseUrl}/queue`);
+    await staffPage.getByRole("button", { name: "สั่งออเดอร์" }).click();
+    await staffPage.waitForURL((url) => url.pathname.startsWith("/orders/"));
+    await staffPage.goto(`${baseUrl}/queue`, { waitUntil: "domcontentloaded" });
     await staffPage.getByText(legacyMarker, { exact: true }).waitFor();
     const legacyOrders = await firestore
       .collection("orders")
