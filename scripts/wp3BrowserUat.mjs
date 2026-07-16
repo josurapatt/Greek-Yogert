@@ -674,6 +674,7 @@ try {
   const staffPage = await staffContext.newPage();
   const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
     "Customer request confirmation failed",
+    "Could not reach Cloud Firestore backend. Connection failed 1 times.",
   ]);
   await staffPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await staffPage.getByLabel("อีเมล").fill(staffEmail);
