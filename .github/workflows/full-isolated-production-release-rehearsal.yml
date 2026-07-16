@@ -34,7 +34,6 @@ jobs:
       CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
       CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
       WP5_WORKFLOW_IDENTITY: wp5-isolated-production-release-rehearsal
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/wp5-customer-uat-service-account.json
     steps:
       - name: Checkout exact WP5 release candidate
         uses: actions/checkout@v4
@@ -82,8 +81,10 @@ jobs:
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
           umask 077
-          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
-          node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,"utf8")); if(value.project_id!=="greek-yogert-customer-uat-2026") process.exit(1)'
+          credential_path="$RUNNER_TEMP/wp5-customer-uat-service-account.json"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$credential_path"
+          GOOGLE_APPLICATION_CREDENTIALS="$credential_path" node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,"utf8")); if(value.project_id!=="greek-yogert-customer-uat-2026") process.exit(1)'
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$credential_path" >> "$GITHUB_ENV"
 
       - name: Capture sanitized pre-release UAT state
         run: >-
