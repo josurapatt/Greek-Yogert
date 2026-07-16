@@ -141,12 +141,12 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — implementation and final Human UAT complete; exact-head squash-merge approval pending**
+**Production Hardening Work Package 4 — Abuse Protection and Operational Controls — complete, approved, and squash-merged into `main`; WP5 has not started**
 
 Current state:
 
 - [x] WP1, WP2, and WP3 are approved and squash-merged into `main`.
-- [x] WP4 was implemented on `feature/anonymous-abuse-controls` under Draft PR #8.
+- [x] WP4 was implemented on `feature/anonymous-abuse-controls`, approved at exact PR head `b69c220b973d537b15dbb05bbd6317e83d192eba`, and squash-merged through PR #8 as `a41cba9cbed8ba9827db5366764fad0df66d8313`.
 - [x] Balanced Customer-request caps are enforced across the Customer UI, shared TypeScript validation, Firestore Rules, and trusted Staff confirmation.
 - [x] Bounded normalized request storage, retry/idempotency controls, cross-tab locking, and cooldown behavior are implemented with legacy read compatibility.
 - [x] Asymmetric emergency disable/re-enable authority, server-controlled capability, audit evidence, and fail-closed intake are implemented.
@@ -160,10 +160,12 @@ Current state:
 - [x] The private topping-availability map remains the canonical transactional input for Products, Projection V2, Customer rendering, and trusted confirmation; no legacy or historical records were migrated or rewritten.
 - [x] Exact-head workflow `29501510514` passed the final isolated-UAT deployment, security/control tests, responsive Settings checks, Products-only control check, Customer Requests regression, real Customer-to-Staff flow, Queue, History, Reports, Excel, and cleanup at `2e7180ae5c1a5ab57ef544601428f973764685f8`.
 - [x] Exact-head workflow `29503666183` passed final isolated UAT at `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`, including desktop/tablet/mobile Customer Requests search-icon geometry, focus/hover, keyboard, accessibility, and regression checks.
+- [x] Final approval workflow `29505898681` passed at exact PR head `b69c220b973d537b15dbb05bbd6317e83d192eba`, including exact checkout, tests, isolated-UAT build/deploy, security/control validation, browser rehearsal, and cleanup.
 - [x] The capable UAT Staff authorization was verified unchanged; the dedicated ordinary UAT Staff was designated active without re-enable capability.
 - [x] Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed.
 - [x] Final Human UAT passed all 10 functional items; the Customer Requests search-icon Human recheck also passed; no known defects remain.
-- [ ] Obtain explicit approval before squash-merging PR #8 or starting WP5.
+- [x] PR #8 received explicit exact-head approval, was squash-merged, and is closed.
+- [ ] Obtain separate explicit approval before starting WP5.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -188,7 +190,7 @@ Current state:
 - [x] Production Hardening Work Package 2 squash merge complete
 - [x] Production Hardening Work Package 3 implementation, automated UAT, and Human Manual UAT complete
 - [x] Production Hardening Work Package 3 exact-head PR approval and squash merge complete
-- [ ] Production Hardening Work Package 4 — implementation, automated isolated UAT, and final Human UAT complete; exact-head squash-merge approval and merge pending
+- [x] Production Hardening Work Package 4 — implementation, automated isolated UAT, final Human UAT, exact-head approval, and squash merge complete
 - [ ] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved

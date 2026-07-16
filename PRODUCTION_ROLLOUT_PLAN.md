@@ -2,7 +2,7 @@
 
 ## 1. Purpose and authority
 
-This document is a verified release-readiness plan for Customer QR Ordering, the completed Work Package 1–3 changes merged into `main`, and the unmerged Work Package 4 candidate on Draft PR #8. It does not approve or perform a Production change.
+This document is a verified release-readiness plan for Customer QR Ordering and the completed Work Package 1–4 changes merged into `main`. It does not approve or perform a Production change.
 
 Every approval in this plan is independent. Approval of an earlier PR, isolated UAT, or this document does not approve Authentication, Firestore, data/configuration, Hosting, smoke testing, or Production rollout.
 
@@ -44,16 +44,18 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - WP3 implementation and validation: Complete
 - WP3 governance: Complete after exact-head approval, squash merge, and post-merge status update
 - Work Package 4 branch: `feature/anonymous-abuse-controls`
-- Work Package 4 Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
+- Work Package 4 PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - Work Package 4 final Human-UAT implementation head: `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`
-- Work Package 4 final isolated-UAT workflow: `29503666183`, successful
+- Work Package 4 approved PR head: `b69c220b973d537b15dbb05bbd6317e83d192eba`
+- Work Package 4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
+- Work Package 4 final isolated-UAT workflow: `29505898681`, successful
 - Work Package 4 Projection V2 fingerprint: `wp4-5c4fce122e7d5d4f`
 - Work Package 4 Human-UAT defects and root causes: silent limit controls, inherited grid collapse, cleared status pointer, cooldown-only duplicate guard, concurrent Anonymous-UID initialization, and unclear capable-account workflow; corrected and automated-revalidated
 - Work Package 4 implementation and consolidated automated isolated-UAT rehearsal: Complete (213 application tests, 22 Rules tests, responsive Settings controls, processing-only Customer Requests, Products-only availability control, synchronized two-tab browser UAT, exact cleanup, enabled Human-UAT baseline)
 - Work Package 4 final Human UAT: Passed all 10 functional items
 - Work Package 4 Customer Requests search-icon Human recheck: Passed
 - Work Package 4 known defects: None
-- Work Package 4 approval and merge: Pending
+- Work Package 4 approval and merge: Complete
 - Production changes during Work Package 4: None
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
@@ -66,13 +68,13 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 4 implementation, automated isolated UAT, and final Human UAT are complete, but explicit squash-merge approval, merge, WP5, and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. Work Package 4 implementation, automated isolated UAT, final Human UAT, exact-head approval, and squash merge are complete, but WP5 and every Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Obtain explicit WP4 approval and merge, then separately approve the exact Emulator-tested Production-candidate rules; do not deploy them to Production without separate approval.
+1. Separately approve the exact Emulator-tested Production-candidate rules; the WP4 merge does not approve their Production deployment.
 2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
 3. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.
@@ -429,7 +431,7 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 ## 15. Unresolved decisions
 
 1. Approve the exact Production execution of the implemented trusted-confirmation and public-projection boundary; isolated UAT evidence does not approve Production.
-2. After WP4 Human UAT and merge, approve the exact Production-candidate rules deployment and Emulator/live denial tests; the WP4 candidate is still unmerged and was not deployed to Production.
+2. Approve the exact Production-candidate rules deployment and Emulator/live denial tests; WP4 is merged but was not deployed to Production.
 3. Identify and approve every Production Staff UID authorization document.
 4. Approve the one-time current-product/public-availability projection mechanism and review its dry-run output.
 5. Verify actual Production Authentication providers and approve Anonymous enablement.

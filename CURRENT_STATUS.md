@@ -7,15 +7,17 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Last verified: 2026-07-16 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `feature/anonymous-abuse-controls`
+- Current branch: `main`
 - WP4 final Human-UAT implementation head: `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`
-- Draft PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8)
-- PR state gate: exact-head Ready transition authorized after final checks; squash merge still requires explicit human approval
+- WP4 approved PR head: `b69c220b973d537b15dbb05bbd6317e83d192eba`
+- WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
+- PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
+- PR state gate: complete
 - Production status: **No-Go**; Production was not accessed or changed during WP4
 
 ## WP4 implementation state
 
-Production Hardening Work Package 4 implementation, automated isolated UAT, final Human UAT, and the Customer Requests search-icon recheck are complete on the feature branch. No known defects remain. Exact-head Ready verification and explicit squash-merge approval remain pending.
+Production Hardening Work Package 4 implementation, automated isolated UAT, final Human UAT, Customer Requests search-icon recheck, exact-head approval, and squash merge are complete on `main`. No known defects remain. WP5 has not started.
 
 Implemented:
 
@@ -58,7 +60,7 @@ Projection V2 isolated-UAT evidence:
 
 Latest final automated isolated UAT:
 
-- [Workflow 29503666183](https://github.com/josurapatt/Greek-Yogert/actions/runs/29503666183) succeeded for final implementation head `78cfffe524025c4a32ff5dfabdbfdca1d1056e5d`.
+- [Workflow 29505898681](https://github.com/josurapatt/Greek-Yogert/actions/runs/29505898681) succeeded for the approved final PR head `b69c220b973d537b15dbb05bbd6317e83d192eba`, including exact-source checkout verification, application and Rules tests, isolated-UAT build/deploy, security/control validation, responsive browser rehearsal, and cleanup.
 - Desktop, tablet, and mobile browser checks verified the Customer Requests search icon remains centered inside the input, with correct padding, alignment, focus/hover behavior, keyboard navigation, accessible naming, and no overflow.
 - Settings collapsed/anchor behavior and desktop/tablet/mobile layouts passed; Customer Requests contained no Operations or projection-seed controls; Products exposed exactly one global packaging control; capable disable/re-enable, maintenance messaging, disabled-intake status access, and Staff processing while disabled passed.
 - Security/control rehearsal passed ordinary-Staff disable, ordinary-Staff re-enable denial, capable-Staff re-enable, capability self-grant denial, and missing/malformed-control fail-closed behavior while preserving Customer status and Staff processing.
@@ -103,11 +105,9 @@ Defects found and corrected during rehearsal:
 
 ## Remaining gates
 
-- [ ] PR #8 receives explicit squash-merge approval at the final Ready head
-- [ ] PR #8 is squash-merged only after that approval
 - [ ] WP5 full isolated Production release rehearsal completes
 - [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
 
 ## Immediate next action
 
-Complete exact-head validation, change PR #8 to Ready for Review, and stop for explicit human squash-merge approval. Do not merge, change Production, or start WP5.
+WP4 governance is complete. Do not start WP5 or change Production without a new explicit approval.
