@@ -178,6 +178,20 @@ Official references:
 - <https://firebase.google.com/docs/app-check/enable-enforcement>
 - <https://firebase.google.com/pricing>
 
+## Verified automated evidence
+
+The Draft PR's implementation-head rehearsal [29513578393](https://github.com/josurapatt/Greek-Yogert/actions/runs/29513578393) succeeded at exact SHA `9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df` against only `greek-yogert-customer-uat-2026`.
+
+- 235 application tests across 27 files and 22 canonical Firestore Emulator tests passed; lint, TypeScript, all three builds, formatting, workflow/static checks, diff integrity, and credential scans passed.
+- Rules SHA-256 was `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`; indexes SHA-256 was `90e5075281d826511a99bc42433f8c86753455284bfd8eba143f0e242e32e991`; all six composite indexes were Ready.
+- Projection V2 fingerprint was `wp4-5c4fce122e7d5d4f`. Dry-run, reviewed apply, and idempotency each required 0 writes because the isolated target was already current; forbidden namespaces were absent.
+- The full production-like Customer-to-Staff and direct legacy Staff browser flows passed, as did ordinary disable, ordinary re-enable denial, client self-grant denial, capable restore, bounded monitoring, Customer-disabled rollback, byte-identical enabled restoration, and post-restore anonymous security denials.
+- Final state was Customer Ordering enabled, both Auth providers ready, designated Staff unchanged, and 0 temporary WP5 requests/Orders. Only bounded control-audit evidence was retained.
+- Rollback bundle SHA-256 was `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; release-manifest SHA-256 was `a5adc794793b258b4092dbea59e4226cd48fb410bfd832626bf296c834183466`.
+- Sanitized evidence artifact `wp5-isolated-release-rehearsal-9d3dfc692650d817b88ba3d4bfb01f8e00a5e4df` is retained for 30 days. No Production project, workflow, Authentication, IAM, Firestore, Hosting, API, billing, or business data was accessed or changed.
+
+Automated evidence does not complete WP5. The Human UAT checklist below remains mandatory, and the PR remains Draft/open/unmerged.
+
 ## WP5 Human UAT checklist
 
 Run only after the Draft PR's exact-head automated workflow succeeds. Human UAT
