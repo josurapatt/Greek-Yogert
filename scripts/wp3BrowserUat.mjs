@@ -543,12 +543,12 @@ try {
     waitUntil: "domcontentloaded",
   });
   const operationsPanel = staffPage.locator(".customer-ordering-operations");
-  await operationsPanel
-    .locator("input")
-    .nth(0)
-    .fill("WP4 automated disable rehearsal");
-  await operationsPanel
-    .locator("input")
+  await operationsPanel.locator(".operations-state.enabled").waitFor();
+  const disableInputs = operationsPanel.locator(
+    '.operations-action-form input:not([type="checkbox"])',
+  );
+  await disableInputs.nth(0).fill("WP4 automated disable rehearsal");
+  await disableInputs
     .nth(1)
     .fill("ร้านปิดรับคำสั่งซื้อใหม่ชั่วคราวระหว่างการทดสอบ WP4");
   await operationsPanel
@@ -633,6 +633,7 @@ try {
     waitUntil: "domcontentloaded",
   });
   const reenablePanel = staffPage.locator(".customer-ordering-operations");
+  await reenablePanel.locator(".operations-state.disabled").waitFor();
   await reenablePanel
     .getByText("มีสิทธิ์เปิดรับคำสั่งซื้อกลับ", { exact: true })
     .waitFor();
