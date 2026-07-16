@@ -8,6 +8,7 @@ import {
 const authBootstrapLockName = "greek-more-customer-auth-bootstrap-v1";
 const authBootstrapLeaseKey = "greek-more-customer-auth-bootstrap-lease-v1";
 const authBootstrapMarkerKey = "greek-more-customer-auth-bootstrap-marker-v1";
+const authBootstrapReloadKey = "greek-more-customer-auth-bootstrap-reloaded-v1";
 const markerFreshnessMs = 30_000;
 let initialization: Promise<User> | null = null;
 
@@ -103,7 +104,12 @@ export function ensureCustomerAnonymousSession(auth: Auth): Promise<User> {
   initialization = withAuthBootstrapLock(async () => {
     if (auth.currentUser) return auth.currentUser;
     if (hasFreshBootstrapMarker()) {
-      const synchronizedUser = await waitForCurrentUser(auth, 8_000);
+      if (sessionStorage.getItem(authBootstrapReloadKey) !== "true") {
+        sessionStorage.setItem(authBootstrapReloadKey, "true");
+        window.location.reload();
+        return new Promise<User>(() => {});
+      }
+      const synchronizedUser = await waitForCurrentUser(auth, 4_000);
       if (synchronizedUser) return synchronizedUser;
       throw new Error(
         "ไม่สามารถยืนยันตัวตนเดิมในเบราว์เซอร์นี้ได้ ระบบจะไม่สร้างตัวตนหรือคำขอใหม่",
