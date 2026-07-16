@@ -11,8 +11,8 @@ if (state.authentication.emailPassword !== "enabled")
   throw new Error("Email/Password Authentication is not ready");
 if (state.authentication.anonymous !== "enabled")
   throw new Error("Anonymous Authentication is not ready");
-if (state.customerOrdering !== "enabled")
-  throw new Error("The pre-release Customer ordering baseline is not enabled");
+if (!["enabled", "disabled"].includes(state.customerOrdering))
+  throw new Error("The pre-release Customer ordering baseline is malformed");
 if (
   state.designatedStaff.capable !== "active-with-reenable-capability" ||
   state.designatedStaff.ordinary !== "active-without-reenable-capability"
@@ -51,6 +51,7 @@ console.log(
     projectId: state.projectId,
     authentication: "ready",
     designatedStaff: "ready",
+    customerOrderingBaseline: state.customerOrdering,
     indexes: "exact-six-ready-no-unrelated-definitions",
     temporaryBaseline: "clean",
   }),

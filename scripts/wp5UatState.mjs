@@ -1,9 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import {
-  applicationDefault,
-  initializeApp as initializeAdminApp,
-} from "firebase-admin/app";
+import { cert, initializeApp as initializeAdminApp } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import {
   FieldValue,
@@ -28,6 +25,7 @@ const managerEmail =
   process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
 const ordinaryEmail =
   process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL?.trim().toLowerCase();
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -73,8 +71,25 @@ assert(
   ordinaryEmail === expectedOrdinaryEmail,
   "Exact ordinary UAT Staff is required",
 );
+assert(credentialsPath, "The isolated UAT credential path is required");
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(readFileSync(credentialsPath, "utf8"));
+} catch {
+  throw new Error("The isolated UAT credential is malformed");
+}
+assert(
+  serviceAccount?.type === "service_account" &&
+    serviceAccount.project_id === expectedProjectId &&
+    typeof serviceAccount.client_email === "string" &&
+    serviceAccount.client_email.endsWith(
+      `@${expectedProjectId}.iam.gserviceaccount.com`,
+    ) &&
+    typeof serviceAccount.private_key === "string",
+  "The service-account credential is outside the isolated UAT boundary",
+);
 
-const credential = applicationDefault();
+const credential = cert(serviceAccount);
 const adminApp = initializeAdminApp(
   { credential, projectId },
   `wp5-${Date.now()}`,

@@ -1,5 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
+import { readFileSync } from "node:fs";
+import {
+  applicationDefault,
+  cert,
+  getApps,
+  initializeApp,
+} from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { chromium } from "playwright";
@@ -11,6 +17,7 @@ const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 const useDesignatedStaff = process.env.CUSTOMER_UAT_DESIGNATED_STAFF === "true";
 const designatedStaffEmail =
   process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 if (projectId !== "greek-yogert-customer-uat-2026")
   throw new Error(
     "Customer browser UAT requires the exact isolated UAT project",
@@ -18,8 +25,30 @@ if (projectId !== "greek-yogert-customer-uat-2026")
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
+let adminCredential = applicationDefault();
+if (useDesignatedStaff) {
+  if (!credentialsPath)
+    throw new Error("WP5 browser rehearsal requires the isolated credential");
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(readFileSync(credentialsPath, "utf8"));
+  } catch {
+    throw new Error("The isolated UAT credential is malformed");
+  }
+  if (
+    serviceAccount?.type !== "service_account" ||
+    serviceAccount.project_id !== projectId ||
+    typeof serviceAccount.client_email !== "string" ||
+    !serviceAccount.client_email.endsWith(
+      `@${projectId}.iam.gserviceaccount.com`,
+    ) ||
+    typeof serviceAccount.private_key !== "string"
+  )
+    throw new Error("The browser credential is outside the UAT boundary");
+  adminCredential = cert(serviceAccount);
+}
 if (!getApps().length)
-  initializeApp({ credential: applicationDefault(), projectId });
+  initializeApp({ credential: adminCredential, projectId });
 const firestore = getFirestore();
 const adminAuth = getAdminAuth();
 
