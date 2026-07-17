@@ -1,8 +1,13 @@
 import { Download, FileJson, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import {
+  getAppCheckDiagnostics,
+  subscribeToAppCheckDiagnostics,
+} from "../appCheckDiagnostics";
 import CustomerOrderingSettingsSection from "../components/CustomerOrderingSettingsSection";
 import { db, firebaseReady } from "../firebase";
 import { formatThaiDateTime } from "../lib";
+import { runtimeConfig } from "../runtimeConfig";
 import { useAuth, useData } from "../store";
 import { loadAllOrdersForBackup } from "../staffFirestore";
 
@@ -15,6 +20,11 @@ export default function SettingsPage() {
   );
   const [message, setMessage] = useState("");
   const [backingUp, setBackingUp] = useState(false);
+  const appCheckDiagnostics = useSyncExternalStore(
+    subscribeToAppCheckDiagnostics,
+    getAppCheckDiagnostics,
+    getAppCheckDiagnostics,
+  );
 
   const backup = async () => {
     try {
@@ -137,6 +147,29 @@ export default function SettingsPage() {
           </p>
         </div>
       </section>
+      {runtimeConfig.isCustomerQrUat && (
+        <section
+          className="settings-card account-card"
+          data-testid="app-check-diagnostics"
+        >
+          <div>
+            <h2>Firebase App Check</h2>
+            <p>
+              <b>Status:</b> {appCheckDiagnostics.state}
+            </p>
+            <p>
+              <b>Provider:</b> {appCheckDiagnostics.provider}
+            </p>
+            <p>
+              <b>Mode:</b> {appCheckDiagnostics.mode}
+            </p>
+            <p>
+              <b>Environment / project:</b> {appCheckDiagnostics.environment} /{" "}
+              {appCheckDiagnostics.projectId}
+            </p>
+          </div>
+        </section>
+      )}
       {!firebaseReady && (
         <div className="notice">
           <strong>ก่อนใช้งานจริง:</strong> คัดลอก <code>.env.example</code> เป็น{" "}

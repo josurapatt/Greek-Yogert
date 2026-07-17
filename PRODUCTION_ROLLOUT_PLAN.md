@@ -76,7 +76,11 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. WP5 implementation, exact-head automated isolated rehearsal, rollback rehearsal, final Human UAT, exact-head approval, and squash merge are complete with no known defects, but the App Check or residual-risk decision and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. WP5 is complete and Path B is approved:
+App Check monitoring will be integrated and validated in isolated UAT without
+enforcement. The UAT implementation, Production monitoring registration/client
+release, every enforcement decision, and every other Production prerequisite
+and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
@@ -87,7 +91,9 @@ The repository, not the live Production data, was inspected for application beha
 3. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
 4. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.
 5. Preserve the merged exact Production project guard and disabled Customer QR build until separate Hosting and activation approvals are granted.
-6. Decide whether to accept the documented residual abuse risk with staffed shutdown authority or approve a separate staged App Check task; do not infer enforcement approval from WP5.
+6. Complete the approved Path B isolated-UAT App Check monitoring work package.
+   Do not infer Production registration, client release, or enforcement approval
+   from the residual-risk decision or UAT evidence.
 7. Obtain every separate approval listed in section 11.
 
 ## 4. Production and UAT configuration comparison
@@ -339,6 +345,11 @@ Each checked box records only the specific approval granted by the User; every u
 
 - [ ] Production rollout plan approved
 - [x] Prerequisite architecture/hardening implementation approved
+- [x] App Check/residual-risk decision approved: Path B
+- [ ] App Check monitoring isolated-UAT implementation and Human UAT complete
+- [ ] Production App Check monitoring registration and client release approved
+- [ ] Production Cloud Firestore App Check enforcement approved
+- [ ] Production Firebase Authentication App Check enforcement approved
 - [ ] Production Anonymous Authentication approved
 - [ ] Production Firestore rules approved
 - [ ] Production index no-op or deployment approved
@@ -420,22 +431,22 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 
 ## 14. Risk register
 
-| Risk                                            | Rating       | Evidence/impact                                                                                          | Required control                                                                                       |
-| ----------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Anonymous enabled with current Production rules | **Critical** | Any anonymous account would satisfy broad `signedIn()` Staff rules.                                      | Hardened rules must precede Anonymous Auth.                                                            |
-| Deployment ordering                             | **Critical** | Customer-enabled Hosting before rules/Auth/config exposes an unsafe or broken flow.                      | Enforce sequence; Hosting last.                                                                        |
-| Customer data isolation                         | **Critical** | Owner/list mistakes expose requests or private collections.                                              | Production-specific rules plus Emulator and live denial probes.                                        |
-| Staff authorization migration                   | **High**     | Missing docs lock out Staff; bad docs grant Staff access.                                                | Complete UID inventory and admin-only exact documents before rules/Hosting.                            |
-| Untrusted customer price/item snapshots         | **High**     | Forged client payload could become an authoritative order when Staff confirms.                           | Reprice/revalidate at Staff confirmation or explicitly accept/manual-review risk.                      |
-| Anonymous spam/usage                            | **High**     | Identity rotation can bypass per-owner indicators; WP4 has no trusted backend rate limiter.              | Bounded indicators, manual review, emergency intake control, and WP5/App Check decision before launch. |
-| Public menu synchronization                     | **High**     | Missing projection falls back to hard-coded defaults; stale prices/options may be submitted.             | Current-product projection, value sampling, atomic ongoing sync.                                       |
-| Rollback complexity                             | **High**     | Auth sessions and created Firestore records are not removed by Hosting rollback.                         | Component rollback order; keep hardened rules; retain audit records.                                   |
-| Stale availability/configuration                | **Medium**   | Customers may hold prior cart state.                                                                     | Submission-time reread/validation, listener monitoring, clear error path.                              |
-| Legacy compatibility                            | **Medium**   | Old product/order fields may be missing.                                                                 | Existing defaults plus smoke checks for legacy Staff flow and exports.                                 |
-| Bounded-query capacity                          | **Medium**   | Dashboard indicators and exports are intentionally bounded and may summarize only the configured window. | Document limits, rehearse pagination, and use logs/manual review for wider investigations.             |
-| Duplicate order creation                        | **Low**      | Staff transaction rereads pending status and prevents repeated confirmation.                             | Retain transaction and monitor duplicate IDs/links.                                                    |
-| Queue assignment                                | **Low**      | Counter/order/request update is one transaction.                                                         | Verify one queue in smoke test; never let customers access counters.                                   |
-| Index readiness                                 | **Medium**   | Six candidate indexes passed isolated UAT but are not approved or deployed in Production.                | Review exact definitions and Production state, then approve and verify builds separately.              |
+| Risk                                            | Rating       | Evidence/impact                                                                                          | Required control                                                                                                               |
+| ----------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Anonymous enabled with current Production rules | **Critical** | Any anonymous account would satisfy broad `signedIn()` Staff rules.                                      | Hardened rules must precede Anonymous Auth.                                                                                    |
+| Deployment ordering                             | **Critical** | Customer-enabled Hosting before rules/Auth/config exposes an unsafe or broken flow.                      | Enforce sequence; Hosting last.                                                                                                |
+| Customer data isolation                         | **Critical** | Owner/list mistakes expose requests or private collections.                                              | Production-specific rules plus Emulator and live denial probes.                                                                |
+| Staff authorization migration                   | **High**     | Missing docs lock out Staff; bad docs grant Staff access.                                                | Complete UID inventory and admin-only exact documents before rules/Hosting.                                                    |
+| Untrusted customer price/item snapshots         | **High**     | Forged client payload could become an authoritative order when Staff confirms.                           | Reprice/revalidate at Staff confirmation or explicitly accept/manual-review risk.                                              |
+| Anonymous spam/usage                            | **High**     | Identity rotation can bypass per-owner indicators; WP4 has no trusted backend rate limiter.              | Path B monitoring plus bounded indicators, manual review, emergency intake control, and a separate later enforcement decision. |
+| Public menu synchronization                     | **High**     | Missing projection falls back to hard-coded defaults; stale prices/options may be submitted.             | Current-product projection, value sampling, atomic ongoing sync.                                                               |
+| Rollback complexity                             | **High**     | Auth sessions and created Firestore records are not removed by Hosting rollback.                         | Component rollback order; keep hardened rules; retain audit records.                                                           |
+| Stale availability/configuration                | **Medium**   | Customers may hold prior cart state.                                                                     | Submission-time reread/validation, listener monitoring, clear error path.                                                      |
+| Legacy compatibility                            | **Medium**   | Old product/order fields may be missing.                                                                 | Existing defaults plus smoke checks for legacy Staff flow and exports.                                                         |
+| Bounded-query capacity                          | **Medium**   | Dashboard indicators and exports are intentionally bounded and may summarize only the configured window. | Document limits, rehearse pagination, and use logs/manual review for wider investigations.                                     |
+| Duplicate order creation                        | **Low**      | Staff transaction rereads pending status and prevents repeated confirmation.                             | Retain transaction and monitor duplicate IDs/links.                                                                            |
+| Queue assignment                                | **Low**      | Counter/order/request update is one transaction.                                                         | Verify one queue in smoke test; never let customers access counters.                                                           |
+| Index readiness                                 | **Medium**   | Six candidate indexes passed isolated UAT but are not approved or deployed in Production.                | Review exact definitions and Production state, then approve and verify builds separately.                                      |
 
 ## 15. Unresolved decisions
 
@@ -444,7 +455,10 @@ Smoke testing creates Production data and therefore needs separate approval. Do 
 3. Identify and approve every Production Staff UID authorization document.
 4. Approve the one-time current-product/public-availability projection mechanism and review its dry-run output.
 5. Verify actual Production Authentication providers and approve Anonymous enablement.
-6. Accept the residual anonymous identity-rotation and cost risk after WP4 bounded indicators/control rehearsal; decide the WP5/App Check or trusted-backend mitigation before Production activation.
+6. Complete Path B isolated-UAT monitoring evidence, then separately decide
+   Production monitoring registration/client release and later Cloud Firestore
+   or Authentication enforcement. Real-browser Anonymous identity rotation
+   remains residual risk.
 7. Approve the hardened Production Hosting workflow and exact release SHA.
 8. Approve creation and retention of labelled Production smoke-test records.
 9. Define monitoring duration, thresholds, and who has rollback authority.

@@ -10,6 +10,10 @@ import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { chromium } from "playwright";
 import XLSX from "xlsx";
+import {
+  installAppCheckDebugBoundary,
+  resolveAppCheckDebugBoundary,
+} from "./appCheckDebugBoundary.mjs";
 
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
@@ -23,6 +27,7 @@ if (projectId !== "greek-yogert-customer-uat-2026")
     "Customer browser UAT requires the exact isolated UAT project",
   );
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
+const appCheckDebugBoundary = resolveAppCheckDebugBoundary(process.env);
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
 let adminCredential = applicationDefault();
@@ -181,6 +186,40 @@ async function unique(locator, description) {
   return locator;
 }
 
+async function verifyAppCheckRuntime(page) {
+  if (!appCheckDebugBoundary.enabled) return "not-requested";
+  await page.waitForFunction(
+    () => document.documentElement.dataset.appCheckState === "token-obtained",
+  );
+  const diagnostics = await page.evaluate(() => ({
+    configured: document.documentElement.dataset.appCheckConfigured,
+    provider: document.documentElement.dataset.appCheckProvider,
+    mode: document.documentElement.dataset.appCheckMode,
+    state: document.documentElement.dataset.appCheckState,
+    environment: document.documentElement.dataset.appCheckEnvironment,
+    project: document.documentElement.dataset.appCheckProject,
+  }));
+  assert(diagnostics.configured === "true", "App Check is not configured");
+  assert(
+    diagnostics.provider === "recaptcha-enterprise",
+    "App Check provider is not reCAPTCHA Enterprise",
+  );
+  assert(
+    diagnostics.mode === "monitoring-only",
+    "App Check is not marked monitoring-only",
+  );
+  assert(
+    diagnostics.state === "token-obtained",
+    "App Check token was not obtained",
+  );
+  assert(
+    diagnostics.environment === "customer-qr-uat" &&
+      diagnostics.project === projectId,
+    "App Check runtime identity is outside the isolated UAT boundary",
+  );
+  return diagnostics.state;
+}
+
 async function invokeReactClick(locator, description, startAt = 0) {
   await locator.evaluate(
     async (button, input) => {
@@ -288,6 +327,7 @@ try {
     timezoneId: "Asia/Bangkok",
     viewport: { width: 390, height: 844 },
   });
+  await installAppCheckDebugBoundary(customerContext, appCheckDebugBoundary);
   const customerPage = await customerContext.newPage();
   const secondCustomerPage = await customerContext.newPage();
   const recoverableFirestoreStartupError =
@@ -321,6 +361,7 @@ try {
       waitUntil: "domcontentloaded",
     }),
   ]);
+  const appCheckRuntimeState = await verifyAppCheckRuntime(customerPage);
   await Promise.all([
     customerPage
       .getByRole("button")
@@ -797,6 +838,7 @@ try {
     acceptDownloads: true,
     viewport: { width: 1440, height: 1000 },
   });
+  await installAppCheckDebugBoundary(staffContext, appCheckDebugBoundary);
   const staffPage = await staffContext.newPage();
   const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
     "Customer request confirmation failed",
@@ -1402,6 +1444,14 @@ try {
       releaseDisplay: useDesignatedStaff
         ? "production-like-without-uat-controls"
         : "uat",
+      appCheck: {
+        debugProvider: appCheckDebugBoundary.enabled
+          ? "explicit-ci-runtime-only"
+          : "inactive",
+        runtimeState: appCheckRuntimeState,
+        mode: "monitoring-only",
+        tokenValuesReported: false,
+      },
       staffIdentity: useDesignatedStaff
         ? "existing-designated-capable-staff-unchanged"
         : "temporary-isolated-uat-staff",

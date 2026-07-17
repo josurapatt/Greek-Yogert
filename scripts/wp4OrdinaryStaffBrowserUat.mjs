@@ -16,6 +16,10 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { chromium } from "playwright";
+import {
+  installAppCheckDebugBoundary,
+  resolveAppCheckDebugBoundary,
+} from "./appCheckDebugBoundary.mjs";
 
 const expectedProjectId = "greek-yogert-customer-uat-2026";
 const expectedCapableEmail = "greekmore.uat@gmail.com";
@@ -39,6 +43,7 @@ if (projectId !== expectedProjectId)
 if (projectId === "greek-yogert")
   throw new Error("Production browser UAT is prohibited");
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
+const appCheckDebugBoundary = resolveAppCheckDebugBoundary(process.env);
 if (capableEmail !== expectedCapableEmail)
   throw new Error("The exact capable UAT Staff account is required");
 if (ordinaryEmail !== expectedOrdinaryEmail)
@@ -212,6 +217,7 @@ try {
     timezoneId: "Asia/Bangkok",
     viewport: { width: 1280, height: 900 },
   });
+  await installAppCheckDebugBoundary(staffContext, appCheckDebugBoundary);
   const staffPage = await staffContext.newPage();
   if (useCustomTokenIntercept) {
     const customToken = await adminAuth.createCustomToken(ordinaryAccount.uid);
@@ -342,6 +348,7 @@ try {
     timezoneId: "Asia/Bangkok",
     viewport: { width: 390, height: 844 },
   });
+  await installAppCheckDebugBoundary(customerContext, appCheckDebugBoundary);
   const customerPage = await customerContext.newPage();
   customerPage.on("response", async (response) => {
     if (

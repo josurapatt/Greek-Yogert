@@ -7,7 +7,9 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Last verified: 2026-07-17 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `main`
+- Current branch: `feature/app-check-monitoring`
+- App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
+- App Check decision: Path B approved; isolated-UAT monitoring implementation in progress; enforcement unapproved and disabled
 - WP5 base `main` SHA: `bcac47999734d2dfbb887401908b5423dae8e9b1`
 - WP5 approved PR head: `b6825948d63faeee8e67d61bbaf759cfe0461330`
 - WP5 squash-merge commit: `f85b7f25f483888e48bc019ab982ee774207f128`
@@ -19,6 +21,33 @@ This is the current operational snapshot. Git history is authoritative for earli
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
 - Production status: **No-Go**; Production was not accessed or changed during WP5
+
+## App Check monitoring work-package state
+
+Path B is approved for implementation and testing only in
+`greek-yogert-customer-uat-2026`. The focused branch integrates the Firebase Web
+App Check SDK with `ReCaptchaEnterpriseProvider` only when the environment,
+project, explicit enable flag, provider, and public Website key all match the
+isolated UAT boundary.
+
+The enabled bootstrap runs after Firebase app creation and before
+Authentication or Firestore. Runtime diagnostics expose only configured state,
+provider, monitoring-only mode, token success/failure, environment, and project
+identity. Production-disabled and release-rehearsal builds resolve to a no-SDK
+bootstrap. The Production workflow is unchanged.
+
+Local validation passed with 259 application tests across 33 files, including
+24 focused App Check tests across 6 files, plus 22 canonical Firestore Emulator
+tests. TypeScript, lint, formatting, JavaScript syntax, workflow actionlint,
+Production-disabled, isolated-UAT, and release-rehearsal builds, bundle
+inspection, Production-project rejection, diff checks, and repository/changed-
+file secret scans passed.
+
+The UAT reCAPTCHA Enterprise Website key and CI debug token are not yet present
+in the `customer-qr-uat` GitHub environment. Manual registration in the exact
+isolated UAT project is therefore pending. No UAT deployment or browser UAT has
+occurred for this work package, no App Check enforcement has been enabled, and
+no Production resource has been accessed or changed.
 
 ## WP5 implementation and automated rehearsal state
 
@@ -156,4 +185,8 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Keep Production No-Go while the App Check/residual-risk decision and every independent Production Authentication, Rules, indexes, Staff authorization, public projection, Hosting, smoke-test, monitoring, and rollback approval remain pending.
+Publish one Draft PR, then obtain explicit manual
+authorization for the isolated-UAT reCAPTCHA Enterprise registration described
+in `APP_CHECK_MONITORING_RUNBOOK.md`. Keep Production No-Go. Production App
+Check registration/monitoring, Firestore enforcement, Authentication
+enforcement, and every independent Production approval remain pending.
