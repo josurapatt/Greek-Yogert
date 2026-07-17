@@ -308,7 +308,7 @@ async function attachConsoleCapture(
   return () =>
     errors.filter(
       (entry) =>
-        !allowedExactErrors.includes(entry) &&
+        !allowedExactErrors.includes(entry.trim()) &&
         !allowedErrorFragments.some((allowed) => entry.includes(allowed)),
     );
 }
