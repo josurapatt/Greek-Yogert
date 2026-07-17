@@ -36,12 +36,16 @@ Extend
 - Production release isolation squash-merge commit: `4145a554ff428311a3c7e37b7c069a614fb77b3f`
 - Production security rules squash-merge commit: `241b17637b1b7e34e97b05f9bfceebf3b061d6fe`
 - Trusted Customer boundary squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
+- Anonymous abuse controls squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
+- Full isolated Production release rehearsal squash-merge commit: `f85b7f25f483888e48bc019ab982ee774207f128`
 - Retained feature branch: `feature/customer-qr-ordering-foundation`
 - Retained hardening branch: `feature/production-rollout-hardening`
 - PR #4: **Merged and closed**
 - PR #5: **Approved, squash-merged, and closed**
 - PR #6: **Approved, squash-merged, and closed**
 - PR #7: **Approved at exact head `765e015779c696e03dee9e62905b5645307530f6`, squash-merged, and closed**
+- PR #8: **Approved, squash-merged, and closed**
+- PR #9: **Approved at exact head `b6825948d63faeee8e67d61bbaf759cfe0461330`, squash-merged, and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
 
@@ -141,7 +145,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal — implementation, exact-head automated rehearsal, rollback rehearsal, and final Human UAT complete; exact-head review approval pending**
+**Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal — complete, approved, squash-merged, and closed**
 
 Current state:
 
@@ -165,13 +169,13 @@ Current state:
 - [x] Temporary UAT requests, normalized children, identities, authorization records, and mismatch controls were removed.
 - [x] Final Human UAT passed all 10 functional items; the Customer Requests search-icon Human recheck also passed; no known defects remain.
 - [x] PR #8 received explicit exact-head approval, was squash-merged, and is closed.
-- [x] WP5 started from exact verified `main` SHA `bcac47999734d2dfbb887401908b5423dae8e9b1` on `feature/full-isolated-production-release-rehearsal`; PR #9 remains open and unmerged.
+- [x] WP5 started from exact verified `main` SHA `bcac47999734d2dfbb887401908b5423dae8e9b1` on `feature/full-isolated-production-release-rehearsal`; PR #9 was approved at exact head `b6825948d63faeee8e67d61bbaf759cfe0461330` and squash-merged as `f85b7f25f483888e48bc019ab982ee774207f128`.
 - [x] Dedicated exact-SHA isolated workflow, production-like UAT runtime mode, deterministic manifest, rollback rehearsal, monitoring evidence, and Human-UAT runbook are implemented.
-- [x] Exact-head workflow `29514726894` passed at `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d`: 235 application tests, 22 canonical Rules tests, three builds, six Ready indexes, zero-write Projection V2 dry/apply/idempotency, full Customer/Staff/legacy browser flows, ordinary/capable authorization controls, rollback/restoration, post-restore security, and cleanup.
-- [x] Final isolated UAT state is enabled with projection fingerprint `wp4-5c4fce122e7d5d4f`, designated Staff unchanged, zero temporary WP5 requests/Orders, and release-manifest hash `4506ed9e00878c1fb1ed373706020da7bcfb4257f75b3c404002908b7cd48b16`.
+- [x] Exact-head workflow `29517251575` passed at approved PR head `b6825948d63faeee8e67d61bbaf759cfe0461330`: 235 application tests, 22 canonical Rules tests, three builds, six Ready indexes, zero-write Projection V2 dry/apply/idempotency, full Customer/Staff/legacy browser flows, ordinary/capable authorization controls, rollback/restoration, post-restore security, and cleanup.
+- [x] Final isolated UAT state is enabled with projection fingerprint `wp4-5c4fce122e7d5d4f`, designated Staff unchanged, zero temporary WP5 requests/Orders, and deterministic release-manifest hash `f76ff2999a12640b6210d7d28866c9b314e1f25d2a7d47edfcb4536c177bd9f0`.
 - [x] App Check/trusted-backend options are documented; no App Check enforcement, IAM elevation, API enablement, billing change, or Production action occurred.
 - [x] Final WP5 Human UAT passed with no known defects; trusted-mismatch no-write protection and audit evidence were accepted from the automated rehearsal.
-- [ ] Complete final validation on the documentation follow-up head, change PR #9 to Ready for Review, and obtain separate explicit exact-head approval before merge.
+- [x] Final documentation-head validation, Ready-for-Review transition, explicit exact-head approval, and PR #9 squash merge completed.
 - Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
 - Keep every Production change pending until explicitly approved.
 
@@ -200,7 +204,7 @@ Current state:
 - [x] Production Hardening Work Package 5 — implementation and exact-head automated isolated release rehearsal complete
 - [x] Production Hardening Work Package 5 — final Human UAT complete with no known defects
 - [x] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
-- [ ] Production Hardening Work Package 5 — exact-head review approval and squash merge complete
+- [x] Production Hardening Work Package 5 — exact-head review approval and squash merge complete
 - [ ] Production rollout plan approved
 - [ ] Production Authentication decision approved
 - [ ] Production Firestore rules and deployment scope reviewed

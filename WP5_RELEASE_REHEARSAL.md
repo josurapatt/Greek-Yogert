@@ -180,24 +180,24 @@ Official references:
 
 ## Verified automated evidence
 
-The PR's final implementation-head rehearsal [29514726894](https://github.com/josurapatt/Greek-Yogert/actions/runs/29514726894) succeeded at exact SHA `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` against only `greek-yogert-customer-uat-2026`.
+The PR's final exact-head rehearsal [29517251575](https://github.com/josurapatt/Greek-Yogert/actions/runs/29517251575) succeeded at approved PR SHA `b6825948d63faeee8e67d61bbaf759cfe0461330` against only `greek-yogert-customer-uat-2026`.
 
 - 235 application tests across 27 files and 22 canonical Firestore Emulator tests passed; lint, TypeScript, all three builds, formatting, workflow/static checks, diff integrity, and credential scans passed.
 - Rules SHA-256 was `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`; indexes SHA-256 was `90e5075281d826511a99bc42433f8c86753455284bfd8eba143f0e242e32e991`; all six composite indexes were Ready.
 - Projection V2 fingerprint was `wp4-5c4fce122e7d5d4f`. Dry-run, reviewed apply, and idempotency each required 0 writes because the isolated target was already current; forbidden namespaces were absent.
 - The full production-like Customer-to-Staff and direct legacy Staff browser flows passed, as did ordinary disable, ordinary re-enable denial, client self-grant denial, capable restore, bounded monitoring, Customer-disabled rollback, byte-identical enabled restoration, and post-restore anonymous security denials.
 - Final state was Customer Ordering enabled, both Auth providers ready, designated Staff unchanged, and 0 temporary WP5 requests/Orders. Only bounded control-audit evidence was retained.
-- Rollback bundle SHA-256 was `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; release-manifest SHA-256 was `4506ed9e00878c1fb1ed373706020da7bcfb4257f75b3c404002908b7cd48b16`.
-- Sanitized evidence artifact `wp5-isolated-release-rehearsal-b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` is retained for 30 days. No Production project, workflow, Authentication, IAM, Firestore, Hosting, API, billing, or business data was accessed or changed.
+- Rollback bundle SHA-256 was `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; deterministic release-manifest SHA-256 was `f76ff2999a12640b6210d7d28866c9b314e1f25d2a7d47edfcb4536c177bd9f0` and the downloaded manifest artifact SHA-256 was `85ec8774dd61582b486b301fd415a2d794d6629cb3267e92b91f4e00f8ce5cf0`.
+- Sanitized evidence artifact `wp5-isolated-release-rehearsal-b6825948d63faeee8e67d61bbaf759cfe0461330` is retained for 30 days. No Production project, workflow, Authentication, IAM, Firestore, Hosting, API, billing, or business data was accessed or changed.
 
-Final Human UAT passed with no known defects. Trusted-mismatch no-write protection and audit evidence were accepted from this automated evidence without requiring manual repetition. PR #9 remains open and unmerged; exact-head approval and merge remain separate.
+Final Human UAT passed with no known defects. Trusted-mismatch no-write protection and audit evidence were accepted from this automated evidence without requiring manual repetition. PR #9 was approved at the exact head above, squash-merged as `f85b7f25f483888e48bc019ab982ee774207f128`, and closed. Production approval remains separate.
 
 ## WP5 Human UAT checklist
 
 The following checklist records the final Human UAT accepted on 2026-07-16.
 Human UAT does not approve merge or Production.
 
-- [x] Record exact implementation head `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d` and successful workflow `29514726894`.
+- [x] Record approved exact PR head `b6825948d63faeee8e67d61bbaf759cfe0461330` and successful workflow `29517251575`.
 - [x] Confirm the visible URL is the isolated UAT Hosting domain.
 - [x] Sign in with the designated capable Staff account; do not change its
       password or authorization.
@@ -237,4 +237,4 @@ Human UAT does not approve merge or Production.
       temporary Human-UAT request/Order remains, except deliberately retained
       bounded audit evidence.
 - [x] Confirm Production was not accessed, Production Customer QR is disabled,
-      PR #9 remains open/unmerged, and Production remains No-Go.
+      PR #9 is squash-merged/closed, and Production remains No-Go.
