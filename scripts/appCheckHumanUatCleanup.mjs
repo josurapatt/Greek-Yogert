@@ -1,13 +1,14 @@
-import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import {
+  createOwnerReference,
   exactUatProjectId,
   isAutomatedUatRecord,
   productionProjectId,
   timestampMillis,
+  validateExactAnonymousOrphan,
   validateExactHumanUatChain,
 } from "./appCheckHumanUatCleanupPolicy.mjs";
 
@@ -27,6 +28,7 @@ const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const managerEmail = process.env.CUSTOMER_UAT_MANAGER_EMAIL;
 const ordinaryEmail = process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL;
 const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const apiKey = process.env.VITE_FIREBASE_API_KEY;
 assert(
   projectId === exactUatProjectId,
   "Exact isolated UAT project is required",
@@ -41,6 +43,7 @@ assert(
   "Exact ordinary UAT Staff is required",
 );
 assert(credentialPath, "The isolated UAT credential path is required");
+assert(apiKey, "The isolated UAT Web API key is required");
 const serviceAccount = JSON.parse(readFileSync(credentialPath, "utf8"));
 assert(
   serviceAccount?.type === "service_account" &&
@@ -64,8 +67,36 @@ assert(
   "Valid --submitted-after ISO timestamp is required",
 );
 const output = required("output");
-const ownerReference = (uid) =>
-  createHash("sha256").update(uid).digest("hex").slice(0, 12);
+const ownerReference = createOwnerReference;
+
+async function identityRequest(action, body) {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:${action}?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      `Isolated UAT identity ${action} failed: ${response.status}`,
+    );
+  return response.json();
+}
+
+async function deleteIdentityAsExactUser(uid) {
+  const customToken = await auth.createCustomToken(uid);
+  const identity = await identityRequest("signInWithCustomToken", {
+    token: customToken,
+    returnSecureToken: true,
+  });
+  assert(
+    identity.localId === uid && identity.idToken,
+    "Exact isolated UAT identity exchange failed",
+  );
+  await identityRequest("delete", { idToken: identity.idToken });
+}
 
 async function staffState() {
   const [manager, ordinary] = await Promise.all([
@@ -200,7 +231,7 @@ async function cleanup() {
   batch.delete(chain.orderDocument.ref);
   batch.delete(requestDocument.ref);
   await batch.commit();
-  await auth.deleteUser(chain.owner.uid);
+  await deleteIdentityAsExactUser(chain.owner.uid);
   const [requestAfter, orderAfter, itemsAfter, groupsAfter] = await Promise.all(
     [
       requestDocument.ref.get(),
@@ -250,15 +281,86 @@ async function cleanup() {
   };
 }
 
+async function cleanupOrphanIdentity() {
+  assert(
+    required("confirm") === "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP",
+    "Typed exact Human-UAT cleanup confirmation is required",
+  );
+  const expectedOwnerReference = required("owner-reference");
+  assert(
+    /^[a-f0-9]{12}$/.test(expectedOwnerReference),
+    "Exact hashed owner reference is required",
+  );
+  const staff = await staffState();
+  const matches = [];
+  let pageToken;
+  do {
+    const page = await auth.listUsers(1000, pageToken);
+    matches.push(
+      ...page.users.filter(
+        (user) => ownerReference(user.uid) === expectedOwnerReference,
+      ),
+    );
+    pageToken = page.pageToken;
+  } while (pageToken);
+  assert(
+    matches.length === 1,
+    "Expected exactly one hashed Anonymous identity",
+  );
+  const owner = matches[0];
+  const ownerAuthorization = await db.doc(`users/${owner.uid}`).get();
+  const validation = validateExactAnonymousOrphan({
+    uid: owner.uid,
+    expectedOwnerReference,
+    creationTime: owner.metadata.creationTime,
+    submittedAfterMillis,
+    providerData: owner.providerData,
+    email: owner.email,
+    phoneNumber: owner.phoneNumber,
+    ownerAuthorizationExists: ownerAuthorization.exists,
+    designatedStaffUids: [staff.manager.uid, staff.ordinary.uid],
+  });
+  assert(
+    validation.valid,
+    `Anonymous orphan cleanup rejected: ${validation.errors.join("; ")}`,
+  );
+  await deleteIdentityAsExactUser(owner.uid);
+  await auth.getUser(owner.uid).then(
+    () => {
+      throw new Error(
+        "Anonymous Human-UAT identity cleanup verification failed",
+      );
+    },
+    (error) =>
+      assert(
+        error?.code === "auth/user-not-found",
+        "Unable to verify Anonymous identity cleanup",
+      ),
+  );
+  await staffState();
+  return {
+    status: "passed",
+    phase: "human-uat-exact-orphan-identity-cleanup",
+    projectId,
+    ownerReference: expectedOwnerReference,
+    anonymousIdentityDeleted: true,
+    firestoreWrites: 0,
+    queueCounterMutation: "none",
+    designatedStaff: "unchanged",
+  };
+}
+
 const command = required("command");
 const result =
   command === "inspect"
     ? await inspect()
     : command === "cleanup"
       ? await cleanup()
-      : (() => {
-          throw new Error("Unknown App Check Human-UAT data command");
-        })();
+      : command === "cleanup-identity"
+        ? await cleanupOrphanIdentity()
+        : (() => {
+            throw new Error("Unknown App Check Human-UAT data command");
+          })();
 writeFileSync(output, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 });
 console.log(
   JSON.stringify({

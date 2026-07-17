@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const exactUatProjectId = "greek-yogert-customer-uat-2026";
 export const productionProjectId = "greek-yogert";
 
@@ -20,6 +22,46 @@ export function isAutomatedUatRecord(id, value = {}) {
         candidate.startsWith("WP5-") ||
         candidate === "isolated browser UAT",
     );
+}
+
+export function validateExactAnonymousOrphan({
+  uid,
+  expectedOwnerReference,
+  creationTime,
+  submittedAfterMillis,
+  providerData,
+  email,
+  phoneNumber,
+  ownerAuthorizationExists,
+  designatedStaffUids,
+}) {
+  const errors = [];
+  const actualOwnerReference = createOwnerReference(uid);
+  const creationMillis = Date.parse(creationTime);
+  if (actualOwnerReference !== expectedOwnerReference)
+    errors.push("owner reference does not match");
+  if (
+    !Number.isFinite(creationMillis) ||
+    !Number.isFinite(submittedAfterMillis) ||
+    creationMillis < submittedAfterMillis
+  )
+    errors.push("identity is outside the approved Human-UAT time boundary");
+  if (
+    !Array.isArray(providerData) ||
+    providerData.length !== 0 ||
+    email ||
+    phoneNumber
+  )
+    errors.push("identity is not exactly anonymous");
+  if (ownerAuthorizationExists || designatedStaffUids.includes(uid))
+    errors.push("identity belongs to Staff or has authorization");
+  return { valid: errors.length === 0, errors, actualOwnerReference };
+}
+
+export function createOwnerReference(uid) {
+  return typeof uid === "string"
+    ? createHash("sha256").update(uid).digest("hex").slice(0, 12)
+    : "";
 }
 
 export function validateExactHumanUatChain({

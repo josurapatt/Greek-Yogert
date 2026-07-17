@@ -12,7 +12,7 @@ on:
         required: true
         default: none
         type: choice
-        options: [none, inspect, cleanup]
+        options: [none, inspect, cleanup, cleanup-identity]
       human_uat_submitted_after:
         description: Exact lower ISO timestamp boundary for Human UAT
         required: false
@@ -27,6 +27,10 @@ on:
         type: string
       human_uat_cleanup_confirmation:
         description: Typed confirmation required for cleanup
+        required: false
+        type: string
+      human_uat_owner_reference:
+        description: Exact hashed Anonymous owner reference for orphan cleanup
         required: false
         type: string
   pull_request:
@@ -211,10 +215,11 @@ jobs:
           HUMAN_UAT_REQUEST_ID: ${{ inputs.human_uat_request_id }}
           HUMAN_UAT_ORDER_ID: ${{ inputs.human_uat_order_id }}
           HUMAN_UAT_CLEANUP_CONFIRMATION: ${{ inputs.human_uat_cleanup_confirmation }}
+          HUMAN_UAT_OWNER_REFERENCE: ${{ inputs.human_uat_owner_reference }}
         run: |
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
-          test "$HUMAN_UAT_ACTION" = "inspect" || test "$HUMAN_UAT_ACTION" = "cleanup"
+          test "$HUMAN_UAT_ACTION" = "inspect" || test "$HUMAN_UAT_ACTION" = "cleanup" || test "$HUMAN_UAT_ACTION" = "cleanup-identity"
           test -n "$HUMAN_UAT_SUBMITTED_AFTER"
           arguments=(--command "$HUMAN_UAT_ACTION" --submitted-after "$HUMAN_UAT_SUBMITTED_AFTER" --output "$RUNNER_TEMP/app-check-human-uat-data.json")
           if [ "$HUMAN_UAT_ACTION" = "cleanup" ]; then
@@ -222,6 +227,10 @@ jobs:
             test -n "$HUMAN_UAT_ORDER_ID"
             test "$HUMAN_UAT_CLEANUP_CONFIRMATION" = "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP"
             arguments+=(--request-id "$HUMAN_UAT_REQUEST_ID" --order-id "$HUMAN_UAT_ORDER_ID" --confirm "$HUMAN_UAT_CLEANUP_CONFIRMATION")
+          elif [ "$HUMAN_UAT_ACTION" = "cleanup-identity" ]; then
+            test "$HUMAN_UAT_OWNER_REFERENCE" = "3f58f359427c"
+            test "$HUMAN_UAT_CLEANUP_CONFIRMATION" = "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP"
+            arguments+=(--owner-reference "$HUMAN_UAT_OWNER_REFERENCE" --confirm "$HUMAN_UAT_CLEANUP_CONFIRMATION")
           fi
           pnpm uat:app-check:human-data -- "${arguments[@]}"
 

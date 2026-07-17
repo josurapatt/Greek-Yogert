@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  createOwnerReference,
   isAutomatedUatRecord,
   timestampMillis,
+  validateExactAnonymousOrphan,
   validateExactHumanUatChain,
 } from "./appCheckHumanUatCleanupPolicy.mjs";
 
@@ -76,5 +78,35 @@ describe("App Check Human-UAT cleanup policy", () => {
     expect(
       isAutomatedUatRecord("request", { customerNote: "isolated browser UAT" }),
     ).toBe(true);
+  });
+
+  it("accepts only the exact hashed post-boundary anonymous orphan", () => {
+    const uid = "temporary-anonymous-owner";
+    expect(
+      validateExactAnonymousOrphan({
+        uid,
+        expectedOwnerReference: createOwnerReference(uid),
+        creationTime: "2026-07-17T08:10:00.000Z",
+        submittedAfterMillis: Date.parse("2026-07-17T08:08:06.000Z"),
+        providerData: [],
+        email: undefined,
+        phoneNumber: undefined,
+        ownerAuthorizationExists: false,
+        designatedStaffUids: ["capable", "ordinary"],
+      }),
+    ).toMatchObject({ valid: true, errors: [] });
+    expect(
+      validateExactAnonymousOrphan({
+        uid,
+        expectedOwnerReference: "000000000000",
+        creationTime: "2026-07-17T08:10:00.000Z",
+        submittedAfterMillis: Date.parse("2026-07-17T08:08:06.000Z"),
+        providerData: [{ providerId: "password" }],
+        email: "not-anonymous@example.com",
+        phoneNumber: undefined,
+        ownerAuthorizationExists: false,
+        designatedStaffUids: [],
+      }).valid,
+    ).toBe(false);
   });
 });
