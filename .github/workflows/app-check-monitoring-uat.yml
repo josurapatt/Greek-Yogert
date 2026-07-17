@@ -7,6 +7,9 @@ on:
         description: Exact feature/app-check-monitoring commit SHA
         required: true
         type: string
+  pull_request:
+    branches: [main]
+    types: [labeled]
 
 permissions:
   contents: read
@@ -17,11 +20,14 @@ concurrency:
 
 jobs:
   validate-deploy-and-rehearse:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/app-check-monitoring') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-app-check-uat' && github.head_ref == 'feature/app-check-monitoring')
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     env:
-      SOURCE_SHA: ${{ inputs.source_sha }}
-      DISPATCH_BRANCH: ${{ github.ref_name }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
+      DISPATCH_BRANCH: ${{ github.head_ref || github.ref_name }}
       CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
       VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
@@ -37,7 +43,7 @@ jobs:
       - name: Checkout exact approved feature SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_sha }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
           fetch-depth: 1
 
       - name: Verify exact branch, SHA, project, and configuration boundary
@@ -175,7 +181,7 @@ jobs:
       - name: Upload sanitized isolated-UAT evidence
         uses: actions/upload-artifact@v4
         with:
-          name: app-check-monitoring-uat-${{ inputs.source_sha }}
+          name: app-check-monitoring-uat-${{ github.event.pull_request.head.sha || inputs.source_sha }}
           retention-days: 30
           if-no-files-found: error
           path: |

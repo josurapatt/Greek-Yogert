@@ -7,9 +7,13 @@ const workflow = readFileSync(
 );
 
 describe("App Check monitoring workflow boundary", () => {
-  it("is manual, exact-branch-bound, and isolated-UAT-only", () => {
+  it("is deliberately triggered, exact-branch-bound, and isolated-UAT-only", () => {
     expect(workflow).toContain("workflow_dispatch:");
-    expect(workflow).not.toContain("pull_request:");
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("types: [labeled]");
+    expect(workflow).toContain(
+      "github.event.label.name == 'run-app-check-uat'",
+    );
     expect(workflow).toContain(
       'test "$DISPATCH_BRANCH" = "feature/app-check-monitoring"',
     );

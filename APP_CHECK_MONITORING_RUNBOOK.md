@@ -69,10 +69,11 @@ Console action. Never open or change the Production project.
     Console reports a different assessment quota, shared scope, billing
     requirement, or project identity, stop without registering or deploying.
 
-After registration, dispatch `App Check Monitoring UAT` from branch
-`feature/app-check-monitoring` with the exact approved 40-character source SHA.
-The workflow deploys Hosting only to the isolated UAT project. It performs no
-App Check configuration or enforcement action.
+After registration, deliberately apply the exact `run-app-check-uat` label to
+Draft PR #10. The labeled-PR trigger binds the run to that PR's exact head SHA
+and `feature/app-check-monitoring`. Remove and reapply the label only when an
+explicit rerun is approved. The workflow deploys Hosting only to the isolated
+UAT project. It performs no App Check configuration or enforcement action.
 
 ## Debug-provider and CI safety
 
