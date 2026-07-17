@@ -76,11 +76,11 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. WP5 is complete and Path B is approved:
-App Check monitoring will be integrated and validated in isolated UAT without
-enforcement. The UAT implementation, Production monitoring registration/client
-release, every enforcement decision, and every other Production prerequisite
-and approval remain pending.**
+**Not ready for Production deployment. WP5 and the Path B App Check
+monitoring-only isolated-UAT implementation, automated UAT, final Human UAT, and
+visible metrics review are complete without enforcement. Production App Check
+registration/client release, every enforcement decision, and every other
+Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
@@ -346,7 +346,7 @@ Each checked box records only the specific approval granted by the User; every u
 - [ ] Production rollout plan approved
 - [x] Prerequisite architecture/hardening implementation approved
 - [x] App Check/residual-risk decision approved: Path B
-- [ ] App Check monitoring isolated-UAT implementation and Human UAT complete
+- [x] App Check monitoring isolated-UAT implementation and Human UAT complete
 - [ ] Production App Check monitoring registration and client release approved
 - [ ] Production Cloud Firestore App Check enforcement approved
 - [ ] Production Firebase Authentication App Check enforcement approved

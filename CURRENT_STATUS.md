@@ -10,9 +10,9 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Current branch: `feature/app-check-monitoring`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
-- App Check automated-UAT implementation baseline: `e0775d6a6cf1fc76bc41901c4914d3da8dae57bd`
-- App Check PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — Draft, open, and unmerged
-- App Check decision: Path B approved; isolated-UAT monitoring implementation in progress; enforcement unapproved and disabled
+- App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
+- App Check PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — Ready for Review, open, and unmerged
+- App Check decision: Path B approved and complete in isolated UAT; Production registration/release and enforcement remain unapproved and disabled
 - WP5 base `main` SHA: `bcac47999734d2dfbb887401908b5423dae8e9b1`
 - WP5 approved PR head: `b6825948d63faeee8e67d61bbaf759cfe0461330`
 - WP5 squash-merge commit: `f85b7f25f483888e48bc019ab982ee774207f128`
@@ -39,8 +39,8 @@ provider, monitoring-only mode, token success/failure, environment, and project
 identity. Production-disabled and release-rehearsal builds resolve to a no-SDK
 bootstrap. The Production workflow is unchanged.
 
-Local and exact-head workflow validation passed with 263 application tests
-across 33 files, including 27 focused App Check tests across 6 files, plus 22
+Local and exact-head workflow validation passed with 268 application tests
+across 34 files, including 32 focused App Check and cleanup-policy tests across 7 files, plus 22
 canonical Firestore Emulator tests. TypeScript, lint, formatting, JavaScript syntax, workflow actionlint,
 Production-disabled, isolated-UAT, and release-rehearsal builds, bundle
 inspection, Production-project rejection, diff checks, and repository/changed-
@@ -48,14 +48,22 @@ file secret scans passed.
 
 The exact isolated-UAT reCAPTCHA Enterprise Website key and CI debug token
 loaded successfully from the `customer-qr-uat` GitHub environment without
-being logged or stored in Git. [Exact-head workflow 29564143960](https://github.com/josurapatt/Greek-Yogert/actions/runs/29564143960)
-passed at implementation baseline `e0775d6a6cf1fc76bc41901c4914d3da8dae57bd`.
+being logged or stored in Git. [Final implementation-head workflow 29570356619](https://github.com/josurapatt/Greek-Yogert/actions/runs/29570356619)
+passed at implementation baseline `5ece81786f7f5c8834cf5615627e24b45f30480a`.
 It validated all three bundle modes, deployed Hosting only to
 `greek-yogert-customer-uat-2026`, obtained an App Check token in
 monitoring-only mode, completed Customer-to-Staff and ordinary-Staff browser
-UAT, uploaded sanitized evidence, and verified cleanup. The final isolated-UAT
-state is Customer Ordering enabled with zero temporary Customer requests and
-Orders; both designated Staff authorization documents remain unchanged.
+UAT, uploaded sanitized evidence, and verified automated cleanup. A guarded
+two-phase inspection then identified the single Human-UAT request
+`2761f714-df68-4e12-b291-ef4ad2cd084f`, item `00`, summary `0`, Order
+`20260717-009`, queue `Q009`, and its exact Anonymous identity. Exact cleanup
+removed only those temporary records and identity, preserved one bounded request
+audit event, left the queue counter untouched, and reverified both designated
+Staff. Because the service account intentionally lacks Auth-admin deletion,
+the exact hash-bound Anonymous identity was removed through the existing
+custom-token/self-delete path after verifying its ID token UID and UAT audience;
+no IAM or secret change was made. The final isolated-UAT state is Customer Ordering enabled with zero
+unintended temporary Customer requests or Orders.
 
 The failed runs exposed and corrected a shared-harness coupling between
 designated Staff and the WP5-only `release-rehearsal` display identity. The
@@ -66,8 +74,10 @@ accepts only the exact headless reCAPTCHA storage-access and report-only CSP
 console messages inside the exact CI debug boundary. All other environment,
 project, console, and fail-closed checks remain strict.
 
-Human UAT and exact-head approval remain pending. No App Check enforcement has
-been enabled, and no Production resource has been accessed or changed.
+Final Human UAT passed all nine reported areas, visible App Check metrics passed,
+and no defects are known. Exact-head merge approval remains pending. App Check
+remains monitoring-only and every Firebase service remains Unenforced. No
+Production resource was accessed or changed.
 
 ## WP5 implementation and automated rehearsal state
 
@@ -186,10 +196,11 @@ Defects found and corrected during rehearsal:
 - Final Human UAT: passed all 10 functional items
 - Customer Requests search-icon Human recheck: passed
 - Known defects: none
-- App Check monitoring automated isolated UAT: passed at implementation baseline `e0775d6a6cf1fc76bc41901c4914d3da8dae57bd`
+- App Check monitoring automated isolated UAT: passed at final implementation baseline `5ece81786f7f5c8834cf5615627e24b45f30480a`
 - App Check runtime evidence: monitoring-only, token obtained, no token value reported
-- App Check temporary Customer requests/Orders: 0/0
-- App Check Human UAT: pending
+- App Check metrics: visible and verified
+- App Check temporary Customer requests/Orders: 0/0 after exact Human-UAT cleanup; one bounded request audit event preserved
+- App Check Human UAT: passed with no known defects
 
 ### Production
 
@@ -205,12 +216,13 @@ Defects found and corrected during rehearsal:
 - [x] WP5 Human UAT complete with no known defects; trusted mismatch and audit evidence accepted from automation
 - [x] PR #9 final documentation head passed all validation and was changed to Ready for Review
 - [x] PR #9 received explicit exact-head approval and was squash-merged as `f85b7f25f483888e48bc019ab982ee774207f128`
+- [x] App Check Path B implementation, automated isolated UAT, final Human UAT, visible metrics review, and exact temporary-data cleanup complete
+- [ ] PR #10 receives explicit approval at its final exact head before squash merge
 - [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
 
 ## Immediate next action
 
-Perform the separately controlled App Check monitoring Human UAT at the exact
-Draft PR head, then obtain exact-head approval before any Ready-for-Review or
-merge action. Keep Production No-Go. Production App Check
+Obtain explicit human approval for the final exact PR #10 head before any squash
+merge. Keep Production No-Go. Production App Check
 registration/monitoring, Firestore enforcement, Authentication enforcement,
 and every independent Production approval remain pending.

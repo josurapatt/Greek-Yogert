@@ -145,7 +145,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**App Check Monitoring Work Package — Path B approved; isolated-UAT implementation in progress**
+**App Check Monitoring Work Package — Path B isolated-UAT implementation and Human UAT complete; exact-head approval pending**
 
 Current App Check state:
 
@@ -157,10 +157,11 @@ Current App Check state:
       separately unapproved.
 - [x] Complete local implementation and validation on
       `feature/app-check-monitoring`.
-- [ ] Register the exact isolated-UAT Website key and CI debug token through the
+- [x] Register the exact isolated-UAT Website key and CI debug token through the
       separately authorized manual Console procedure.
-- [ ] Run automated isolated-UAT deployment/browser rehearsal and Human UAT.
-- [ ] Obtain exact-head approval before changing the Draft PR state or merging.
+- [x] Run automated isolated-UAT deployment/browser rehearsal and final Human UAT; visible metrics passed with no known defects.
+- [x] Clean the exact Human-UAT request, normalized children, Order, and Anonymous identity while preserving bounded audit evidence and the queue counter.
+- [ ] Obtain explicit exact-head approval before merging PR #10.
 
 **Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal — complete, approved, squash-merged, and closed**
 
@@ -223,7 +224,7 @@ Current state:
 - [x] Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal complete
 - [x] Production Hardening Work Package 5 — exact-head review approval and squash merge complete
 - [x] App Check/residual-risk decision — Path B approved
-- [ ] App Check monitoring isolated-UAT implementation, automated UAT, and Human UAT complete
+- [x] App Check monitoring isolated-UAT implementation, automated UAT, and Human UAT complete
 - [ ] Production App Check monitoring registration/client release approved
 - [ ] Production Cloud Firestore App Check enforcement approved
 - [ ] Production Firebase Authentication App Check enforcement approved

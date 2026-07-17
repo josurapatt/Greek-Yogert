@@ -148,25 +148,32 @@ Firestore enforcement approval.
 
 ## Human UAT checklist
 
-- [ ] Confirm the visible URL is exactly the isolated UAT Hosting domain.
-- [ ] Confirm Settings shows App Check provider `recaptcha-enterprise`, mode
+- [x] Confirm the visible URL is exactly the isolated UAT Hosting domain.
+- [x] Confirm Settings shows App Check provider `recaptcha-enterprise`, mode
       `monitoring-only`, exact UAT environment/project, and `token-obtained`.
-- [ ] Confirm Cloud Firestore and Authentication remain Unenforced in App Check.
-- [ ] Capable Staff login and all Staff routes pass.
-- [ ] Ordinary Staff login passes and authorization remains unchanged.
-- [ ] Customer Anonymous sign-in, menu, request submission, status refresh, and
+- [x] Confirm Cloud Firestore and Authentication remain Unenforced in App Check.
+- [x] Capable Staff login and all Staff routes pass.
+- [x] Ordinary Staff login passes and authorization remains unchanged.
+- [x] Customer Anonymous sign-in, menu, request submission, status refresh, and
       same-profile two-tab convergence pass.
-- [ ] Staff confirmation creates exactly one Order and queue allocation.
-- [ ] Queue, History, Reports, and Excel pass.
-- [ ] Ordinary Staff can disable but cannot re-enable Customer Ordering.
-- [ ] Capable Staff can re-enable Customer Ordering.
-- [ ] Desktop and mobile layouts remain usable.
-- [ ] App Check metrics are recorded only if visibly populated; otherwise mark
+- [x] Staff confirmation creates exactly one Order and queue allocation.
+- [x] Queue, History, Reports, and Excel pass.
+- [x] Ordinary Staff can disable but cannot re-enable Customer Ordering.
+- [x] Capable Staff can re-enable Customer Ordering.
+- [x] Desktop and mobile layouts remain usable.
+- [x] App Check metrics are recorded only if visibly populated; otherwise mark
       them pending without claiming success.
-- [ ] Temporary requests, Orders, Anonymous identities, and test authorization
+- [x] Temporary requests, Orders, Anonymous identities, and test authorization
       are cleaned; designated Staff remains unchanged.
-- [ ] Final isolated-UAT Customer Ordering state is enabled.
-- [ ] Production remained untouched, Customer QR disabled, and rollout No-Go.
+- [x] Final isolated-UAT Customer Ordering state is enabled.
+- [x] Production remained untouched, Customer QR disabled, and rollout No-Go.
+
+Final result: automated isolated-UAT and Human UAT passed, App Check metrics were
+visible and verified, and no known defects remain. Monitoring is still
+unenforced. The warning (7,000), critical (9,000), and hard-stop (10,000)
+assessment thresholds remain in force. Real-browser Anonymous identity rotation
+remains residual risk. Production App Check registration and monitoring release
+remain separately unapproved.
 
 ## Official Firebase references
 
