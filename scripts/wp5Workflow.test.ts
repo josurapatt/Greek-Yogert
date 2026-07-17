@@ -33,6 +33,12 @@ describe("WP5 isolated release workflow", () => {
     expect(workflow).not.toContain("secrets.FIREBASE_PROJECT_ID");
   });
 
+  it("keeps the shared designated-Staff browser harness bound to the release artifact", () => {
+    expect(workflow).toContain(
+      "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: release-rehearsal",
+    );
+  });
+
   it("deploys only exact Rules, indexes, or Hosting scopes", () => {
     const onlyScopes = [...workflow.matchAll(/--only ([^\s]+)(?:\s|$)/g)].map(
       (match) => match[1],

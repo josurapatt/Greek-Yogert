@@ -151,15 +151,17 @@ async function temporaryCounts() {
     firestore.collection("customerOrderRequests").get(),
     firestore.collection("orders").get(),
   ]);
-  const isWp5 = (snapshot) => {
+  const isTemporaryRehearsal = (snapshot) => {
     const data = snapshot.data();
     return [snapshot.id, data.customerName, data.customerNote]
       .filter((value) => typeof value === "string")
-      .some((value) => value.startsWith("WP5-"));
+      .some(
+        (value) => value.startsWith("WP5-") || value.startsWith("APP-CHECK-"),
+      );
   };
   return {
-    customerRequests: requests.docs.filter(isWp5).length,
-    orders: orders.docs.filter(isWp5).length,
+    customerRequests: requests.docs.filter(isTemporaryRehearsal).length,
+    orders: orders.docs.filter(isTemporaryRehearsal).length,
   };
 }
 

@@ -1,0 +1,264 @@
+name: App Check Monitoring UAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact feature/app-check-monitoring commit SHA
+        required: true
+        type: string
+      human_uat_action:
+        description: Optional guarded Human-UAT data operation
+        required: true
+        default: none
+        type: choice
+        options: [none, inspect, cleanup, cleanup-identity]
+      human_uat_submitted_after:
+        description: Exact lower ISO timestamp boundary for Human UAT
+        required: false
+        type: string
+      human_uat_request_id:
+        description: Exact request ID for a confirmed cleanup operation
+        required: false
+        type: string
+      human_uat_order_id:
+        description: Exact Order ID for a confirmed cleanup operation
+        required: false
+        type: string
+      human_uat_cleanup_confirmation:
+        description: Typed confirmation required for cleanup
+        required: false
+        type: string
+      human_uat_owner_reference:
+        description: Exact hashed Anonymous owner reference for orphan cleanup
+        required: false
+        type: string
+  pull_request:
+    branches: [main]
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-check-monitoring-uat
+  cancel-in-progress: false
+
+jobs:
+  validate-deploy-and-rehearse:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/app-check-monitoring') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-app-check-uat' && github.head_ref == 'feature/app-check-monitoring')
+    runs-on: ubuntu-latest
+    environment: customer-qr-uat
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
+      DISPATCH_BRANCH: ${{ github.head_ref || github.ref_name }}
+      CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.CUSTOMER_UAT_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.CUSTOMER_UAT_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_APP_ID }}
+      CUSTOMER_UAT_APP_CHECK_SITE_KEY: ${{ secrets.CUSTOMER_UAT_APP_CHECK_SITE_KEY }}
+      CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+      CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+
+    steps:
+      - name: Checkout exact approved feature SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.source_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact branch, SHA, project, and configuration boundary
+        run: |
+          test "$DISPATCH_BRANCH" = "feature/app-check-monitoring"
+          test "${#SOURCE_SHA}" -eq 40
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          remote_sha=$(git ls-remote origin refs/heads/feature/app-check-monitoring | cut -f1)
+          test "$remote_sha" = "$SOURCE_SHA"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_FIREBASE_PROJECT_ID" = "$CUSTOMER_UAT_FIREBASE_PROJECT_ID"
+          for variable in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID CUSTOMER_UAT_APP_CHECK_SITE_KEY; do
+            test -n "${!variable}" || { echo "Missing required isolated UAT configuration: $variable"; exit 1; }
+          done
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run complete local-equivalent validation
+        run: |
+          pnpm test
+          pnpm test:rules
+          pnpm lint
+          pnpm exec tsc -b
+
+      - name: Build and inspect Production-disabled bundle
+        env:
+          VITE_APP_ENVIRONMENT: production
+          VITE_CUSTOMER_QR_ENABLED: "false"
+          VITE_FIREBASE_APP_CHECK_ENABLED: "false"
+          VITE_FIREBASE_APP_CHECK_PROVIDER: ""
+          VITE_FIREBASE_APP_CHECK_SITE_KEY: ""
+        run: |
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_CUSTOMER_QR_ENABLED" = "false"
+          test "$VITE_FIREBASE_APP_CHECK_ENABLED" = "false"
+          pnpm build
+          pnpm validate:app-check-bundle -- --mode production-disabled
+
+      - name: Build and preserve normal isolated-UAT monitoring bundle
+        env:
+          VITE_APP_ENVIRONMENT: customer-qr-uat
+          VITE_CUSTOMER_QR_ENABLED: "true"
+          VITE_FIREBASE_APP_CHECK_ENABLED: "true"
+          VITE_FIREBASE_APP_CHECK_PROVIDER: recaptcha-enterprise
+          VITE_FIREBASE_APP_CHECK_SITE_KEY: ${{ secrets.CUSTOMER_UAT_APP_CHECK_SITE_KEY }}
+        run: |
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_APP_ENVIRONMENT" = "customer-qr-uat"
+          test "$VITE_FIREBASE_APP_CHECK_ENABLED" = "true"
+          test "$VITE_FIREBASE_APP_CHECK_PROVIDER" = "recaptcha-enterprise"
+          pnpm build
+          pnpm validate:app-check-bundle -- --mode normal-uat
+          rm -rf "$RUNNER_TEMP/app-check-uat-dist"
+          cp -a dist "$RUNNER_TEMP/app-check-uat-dist"
+
+      - name: Build and inspect release-rehearsal bundle
+        env:
+          VITE_APP_ENVIRONMENT: release-rehearsal
+          VITE_CUSTOMER_QR_ENABLED: "true"
+          VITE_FIREBASE_APP_CHECK_ENABLED: "false"
+          VITE_FIREBASE_APP_CHECK_PROVIDER: ""
+          VITE_FIREBASE_APP_CHECK_SITE_KEY: ""
+        run: |
+          test "$VITE_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$VITE_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$VITE_FIREBASE_APP_CHECK_ENABLED" = "false"
+          pnpm build
+          pnpm validate:app-check-bundle -- --mode release-rehearsal
+
+      - name: Restore exact normal UAT bundle
+        run: |
+          rm -rf dist
+          cp -a "$RUNNER_TEMP/app-check-uat-dist" dist
+          pnpm validate:app-check-bundle -- --mode normal-uat
+
+      - name: Prepare isolated UAT credential without logging it
+        env:
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          umask 077
+          credential_path="$RUNNER_TEMP/app-check-uat-service-account.json"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$credential_path"
+          GOOGLE_APPLICATION_CREDENTIALS="$credential_path" node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,"utf8")); if(value.project_id!=="greek-yogert-customer-uat-2026"||value.project_id==="greek-yogert") process.exit(1)'
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$credential_path" >> "$GITHUB_ENV"
+
+      - name: Establish enabled isolated-UAT intake baseline
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp5:state -- --command set-control --enabled true --confirm WP5_SET_CUSTOMER_ORDERING --output "$RUNNER_TEMP/app-check-preflight-enable.json"
+
+      - name: Deploy monitoring client to isolated UAT Hosting only
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting --non-interactive
+
+      - name: Install isolated UAT browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run App Check Customer-to-Staff browser UAT and cleanup
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_DESIGNATED_STAFF: "true"
+          CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: customer-qr-uat
+          CUSTOMER_UAT_REHEARSAL_MARKER_PREFIX: APP-CHECK-AUTO-UI
+          CUSTOMER_UAT_APP_CHECK_DEBUG_MODE: ci
+          CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN: ${{ secrets.CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN }}
+        run: node scripts/wp3BrowserUat.mjs > "$RUNNER_TEMP/app-check-browser-evidence.json"
+
+      - name: Run ordinary-Staff emergency-control browser UAT
+        env:
+          CUSTOMER_UAT_FIREBASE_API_KEY: ${{ secrets.CUSTOMER_UAT_FIREBASE_API_KEY }}
+          CUSTOMER_UAT_MANAGER_EMAIL: greekmore.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_EMAIL: greekmore.staff.uat@gmail.com
+          CUSTOMER_UAT_ORDINARY_STAFF_CUSTOM_TOKEN: "true"
+          CUSTOMER_UAT_APP_CHECK_DEBUG_MODE: ci
+          CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN: ${{ secrets.CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN }}
+        run: node scripts/wp4OrdinaryStaffBrowserUat.mjs > "$RUNNER_TEMP/app-check-ordinary-staff-evidence.json"
+
+      - name: Inspect or clean exact Human-UAT temporary data
+        if: github.event_name == 'workflow_dispatch' && inputs.human_uat_action != 'none'
+        env:
+          HUMAN_UAT_ACTION: ${{ inputs.human_uat_action }}
+          HUMAN_UAT_SUBMITTED_AFTER: ${{ inputs.human_uat_submitted_after }}
+          HUMAN_UAT_REQUEST_ID: ${{ inputs.human_uat_request_id }}
+          HUMAN_UAT_ORDER_ID: ${{ inputs.human_uat_order_id }}
+          HUMAN_UAT_CLEANUP_CONFIRMATION: ${{ inputs.human_uat_cleanup_confirmation }}
+          HUMAN_UAT_OWNER_REFERENCE: ${{ inputs.human_uat_owner_reference }}
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$HUMAN_UAT_ACTION" = "inspect" || test "$HUMAN_UAT_ACTION" = "cleanup" || test "$HUMAN_UAT_ACTION" = "cleanup-identity"
+          test -n "$HUMAN_UAT_SUBMITTED_AFTER"
+          arguments=(--command "$HUMAN_UAT_ACTION" --submitted-after "$HUMAN_UAT_SUBMITTED_AFTER" --output "$RUNNER_TEMP/app-check-human-uat-data.json")
+          if [ "$HUMAN_UAT_ACTION" = "cleanup" ]; then
+            test -n "$HUMAN_UAT_REQUEST_ID"
+            test -n "$HUMAN_UAT_ORDER_ID"
+            test "$HUMAN_UAT_CLEANUP_CONFIRMATION" = "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP"
+            arguments+=(--request-id "$HUMAN_UAT_REQUEST_ID" --order-id "$HUMAN_UAT_ORDER_ID" --confirm "$HUMAN_UAT_CLEANUP_CONFIRMATION")
+          elif [ "$HUMAN_UAT_ACTION" = "cleanup-identity" ]; then
+            test "$HUMAN_UAT_OWNER_REFERENCE" = "3f58f359427c"
+            test "$HUMAN_UAT_CLEANUP_CONFIRMATION" = "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP"
+            arguments+=(--owner-reference "$HUMAN_UAT_OWNER_REFERENCE" --confirm "$HUMAN_UAT_CLEANUP_CONFIRMATION")
+          fi
+          pnpm uat:app-check:human-data -- "${arguments[@]}"
+
+      - name: Capture final isolated-UAT state
+        run: |
+          pnpm uat:wp5:state -- --command capture --phase app-check-monitoring-final --output "$RUNNER_TEMP/app-check-final-state.json"
+          node -e 'const value=require(process.argv[1]); if(value.projectId!=="greek-yogert-customer-uat-2026"||value.customerOrdering!=="enabled"||value.temporaryBaseline.customerRequests!==0||value.temporaryBaseline.orders!==0||value.designatedStaff.capable!=="active-with-reenable-capability"||value.designatedStaff.ordinary!=="active-without-reenable-capability") process.exit(1)' "$RUNNER_TEMP/app-check-final-state.json"
+
+      - name: Upload sanitized isolated-UAT evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-check-monitoring-uat-${{ github.event.pull_request.head.sha || inputs.source_sha }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/app-check-browser-evidence.json
+            ${{ runner.temp }}/app-check-ordinary-staff-evidence.json
+            ${{ runner.temp }}/app-check-final-state.json
+            ${{ runner.temp }}/app-check-human-uat-data.json
+
+      - name: Fail closed after an isolated-UAT rehearsal failure
+        if: failure()
+        continue-on-error: true
+        run: >-
+          pnpm uat:wp5:state -- --command set-control --enabled false
+          --confirm WP5_SET_CUSTOMER_ORDERING
+          --output "$RUNNER_TEMP/app-check-failure-disable.json"
+
+      - name: Remove temporary credential file
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

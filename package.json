@@ -10,6 +10,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:app-check": "vitest run src/appCheckConfig.test.ts src/appCheckBootstrap.test.ts src/firebaseInitialization.test.ts scripts/appCheckDebugBoundary.test.ts scripts/validateAppCheckBundle.test.ts scripts/appCheckWorkflow.test.ts",
+    "validate:app-check-bundle": "node scripts/validateAppCheckBundle.mjs",
     "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project production-security-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.production.test.ts\"",
     "projection:public": "node scripts/runPublicProjection.mjs",
     "uat:wp3:diagnose": "node scripts/runWp3HumanUatDiagnostic.mjs",
@@ -25,6 +27,7 @@
     "uat:wp5:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp5:hosting-probe": "node scripts/wp5HostingProbe.mjs",
     "uat:wp5:manifest": "node scripts/wp5ReleaseManifest.mjs",
+    "uat:app-check:human-data": "node scripts/appCheckHumanUatCleanup.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

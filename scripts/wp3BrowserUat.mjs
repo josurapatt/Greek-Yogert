@@ -10,11 +10,22 @@ import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { chromium } from "playwright";
 import XLSX from "xlsx";
+import {
+  installAppCheckDebugBoundary,
+  resolveAppCheckDebugBoundary,
+  resolveAppCheckBrowserConsoleAllowance,
+} from "./appCheckDebugBoundary.mjs";
 
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 const useDesignatedStaff = process.env.CUSTOMER_UAT_DESIGNATED_STAFF === "true";
+const expectedAppEnvironment =
+  process.env.CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT;
+const allowedAppEnvironments = new Set([
+  "customer-qr-uat",
+  "release-rehearsal",
+]);
 const designatedStaffEmail =
   process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
 const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -23,8 +34,19 @@ if (projectId !== "greek-yogert-customer-uat-2026")
     "Customer browser UAT requires the exact isolated UAT project",
   );
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
+const appCheckDebugBoundary = resolveAppCheckDebugBoundary(process.env);
+if (useDesignatedStaff && !allowedAppEnvironments.has(expectedAppEnvironment))
+  throw new Error(
+    "Designated-Staff browser UAT requires an explicit isolated artifact identity",
+  );
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
+const isReleaseRehearsalArtifact =
+  expectedAppEnvironment === "release-rehearsal";
+const appCheckBrowserConsoleAllowance = resolveAppCheckBrowserConsoleAllowance(
+  appCheckDebugBoundary,
+  expectedAppEnvironment,
+);
 let adminCredential = applicationDefault();
 if (useDesignatedStaff) {
   if (!credentialsPath)
@@ -181,6 +203,40 @@ async function unique(locator, description) {
   return locator;
 }
 
+async function verifyAppCheckRuntime(page) {
+  if (!appCheckDebugBoundary.enabled) return "not-requested";
+  await page.waitForFunction(
+    () => document.documentElement.dataset.appCheckState === "token-obtained",
+  );
+  const diagnostics = await page.evaluate(() => ({
+    configured: document.documentElement.dataset.appCheckConfigured,
+    provider: document.documentElement.dataset.appCheckProvider,
+    mode: document.documentElement.dataset.appCheckMode,
+    state: document.documentElement.dataset.appCheckState,
+    environment: document.documentElement.dataset.appCheckEnvironment,
+    project: document.documentElement.dataset.appCheckProject,
+  }));
+  assert(diagnostics.configured === "true", "App Check is not configured");
+  assert(
+    diagnostics.provider === "recaptcha-enterprise",
+    "App Check provider is not reCAPTCHA Enterprise",
+  );
+  assert(
+    diagnostics.mode === "monitoring-only",
+    "App Check is not marked monitoring-only",
+  );
+  assert(
+    diagnostics.state === "token-obtained",
+    "App Check token was not obtained",
+  );
+  assert(
+    diagnostics.environment === "customer-qr-uat" &&
+      diagnostics.project === projectId,
+    "App Check runtime identity is outside the isolated UAT boundary",
+  );
+  return diagnostics.state;
+}
+
 async function invokeReactClick(locator, description, startAt = 0) {
   await locator.evaluate(
     async (button, input) => {
@@ -239,7 +295,11 @@ function safeRequestState(value) {
   };
 }
 
-async function attachConsoleCapture(page, allowedErrors = []) {
+async function attachConsoleCapture(
+  page,
+  allowedErrorFragments = [],
+  allowedExactErrors = [],
+) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(`pageerror:${error.message}`));
   page.on("console", (message) => {
@@ -247,7 +307,9 @@ async function attachConsoleCapture(page, allowedErrors = []) {
   });
   return () =>
     errors.filter(
-      (entry) => !allowedErrors.some((allowed) => entry.includes(allowed)),
+      (entry) =>
+        !allowedExactErrors.includes(entry.trim()) &&
+        !allowedErrorFragments.some((allowed) => entry.includes(allowed)),
     );
 }
 
@@ -288,16 +350,21 @@ try {
     timezoneId: "Asia/Bangkok",
     viewport: { width: 390, height: 844 },
   });
+  await installAppCheckDebugBoundary(customerContext, appCheckDebugBoundary);
   const customerPage = await customerContext.newPage();
   const secondCustomerPage = await customerContext.newPage();
   const recoverableFirestoreStartupError =
     "Could not reach Cloud Firestore backend. Connection failed 1 times.";
-  const customerErrors = await attachConsoleCapture(customerPage, [
-    recoverableFirestoreStartupError,
-  ]);
-  const secondCustomerErrors = await attachConsoleCapture(secondCustomerPage, [
-    recoverableFirestoreStartupError,
-  ]);
+  const customerErrors = await attachConsoleCapture(
+    customerPage,
+    [recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
+  const secondCustomerErrors = await attachConsoleCapture(
+    secondCustomerPage,
+    [recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
   const captureCustomerIdentity = (page) =>
     page.on("response", async (response) => {
       if (
@@ -321,6 +388,7 @@ try {
       waitUntil: "domcontentloaded",
     }),
   ]);
+  const appCheckRuntimeState = await verifyAppCheckRuntime(customerPage);
   await Promise.all([
     customerPage
       .getByRole("button")
@@ -332,16 +400,19 @@ try {
       .waitFor(),
   ]);
   if (useDesignatedStaff) {
+    const actualAppEnvironment = await customerPage
+      .locator("html")
+      .getAttribute("data-app-environment");
     assert(
-      (await customerPage
-        .locator("html")
-        .getAttribute("data-app-environment")) === "release-rehearsal",
-      "WP5 browser artifact lacks its release-rehearsal identity",
+      actualAppEnvironment === expectedAppEnvironment,
+      `Browser artifact identity mismatch: expected ${expectedAppEnvironment}, received ${actualAppEnvironment ?? "missing"}`,
     );
-    assert(
-      (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) === 0,
-      "WP5 Customer page exposed UAT-only display content",
-    );
+    if (isReleaseRehearsalArtifact)
+      assert(
+        (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) ===
+          0,
+        "WP5 Customer page exposed UAT-only display content",
+      );
   }
   await (
     await unique(
@@ -797,11 +868,13 @@ try {
     acceptDownloads: true,
     viewport: { width: 1440, height: 1000 },
   });
+  await installAppCheckDebugBoundary(staffContext, appCheckDebugBoundary);
   const staffPage = await staffContext.newPage();
-  const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
-    "Customer request confirmation failed",
-    recoverableFirestoreStartupError,
-  ]);
+  const staffUnexpectedErrors = await attachConsoleCapture(
+    staffPage,
+    ["Customer request confirmation failed", recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
   if (useDesignatedStaff) {
     await staffPage.route(
       /identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithPassword/,
@@ -826,7 +899,7 @@ try {
   await staffPage
     .getByRole("link", { name: /คำขอลูกค้า/ })
     .waitFor({ state: "visible" });
-  if (useDesignatedStaff) {
+  if (isReleaseRehearsalArtifact) {
     assert(
       (await staffPage.locator(".demo-pill").textContent())?.trim() ===
         "ระบบจริง",
@@ -1399,9 +1472,17 @@ try {
       status: "passed",
       projectId,
       marker,
-      releaseDisplay: useDesignatedStaff
+      releaseDisplay: isReleaseRehearsalArtifact
         ? "production-like-without-uat-controls"
         : "uat",
+      appCheck: {
+        debugProvider: appCheckDebugBoundary.enabled
+          ? "explicit-ci-runtime-only"
+          : "inactive",
+        runtimeState: appCheckRuntimeState,
+        mode: "monitoring-only",
+        tokenValuesReported: false,
+      },
       staffIdentity: useDesignatedStaff
         ? "existing-designated-capable-staff-unchanged"
         : "temporary-isolated-uat-staff",
