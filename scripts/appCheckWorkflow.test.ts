@@ -65,6 +65,10 @@ describe("App Check monitoring workflow boundary", () => {
     expect(browserUat).toContain(
       "actualAppEnvironment === expectedAppEnvironment",
     );
+    expect(browserUat).toContain(
+      'isReleaseRehearsalArtifact =\n  expectedAppEnvironment === "release-rehearsal"',
+    );
+    expect(browserUat).toContain("if (isReleaseRehearsalArtifact)");
   });
 
   it("recovers a prior fail-closed run only inside the exact isolated UAT boundary", () => {

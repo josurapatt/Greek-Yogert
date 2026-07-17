@@ -41,6 +41,8 @@ if (useDesignatedStaff && !allowedAppEnvironments.has(expectedAppEnvironment))
   );
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
+const isReleaseRehearsalArtifact =
+  expectedAppEnvironment === "release-rehearsal";
 const appCheckBrowserConsoleAllowance = resolveAppCheckBrowserConsoleAllowance(
   appCheckDebugBoundary,
   expectedAppEnvironment,
@@ -405,7 +407,7 @@ try {
       actualAppEnvironment === expectedAppEnvironment,
       `Browser artifact identity mismatch: expected ${expectedAppEnvironment}, received ${actualAppEnvironment ?? "missing"}`,
     );
-    if (expectedAppEnvironment === "release-rehearsal")
+    if (isReleaseRehearsalArtifact)
       assert(
         (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) ===
           0,
@@ -897,7 +899,7 @@ try {
   await staffPage
     .getByRole("link", { name: /คำขอลูกค้า/ })
     .waitFor({ state: "visible" });
-  if (useDesignatedStaff) {
+  if (isReleaseRehearsalArtifact) {
     assert(
       (await staffPage.locator(".demo-pill").textContent())?.trim() ===
         "ระบบจริง",
@@ -1470,7 +1472,7 @@ try {
       status: "passed",
       projectId,
       marker,
-      releaseDisplay: useDesignatedStaff
+      releaseDisplay: isReleaseRehearsalArtifact
         ? "production-like-without-uat-controls"
         : "uat",
       appCheck: {
