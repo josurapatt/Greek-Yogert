@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   installAppCheckDebugBoundary,
   resolveAppCheckDebugBoundary,
+  resolveAppCheckBrowserConsoleAllowance,
 } from "./appCheckDebugBoundary.mjs";
 
 const valid = {
@@ -48,5 +49,21 @@ describe("App Check CI debug boundary", () => {
     expect(JSON.stringify(addInitScript.mock.calls)).toContain(
       valid.CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN,
     );
+  });
+
+  it("allows only the exact headless reCAPTCHA storage-access message in normal UAT", () => {
+    const boundary = resolveAppCheckDebugBoundary(valid);
+    expect(
+      resolveAppCheckBrowserConsoleAllowance(boundary, "customer-qr-uat"),
+    ).toEqual(["console:requestStorageAccess: Permission denied."]);
+    expect(
+      resolveAppCheckBrowserConsoleAllowance(boundary, "release-rehearsal"),
+    ).toEqual([]);
+    expect(
+      resolveAppCheckBrowserConsoleAllowance(
+        { enabled: false },
+        "customer-qr-uat",
+      ),
+    ).toEqual([]);
   });
 });

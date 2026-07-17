@@ -13,6 +13,7 @@ import XLSX from "xlsx";
 import {
   installAppCheckDebugBoundary,
   resolveAppCheckDebugBoundary,
+  resolveAppCheckBrowserConsoleAllowance,
 } from "./appCheckDebugBoundary.mjs";
 
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
@@ -40,6 +41,10 @@ if (useDesignatedStaff && !allowedAppEnvironments.has(expectedAppEnvironment))
   );
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
+const appCheckBrowserConsoleAllowance = resolveAppCheckBrowserConsoleAllowance(
+  appCheckDebugBoundary,
+  expectedAppEnvironment,
+);
 let adminCredential = applicationDefault();
 if (useDesignatedStaff) {
   if (!credentialsPath)
@@ -288,7 +293,11 @@ function safeRequestState(value) {
   };
 }
 
-async function attachConsoleCapture(page, allowedErrors = []) {
+async function attachConsoleCapture(
+  page,
+  allowedErrorFragments = [],
+  allowedExactErrors = [],
+) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(`pageerror:${error.message}`));
   page.on("console", (message) => {
@@ -296,7 +305,9 @@ async function attachConsoleCapture(page, allowedErrors = []) {
   });
   return () =>
     errors.filter(
-      (entry) => !allowedErrors.some((allowed) => entry.includes(allowed)),
+      (entry) =>
+        !allowedExactErrors.includes(entry) &&
+        !allowedErrorFragments.some((allowed) => entry.includes(allowed)),
     );
 }
 
@@ -342,12 +353,16 @@ try {
   const secondCustomerPage = await customerContext.newPage();
   const recoverableFirestoreStartupError =
     "Could not reach Cloud Firestore backend. Connection failed 1 times.";
-  const customerErrors = await attachConsoleCapture(customerPage, [
-    recoverableFirestoreStartupError,
-  ]);
-  const secondCustomerErrors = await attachConsoleCapture(secondCustomerPage, [
-    recoverableFirestoreStartupError,
-  ]);
+  const customerErrors = await attachConsoleCapture(
+    customerPage,
+    [recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
+  const secondCustomerErrors = await attachConsoleCapture(
+    secondCustomerPage,
+    [recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
   const captureCustomerIdentity = (page) =>
     page.on("response", async (response) => {
       if (
@@ -853,10 +868,11 @@ try {
   });
   await installAppCheckDebugBoundary(staffContext, appCheckDebugBoundary);
   const staffPage = await staffContext.newPage();
-  const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
-    "Customer request confirmation failed",
-    recoverableFirestoreStartupError,
-  ]);
+  const staffUnexpectedErrors = await attachConsoleCapture(
+    staffPage,
+    ["Customer request confirmation failed", recoverableFirestoreStartupError],
+    appCheckBrowserConsoleAllowance,
+  );
   if (useDesignatedStaff) {
     await staffPage.route(
       /identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithPassword/,

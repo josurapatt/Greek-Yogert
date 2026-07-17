@@ -1,4 +1,6 @@
 const isolatedUatProjectId = "greek-yogert-customer-uat-2026";
+const headlessRecaptchaStorageAccessError =
+  "console:requestStorageAccess: Permission denied.";
 
 export function resolveAppCheckDebugBoundary(environment) {
   const mode = environment.CUSTOMER_UAT_APP_CHECK_DEBUG_MODE;
@@ -23,4 +25,13 @@ export async function installAppCheckDebugBoundary(context, boundary) {
     },
     { token: boundary.token },
   );
+}
+
+export function resolveAppCheckBrowserConsoleAllowance(
+  boundary,
+  expectedAppEnvironment,
+) {
+  return boundary.enabled && expectedAppEnvironment === "customer-qr-uat"
+    ? [headlessRecaptchaStorageAccessError]
+    : [];
 }
