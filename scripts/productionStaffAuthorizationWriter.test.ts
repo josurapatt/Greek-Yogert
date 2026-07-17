@@ -355,6 +355,7 @@ describe("Production Staff authorization writer execution boundary", () => {
 
   it.each([
     ["FIRESTORE_EMULATOR_HOST", { FIRESTORE_EMULATOR_HOST: "localhost:8080" }],
+    ["an empty FIRESTORE_EMULATOR_HOST", { FIRESTORE_EMULATOR_HOST: "" }],
     [
       "FIREBASE_AUTH_EMULATOR_HOST",
       { FIREBASE_AUTH_EMULATOR_HOST: "localhost:9099" },
@@ -370,8 +371,22 @@ describe("Production Staff authorization writer execution boundary", () => {
     ["FUNCTIONS_EMULATOR", { FUNCTIONS_EMULATOR: "true" }],
     ["a conflicting GCLOUD_PROJECT", { GCLOUD_PROJECT: "other-project" }],
     [
+      "a conflicting GOOGLE_CLOUD_PROJECT",
+      { GOOGLE_CLOUD_PROJECT: "other-project" },
+    ],
+    [
       "a conflicting FIREBASE_CONFIG",
       { FIREBASE_CONFIG: JSON.stringify({ projectId: "other-project" }) },
+    ],
+    ["a malformed FIREBASE_CONFIG", { FIREBASE_CONFIG: "not-json" }],
+    [
+      "conflicting FIREBASE_CONFIG project identifiers",
+      {
+        FIREBASE_CONFIG: JSON.stringify({
+          projectId: productionProjectId,
+          project_id: "other-project",
+        }),
+      },
     ],
   ])(
     "fails before credential reads or Firebase initialization for %s",
@@ -395,6 +410,58 @@ describe("Production Staff authorization writer execution boundary", () => {
       expect(loadPrincipal).not.toHaveBeenCalled();
       expect(initializeClients).not.toHaveBeenCalled();
       expect(clients.auth.getUser).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["no project environment", {}],
+    ["exact GCLOUD_PROJECT", { GCLOUD_PROJECT: productionProjectId }],
+    [
+      "exact GOOGLE_CLOUD_PROJECT",
+      { GOOGLE_CLOUD_PROJECT: productionProjectId },
+    ],
+    [
+      "exact FIREBASE_CONFIG projectId",
+      {
+        FIREBASE_CONFIG: JSON.stringify({ projectId: productionProjectId }),
+      },
+    ],
+    [
+      "exact FIREBASE_CONFIG projectId and project_id",
+      {
+        FIREBASE_CONFIG: JSON.stringify({
+          projectId: productionProjectId,
+          project_id: productionProjectId,
+        }),
+      },
+    ],
+  ])(
+    "continues to the mocked initialization boundary for %s",
+    async (_label, environment) => {
+      const clients = fakeClients();
+      const loadService = vi.fn(() => serviceAccount());
+      const loadPrincipal = vi.fn(() => principalEmail);
+      const initializationBoundary = new Error("mock initialization boundary");
+      const initializeClients = vi.fn(() => {
+        throw initializationBoundary;
+      });
+
+      await expect(
+        executeControlledAuthorizationWriter({
+          projectId: productionProjectId,
+          inventory: inventory(),
+          confirmation: writeConfirmation,
+          environment,
+          loadServiceAccount: loadService,
+          loadExpectedPrincipal: loadPrincipal,
+          initializeClients,
+        }),
+      ).rejects.toBe(initializationBoundary);
+      expect(loadService).toHaveBeenCalledTimes(1);
+      expect(loadPrincipal).toHaveBeenCalledTimes(1);
+      expect(initializeClients).toHaveBeenCalledTimes(1);
+      expect(clients.auth.getUser).not.toHaveBeenCalled();
+      expect(clients.creates).toEqual([]);
     },
   );
 

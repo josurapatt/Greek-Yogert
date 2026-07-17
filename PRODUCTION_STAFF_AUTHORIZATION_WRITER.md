@@ -91,18 +91,27 @@ $previousCredential = [Environment]::GetEnvironmentVariable(
 )
 try {
   $env:GOOGLE_APPLICATION_CREDENTIALS = <secure-external-credential-path>
-  & C:\Users\surapat.c\Tools\NodePortable\node-v24.17.0-win-x64\node.exe `
-    C:\Users\surapat.c\Desktop\GreekYogurtOrderApp\scripts\productionStaffAuthorizationWriter.mjs `
-    --project greek-yogert `
-    --inventory <secure-external-inventory-path> `
-    --expected-principal <secure-external-principal-path> `
-    --execute `
-    --confirm CREATE_EXACTLY_TWO_STAFF_AUTHORIZATIONS
-  if ($LASTEXITCODE -ne 0) { throw "Authorization writer failed." }
+  $writerOutput = @(
+    & C:\Users\surapat.c\Tools\NodePortable\node-v24.17.0-win-x64\node.exe `
+      C:\Users\surapat.c\Desktop\GreekYogurtOrderApp\scripts\productionStaffAuthorizationWriter.mjs `
+      --project greek-yogert `
+      --inventory <secure-external-inventory-path> `
+      --expected-principal <secure-external-principal-path> `
+      --execute `
+      --confirm CREATE_EXACTLY_TWO_STAFF_AUTHORIZATIONS
+  )
+  $writerExitCode = $LASTEXITCODE
+  $expectedWriterOutput = '{"status":"created","projectValidation":"passed","inventoryValidation":"passed","existingDocumentCheck":"passed","authorizationDocumentsCreated":2,"identifiersLogged":false}'
 
-  # Stop here unless the only result is the exact sanitized success object:
-  # {"status":"created","projectValidation":"passed","inventoryValidation":"passed","existingDocumentCheck":"passed","authorizationDocumentsCreated":2,"identifiersLogged":false}
-  # A successful exit with any other output is a stop condition for review.
+  if ($writerExitCode -ne 0) { throw "Authorization writer failed." }
+  if ($writerOutput.Count -ne 1) { throw "Unexpected writer output count." }
+  if (-not [string]::Equals(
+    [string]$writerOutput[0],
+    $expectedWriterOutput,
+    [System.StringComparison]::Ordinal
+  )) { throw "Unexpected writer output." }
+
+  # Stop here. Any Rules action is a separate, explicitly approved operation.
 }
 finally {
   if ($null -eq $previousCredential) {
@@ -114,9 +123,10 @@ finally {
 }
 ```
 
-Do not dispatch a Rules workflow unless the writer exits successfully and its
-single sanitized result exactly matches the object in the comment. The workflow
-is a separate authorized operation, not a continuation of this command.
+The captured output is never printed. A missing line, extra line, changed field
+order, changed value, changed casing, or non-zero exit stops the controlled
+window. Any Rules workflow is a separate authorized operation, not a
+continuation of this command, and is neither included nor dispatched here.
 
 ## Contract and stop conditions
 
