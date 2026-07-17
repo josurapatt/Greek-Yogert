@@ -65,6 +65,11 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - Work Package 5 final isolated-UAT state: Customer Ordering enabled, designated Staff unchanged, temporary WP5 requests/Orders 0/0, bounded control-audit evidence retained
 - Work Package 5 Human UAT: Passed with no known defects; trusted mismatch no-write protection and audit evidence accepted from the automated evidence
 - Production changes during Work Package 5: None
+- App Check monitoring branch: `feature/app-check-monitoring`
+- App Check monitoring PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — approved at exact head `19dc480c8dfbb5ac65d11b61c5a2381cd51e9746`, squash-merged as `eac7e2243a1f485f25987b2fd386d91df683c14e`, and closed
+- App Check final implementation-head workflow: [29570356619](https://github.com/josurapatt/Greek-Yogert/actions/runs/29570356619) — successful in isolated UAT only
+- App Check monitoring result: Path B complete in isolated UAT with `recaptcha-enterprise`, token obtained, visible metrics verified, exact Human-UAT cleanup complete, Customer Ordering enabled, and all services Unenforced
+- Production changes during the App Check monitoring work package: None; Production App Check registration/client release and every enforcement decision remain pending
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 

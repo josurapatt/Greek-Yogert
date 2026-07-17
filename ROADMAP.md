@@ -145,12 +145,12 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 
 ## 5. Current Active Work
 
-**App Check Monitoring Work Package — Path B isolated-UAT implementation and Human UAT complete; exact-head approval pending**
+**App Check Monitoring Work Package — Path B isolated-UAT implementation, Human UAT, exact-head approval, and squash merge complete**
 
 Current App Check state:
 
 - [x] Residual-risk decision completed with Path B selected.
-- [x] Draft PR [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) opened and remains unmerged.
+- [x] PR [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) was approved at exact head `19dc480c8dfbb5ac65d11b61c5a2381cd51e9746`, squash-merged as `eac7e2243a1f485f25987b2fd386d91df683c14e`, and closed.
 - [x] Scope is limited to `greek-yogert-customer-uat-2026` with
       `ReCaptchaEnterpriseProvider` and monitoring only.
 - [x] Production App Check registration and every enforcement decision remain
@@ -161,7 +161,7 @@ Current App Check state:
       separately authorized manual Console procedure.
 - [x] Run automated isolated-UAT deployment/browser rehearsal and final Human UAT; visible metrics passed with no known defects.
 - [x] Clean the exact Human-UAT request, normalized children, Order, and Anonymous identity while preserving bounded audit evidence and the queue counter.
-- [ ] Obtain explicit exact-head approval before merging PR #10.
+- [x] Obtain explicit exact-head approval and squash-merge PR #10.
 
 **Production Hardening Work Package 5 — Full Isolated Production Release Rehearsal — complete, approved, squash-merged, and closed**
 
@@ -225,6 +225,7 @@ Current state:
 - [x] Production Hardening Work Package 5 — exact-head review approval and squash merge complete
 - [x] App Check/residual-risk decision — Path B approved
 - [x] App Check monitoring isolated-UAT implementation, automated UAT, and Human UAT complete
+- [x] App Check monitoring exact-head review approval and squash merge complete
 - [ ] Production App Check monitoring registration/client release approved
 - [ ] Production Cloud Firestore App Check enforcement approved
 - [ ] Production Firebase Authentication App Check enforcement approved

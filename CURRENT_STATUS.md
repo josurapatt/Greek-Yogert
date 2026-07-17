@@ -7,11 +7,13 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Last verified: 2026-07-17 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `feature/app-check-monitoring`
+- Current branch: `main`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
-- App Check PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — Ready for Review, open, and unmerged
+- App Check approved PR head: `19dc480c8dfbb5ac65d11b61c5a2381cd51e9746`
+- App Check squash-merge commit: `eac7e2243a1f485f25987b2fd386d91df683c14e`
+- App Check PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — approved, squash-merged, and closed
 - App Check decision: Path B approved and complete in isolated UAT; Production registration/release and enforcement remain unapproved and disabled
 - WP5 base `main` SHA: `bcac47999734d2dfbb887401908b5423dae8e9b1`
 - WP5 approved PR head: `b6825948d63faeee8e67d61bbaf759cfe0461330`
@@ -23,7 +25,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
-- Production status: **No-Go**; Production was not accessed or changed during WP5
+- Production status: **No-Go**; Production was not accessed or changed during WP5 or the App Check monitoring work package
 
 ## App Check monitoring work-package state
 
@@ -217,12 +219,12 @@ Defects found and corrected during rehearsal:
 - [x] PR #9 final documentation head passed all validation and was changed to Ready for Review
 - [x] PR #9 received explicit exact-head approval and was squash-merged as `f85b7f25f483888e48bc019ab982ee774207f128`
 - [x] App Check Path B implementation, automated isolated UAT, final Human UAT, visible metrics review, and exact temporary-data cleanup complete
-- [ ] PR #10 receives explicit approval at its final exact head before squash merge
+- [x] PR #10 received explicit approval at exact head `19dc480c8dfbb5ac65d11b61c5a2381cd51e9746` and was squash-merged as `eac7e2243a1f485f25987b2fd386d91df683c14e`
 - [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
 
 ## Immediate next action
 
-Obtain explicit human approval for the final exact PR #10 head before any squash
-merge. Keep Production No-Go. Production App Check
-registration/monitoring, Firestore enforcement, Authentication enforcement,
-and every independent Production approval remain pending.
+Keep Production No-Go and await explicit approval before beginning any next
+Production gate. Production App Check registration/monitoring, Firestore
+enforcement, Authentication enforcement, and every independent Production
+approval remain pending.

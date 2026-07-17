@@ -11,6 +11,12 @@ enforcement, billing, Blaze, Cloud Functions, Cloud Run, or Production rollout.
 Firestore, Authentication, and every other Firebase service must remain
 unenforced.
 
+The isolated-UAT work package was approved at exact PR head
+`19dc480c8dfbb5ac65d11b61c5a2381cd51e9746` and squash-merged through PR #10 as
+`eac7e2243a1f485f25987b2fd386d91df683c14e`. That merge does not approve
+Production App Check registration, a Production monitoring client release, or
+enforcement.
+
 ## Client architecture
 
 The exact enabled configuration is:
@@ -69,11 +75,11 @@ Console action. Never open or change the Production project.
     Console reports a different assessment quota, shared scope, billing
     requirement, or project identity, stop without registering or deploying.
 
-After registration, deliberately apply the exact `run-app-check-uat` label to
-Draft PR #10. The labeled-PR trigger binds the run to that PR's exact head SHA
-and `feature/app-check-monitoring`. Remove and reapply the label only when an
-explicit rerun is approved. The workflow deploys Hosting only to the isolated
-UAT project. It performs no App Check configuration or enforcement action.
+For the completed isolated-UAT work package, the exact `run-app-check-uat` label
+on Draft PR #10 bound each labeled run to that PR's exact head SHA and
+`feature/app-check-monitoring`. The workflow deployed Hosting only to the
+isolated UAT project and performed no App Check configuration or enforcement
+action.
 
 ## Debug-provider and CI safety
 
