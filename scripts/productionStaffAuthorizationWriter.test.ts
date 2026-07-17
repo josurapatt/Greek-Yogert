@@ -1,8 +1,14 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  executeControlledAuthorizationWriter,
   parseCommandArguments,
   productionProjectId,
+  readExpectedPrincipal,
   readExternalInventory,
+  readServiceAccount,
   runAuthorizationWriter,
   runSanitizedWriter,
   validateInventory,
@@ -11,10 +17,12 @@ import {
   writeConfirmation,
 } from "./productionStaffAuthorizationWriter.mjs";
 
-const ordinaryUid = "ordinary-staff-test-uid";
-const capableUid = "capable-staff-test-uid";
-const ordinaryEmail = "ordinary.staff@fixture.invalid";
-const capableEmail = "capable.staff@fixture.invalid";
+const ordinaryUid = "GYSr8VxQp2Lm4Nw6Ka9Hd3Jf5Tb7";
+const capableUid = "GYSc4Mz7Ra2Vk9Np6Lh8Qd1Xe5Uw";
+const ordinaryEmail = "ordinary.operator@greekyogurt-shop.co.th";
+const capableEmail = "capable.operator@greekyogurt-shop.co.th";
+const principalEmail =
+  "writer-principal-000000@greek-yogert.iam.gserviceaccount.com";
 
 function inventory(overrides: Record<string, unknown> = {}) {
   return {
@@ -37,21 +45,46 @@ function inventory(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function serviceAccount(overrides: Record<string, unknown> = {}) {
+  return {
+    type: "service_account",
+    project_id: productionProjectId,
+    client_email: principalEmail,
+    private_key: "synthetic-key-material",
+    ...overrides,
+  };
+}
+
+function expectedPrincipal(overrides: Record<string, unknown> = {}) {
+  return {
+    projectId: productionProjectId,
+    serviceAccountEmail: principalEmail,
+    ...overrides,
+  };
+}
+
 function fakeClients({
   existing = [] as string[],
   authFailure = false,
   commitFailure = false,
+  postCommitFailure,
+}: {
+  existing?: string[];
+  authFailure?: boolean;
+  commitFailure?: boolean;
+  postCommitFailure?: "read" | "missing" | "mismatch" | "extra";
 } = {}) {
   const documents = new Map<string, Record<string, unknown>>();
   existing.forEach((path) => documents.set(path, { existing: true }));
   const reads: string[] = [];
   const creates: Array<{ path: string; data: Record<string, unknown> }> = [];
+  const mutations = { deletes: 0, merges: 0, overwrites: 0, commits: 0 };
   const auth = {
     getUser: vi.fn(async (uid: string) => {
       if (authFailure) throw new Error("sensitive credential failure");
       if (uid === ordinaryUid) return { disabled: false, email: ordinaryEmail };
       if (uid === capableUid) return { disabled: false, email: capableEmail };
-      throw new Error("unexpected test identifier");
+      throw new Error("unexpected synthetic identifier");
     }),
     updateUser: vi.fn(),
     deleteUser: vi.fn(),
@@ -62,10 +95,23 @@ function fakeClients({
         path,
         async get() {
           reads.push(path);
-          return {
-            exists: documents.has(path),
-            data: () => documents.get(path),
-          };
+          const afterCommit = mutations.commits === 1;
+          if (afterCommit && postCommitFailure === "read")
+            throw new Error("sensitive post-write failure");
+          if (afterCommit && postCommitFailure === "missing")
+            return { exists: false, data: () => undefined };
+          const data = documents.get(path);
+          if (afterCommit && postCommitFailure === "mismatch")
+            return {
+              exists: true,
+              data: () => ({ ...data, active: false }),
+            };
+          if (afterCommit && postCommitFailure === "extra")
+            return {
+              exists: true,
+              data: () => ({ ...data, unreviewed: true }),
+            };
+          return { exists: documents.has(path), data: () => data };
         },
       };
     },
@@ -82,11 +128,19 @@ function fakeClients({
           if (pending.some(({ path }) => documents.has(path)))
             throw new Error("precondition failure");
           pending.forEach(({ path, data }) => documents.set(path, data));
+          mutations.commits += 1;
         },
       };
     },
   };
-  return { auth, firestore, documents, reads, creates };
+  return { auth, firestore, documents, reads, creates, mutations };
+}
+
+function externalJson(value: unknown) {
+  const directory = mkdtempSync(join(tmpdir(), "staff-writer-"));
+  const path = join(directory, "input.json");
+  writeFileSync(path, JSON.stringify(value), "utf8");
+  return { directory, path };
 }
 
 async function expectWriterFailure(
@@ -150,7 +204,16 @@ describe("Production Staff authorization writer inventory validation", () => {
       "placeholder UID",
       inventory({
         staff: [
-          { ...inventory().staff[0], uid: "<replace-uid>" },
+          { ...inventory().staff[0], uid: "mock-identifier" },
+          inventory().staff[1],
+        ],
+      }),
+    ],
+    [
+      "reserved email domain",
+      inventory({
+        staff: [
+          { ...inventory().staff[0], email: "ordinary@example.com" },
           inventory().staff[1],
         ],
       }),
@@ -197,14 +260,10 @@ describe("Production Staff authorization writer inventory validation", () => {
   });
 
   it("rejects credentials outside the exact Production project", () => {
-    const privateKeyField = ["private", "key"].join("_");
     expect(() =>
-      validateServiceAccount({
-        type: "service_account",
-        project_id: "greek-yogert-customer-uat-2026",
-        client_email: "writer@greek-yogert.iam.gserviceaccount.com",
-        [privateKeyField]: "not-a-real-key",
-      }),
+      validateServiceAccount(
+        serviceAccount({ project_id: "greek-yogert-customer-uat-2026" }),
+      ),
     ).toThrow("credential-validation");
   });
 
@@ -212,6 +271,72 @@ describe("Production Staff authorization writer inventory validation", () => {
     expect(() => readExternalInventory(process.cwd())).toThrow(
       "inventory-location",
     );
+  });
+});
+
+describe("Production Staff authorization writer external file boundary", () => {
+  it("rejects relative, repository, and missing credential paths", () => {
+    expect(() => readServiceAccount("credential.json")).toThrow(
+      "credential-validation",
+    );
+    expect(() =>
+      readServiceAccount(resolve(process.cwd(), "package.json")),
+    ).toThrow("credential-validation");
+    expect(() =>
+      readServiceAccount(join(tmpdir(), "missing-staff-credential.json")),
+    ).toThrow("credential-validation");
+  });
+
+  it("rejects a symlink that resolves inside the repository where supported", () => {
+    const directory = mkdtempSync(join(tmpdir(), "staff-writer-link-"));
+    const link = join(directory, "credential-link.json");
+    try {
+      try {
+        symlinkSync(resolve(process.cwd(), "package.json"), link, "file");
+        expect(() => readServiceAccount(link)).toThrow("credential-validation");
+      } catch (error: unknown) {
+        if (
+          !error ||
+          typeof error !== "object" ||
+          !["EPERM", "EACCES", "UNKNOWN"].includes(
+            (error as NodeJS.ErrnoException).code ?? "",
+          )
+        )
+          throw error;
+        expect(() =>
+          readServiceAccount(resolve(process.cwd(), "package.json")),
+        ).toThrow("credential-validation");
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts valid external credential and expected-principal files", () => {
+    const credential = externalJson(serviceAccount());
+    const principal = externalJson(expectedPrincipal());
+    try {
+      expect(readServiceAccount(credential.path)).toMatchObject({
+        project_id: productionProjectId,
+      });
+      expect(readExpectedPrincipal(principal.path)).toBe(principalEmail);
+    } finally {
+      rmSync(credential.directory, { recursive: true, force: true });
+      rmSync(principal.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a project-mismatched external credential", () => {
+    const credential = externalJson(
+      serviceAccount({ project_id: "greek-yogert-customer-uat-2026" }),
+    );
+    try {
+      expect(() => readServiceAccount(credential.path)).toThrow(
+        "credential-validation",
+      );
+    } finally {
+      rmSync(credential.directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -228,6 +353,51 @@ describe("Production Staff authorization writer execution boundary", () => {
     });
   });
 
+  it.each([
+    ["FIRESTORE_EMULATOR_HOST", { FIRESTORE_EMULATOR_HOST: "localhost:8080" }],
+    [
+      "FIREBASE_AUTH_EMULATOR_HOST",
+      { FIREBASE_AUTH_EMULATOR_HOST: "localhost:9099" },
+    ],
+    [
+      "FIREBASE_DATABASE_EMULATOR_HOST",
+      { FIREBASE_DATABASE_EMULATOR_HOST: "localhost:9000" },
+    ],
+    [
+      "FIREBASE_STORAGE_EMULATOR_HOST",
+      { FIREBASE_STORAGE_EMULATOR_HOST: "localhost:9199" },
+    ],
+    ["FUNCTIONS_EMULATOR", { FUNCTIONS_EMULATOR: "true" }],
+    ["a conflicting GCLOUD_PROJECT", { GCLOUD_PROJECT: "other-project" }],
+    [
+      "a conflicting FIREBASE_CONFIG",
+      { FIREBASE_CONFIG: JSON.stringify({ projectId: "other-project" }) },
+    ],
+  ])(
+    "fails before credential reads or Firebase initialization for %s",
+    async (_label, environment) => {
+      const clients = fakeClients();
+      const loadService = vi.fn(() => serviceAccount());
+      const loadPrincipal = vi.fn(() => principalEmail);
+      const initializeClients = vi.fn(() => clients);
+      await expect(
+        executeControlledAuthorizationWriter({
+          projectId: productionProjectId,
+          inventory: inventory(),
+          confirmation: writeConfirmation,
+          environment,
+          loadServiceAccount: loadService,
+          loadExpectedPrincipal: loadPrincipal,
+          initializeClients,
+        }),
+      ).rejects.toMatchObject({ stage: "environment-validation" });
+      expect(loadService).not.toHaveBeenCalled();
+      expect(loadPrincipal).not.toHaveBeenCalled();
+      expect(initializeClients).not.toHaveBeenCalled();
+      expect(clients.auth.getUser).not.toHaveBeenCalled();
+    },
+  );
+
   it("requires the exact Production confirmation before any client call", async () => {
     const clients = fakeClients();
     await expectWriterFailure(
@@ -242,6 +412,27 @@ describe("Production Staff authorization writer execution boundary", () => {
     );
     expect(clients.auth.getUser).not.toHaveBeenCalled();
     expect(clients.creates).toEqual([]);
+  });
+
+  it("rejects missing or mismatched expected principals before initialization", async () => {
+    for (const value of [
+      undefined,
+      "other@greek-yogert.iam.gserviceaccount.com",
+    ]) {
+      const initializeClients = vi.fn();
+      await expect(
+        executeControlledAuthorizationWriter({
+          projectId: productionProjectId,
+          inventory: inventory(),
+          confirmation: writeConfirmation,
+          environment: {},
+          loadServiceAccount: () => serviceAccount(),
+          loadExpectedPrincipal: () => value,
+          initializeClients,
+        }),
+      ).rejects.toMatchObject({ stage: "principal-validation" });
+      expect(initializeClients).not.toHaveBeenCalled();
+    }
   });
 
   it("creates exactly the reviewed two-document schemas with no unrelated writes", async () => {
@@ -279,6 +470,12 @@ describe("Production Staff authorization writer execution boundary", () => {
     ]);
     expect(clients.reads.every((path) => path.startsWith("users/"))).toBe(true);
     expect([...clients.documents.keys()]).toHaveLength(2);
+    expect(clients.mutations).toEqual({
+      deletes: 0,
+      merges: 0,
+      overwrites: 0,
+      commits: 1,
+    });
   });
 
   it.each([
@@ -336,7 +533,42 @@ describe("Production Staff authorization writer execution boundary", () => {
     );
     expect(clients.creates).toHaveLength(2);
     expect(clients.documents).toEqual(new Map());
+    expect(clients.mutations.commits).toBe(0);
   });
+
+  it.each(["read", "missing", "mismatch", "extra"] as const)(
+    "stops without repair after post-commit %s verification failure",
+    async (postCommitFailure) => {
+      const output: string[] = [];
+      const clients = fakeClients({ postCommitFailure });
+      await expect(
+        runSanitizedWriter(
+          {
+            projectId: productionProjectId,
+            inventory: inventory(),
+            execute: true,
+            confirmation: writeConfirmation,
+            auth: clients.auth,
+            firestore: clients.firestore,
+          },
+          (message: string) => output.push(message),
+        ),
+      ).rejects.toMatchObject({ stage: "post-write-verification" });
+      expect(clients.documents).toHaveLength(2);
+      expect(clients.creates).toHaveLength(2);
+      expect(clients.mutations).toEqual({
+        deletes: 0,
+        merges: 0,
+        overwrites: 0,
+        commits: 1,
+      });
+      const logs = output.join("\n");
+      expect(logs).toContain('"stage":"post-write-verification"');
+      expect(logs).not.toContain(ordinaryUid);
+      expect(logs).not.toContain(capableUid);
+      expect(logs).not.toContain("sensitive post-write failure");
+    },
+  );
 });
 
 describe("Production Staff authorization writer sanitized interface", () => {
@@ -355,7 +587,7 @@ describe("Production Staff authorization writer sanitized interface", () => {
         productionProjectId,
         "--inventory",
         "C:\\secure\\inventory.json",
-        "--unknown",
+        "--execute",
       ]),
     ).toThrow("command-validation");
     expect(() =>
@@ -364,7 +596,7 @@ describe("Production Staff authorization writer sanitized interface", () => {
         productionProjectId,
         "--inventory",
         "C:\\secure\\inventory.json",
-        "unexpected-positional-value",
+        "--unknown",
       ]),
     ).toThrow("command-validation");
   });
@@ -402,6 +634,7 @@ describe("Production Staff authorization writer sanitized interface", () => {
     expect(logs).not.toContain(capableUid);
     expect(logs).not.toContain(ordinaryEmail);
     expect(logs).not.toContain(capableEmail);
+    expect(logs).not.toContain(principalEmail);
     expect(logs).not.toContain("sensitive credential failure");
   });
 });

@@ -1,5 +1,5 @@
 import { readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cert, deleteApp, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -7,6 +7,43 @@ import { getFirestore } from "firebase-admin/firestore";
 
 export const productionProjectId = "greek-yogert";
 export const writeConfirmation = "CREATE_EXACTLY_TWO_STAFF_AUTHORIZATIONS";
+
+const emulatorEnvironmentNames = [
+  "FIRESTORE_EMULATOR_HOST",
+  "FIREBASE_AUTH_EMULATOR_HOST",
+  "FIREBASE_DATABASE_EMULATOR_HOST",
+  "FIREBASE_STORAGE_EMULATOR_HOST",
+  "FUNCTIONS_EMULATOR",
+];
+const projectEnvironmentNames = ["GCLOUD_PROJECT", "GOOGLE_CLOUD_PROJECT"];
+const rejectedIdentifierTerms = [
+  "example",
+  "placeholder",
+  "replace",
+  "todo",
+  "tbd",
+  "sample",
+  "dummy",
+  "redacted",
+  "unknown",
+  "test",
+  "testing",
+  "fixture",
+  "fake",
+  "mock",
+  "demo",
+  "local",
+  "localhost",
+];
+const reservedEmailDomains = [
+  ".invalid",
+  ".test",
+  ".example",
+  ".localhost",
+  "example.com",
+  "example.org",
+  "example.net",
+];
 
 function writerRepositoryRoot() {
   return resolve(fileURLToPath(import.meta.url), "..", "..");
@@ -37,15 +74,26 @@ function isPlaceholder(value) {
   return (
     typeof value !== "string" ||
     !value.trim() ||
-    /<[^>]+>|\b(example|placeholder|replace|todo|tbd|sample|dummy|redacted|unknown)\b/i.test(
-      value,
+    /<[^>]+>/.test(value) ||
+    rejectedIdentifierTerms.some((term) => value.toLowerCase().includes(term))
+  );
+}
+
+function isReservedEmailDomain(value) {
+  const domain = value.trim().toLowerCase().split("@")[1];
+  return (
+    !domain ||
+    reservedEmailDomains.some(
+      (reserved) => domain === reserved.slice(1) || domain.endsWith(reserved),
     )
   );
 }
 
 function isInventoryEmail(value) {
   return (
-    !isPlaceholder(value) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+    !isPlaceholder(value) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) &&
+    !isReservedEmailDomain(value)
   );
 }
 
@@ -56,6 +104,35 @@ function isInventoryUid(value) {
     value.length <= 128 &&
     !/\s/.test(value)
   );
+}
+
+function pathIsOutsideRepository(repositoryRoot, candidatePath) {
+  const pathFromRepository = relative(repositoryRoot, candidatePath);
+  return (
+    pathFromRepository === ".." ||
+    pathFromRepository.startsWith(`..${sep}`) ||
+    isAbsolute(pathFromRepository)
+  );
+}
+
+function readExternalJson(filePath, repositoryRoot, locationStage, parseStage) {
+  if (typeof filePath !== "string" || !isAbsolute(filePath))
+    fail(locationStage);
+  let resolvedFile;
+  let resolvedRepository;
+  try {
+    resolvedFile = realpathSync(resolve(filePath));
+    resolvedRepository = realpathSync(resolve(repositoryRoot));
+  } catch {
+    fail(locationStage);
+  }
+  if (!pathIsOutsideRepository(resolvedRepository, resolvedFile))
+    fail(locationStage);
+  try {
+    return JSON.parse(readFileSync(resolvedFile, "utf8"));
+  } catch {
+    fail(parseStage);
+  }
 }
 
 export function validateProjectId(projectId) {
@@ -91,11 +168,7 @@ export function validateInventory(inventory, projectId = productionProjectId) {
     roles.add(record.role);
     uids.add(record.uid);
     emails.add(email);
-    return {
-      email,
-      uid: record.uid,
-      role: record.role,
-    };
+    return { email, uid: record.uid, role: record.role };
   });
 
   if (!roles.has("ordinary") || !roles.has("capable"))
@@ -114,26 +187,12 @@ export function readExternalInventory(
   inventoryPath,
   repositoryRoot = process.cwd(),
 ) {
-  if (!isAbsolute(inventoryPath)) fail("inventory-location");
-  let resolvedInventory;
-  let resolvedRepository;
-  try {
-    resolvedInventory = realpathSync(resolve(inventoryPath));
-    resolvedRepository = realpathSync(resolve(repositoryRoot));
-  } catch {
-    fail("inventory-location");
-  }
-  const pathFromRepository = relative(resolvedRepository, resolvedInventory);
-  if (
-    !pathFromRepository ||
-    (!pathFromRepository.startsWith("..") && !isAbsolute(pathFromRepository))
-  )
-    fail("inventory-location");
-  try {
-    return JSON.parse(readFileSync(resolvedInventory, "utf8"));
-  } catch {
-    fail("inventory-validation");
-  }
+  return readExternalJson(
+    inventoryPath,
+    repositoryRoot,
+    "inventory-location",
+    "inventory-validation",
+  );
 }
 
 export function validateServiceAccount(value, projectId = productionProjectId) {
@@ -142,7 +201,7 @@ export function validateServiceAccount(value, projectId = productionProjectId) {
     !value ||
     value.type !== "service_account" ||
     value.project_id !== productionProjectId ||
-    typeof value.client_email !== "string" ||
+    !isInventoryEmail(value.client_email) ||
     !value.client_email.endsWith(
       `@${productionProjectId}.iam.gserviceaccount.com`,
     ) ||
@@ -156,18 +215,85 @@ export function validateServiceAccount(value, projectId = productionProjectId) {
 export function readServiceAccount(
   credentialsPath,
   projectId = productionProjectId,
+  repositoryRoot = process.cwd(),
 ) {
-  if (!credentialsPath || !isAbsolute(credentialsPath))
-    fail("credential-validation");
-  try {
-    return validateServiceAccount(
-      JSON.parse(readFileSync(credentialsPath, "utf8")),
-      projectId,
-    );
-  } catch (error) {
-    if (error instanceof WriterError) throw error;
-    fail("credential-validation");
+  return validateServiceAccount(
+    readExternalJson(
+      credentialsPath,
+      repositoryRoot,
+      "credential-validation",
+      "credential-validation",
+    ),
+    projectId,
+  );
+}
+
+export function validateExpectedPrincipal(
+  value,
+  projectId = productionProjectId,
+) {
+  validateProjectId(projectId);
+  if (
+    !hasExactKeys(value, ["projectId", "serviceAccountEmail"]) ||
+    value.projectId !== productionProjectId ||
+    !isInventoryEmail(value.serviceAccountEmail) ||
+    !value.serviceAccountEmail.endsWith(
+      `@${productionProjectId}.iam.gserviceaccount.com`,
+    )
+  )
+    fail("principal-validation");
+  return value.serviceAccountEmail.trim().toLowerCase();
+}
+
+export function readExpectedPrincipal(
+  principalPath,
+  projectId = productionProjectId,
+  repositoryRoot = process.cwd(),
+) {
+  return validateExpectedPrincipal(
+    readExternalJson(
+      principalPath,
+      repositoryRoot,
+      "principal-validation",
+      "principal-validation",
+    ),
+    projectId,
+  );
+}
+
+export function validateExecuteEnvironment(environment = process.env) {
+  if (
+    emulatorEnvironmentNames.some((name) =>
+      Object.prototype.hasOwnProperty.call(environment, name),
+    )
+  )
+    fail("environment-validation");
+  if (
+    projectEnvironmentNames.some(
+      (name) =>
+        Object.prototype.hasOwnProperty.call(environment, name) &&
+        environment[name] !== productionProjectId,
+    )
+  )
+    fail("environment-validation");
+  if (Object.prototype.hasOwnProperty.call(environment, "FIREBASE_CONFIG")) {
+    let firebaseConfig;
+    try {
+      firebaseConfig = JSON.parse(environment.FIREBASE_CONFIG);
+    } catch {
+      fail("environment-validation");
+    }
+    if (
+      !firebaseConfig ||
+      typeof firebaseConfig !== "object" ||
+      Array.isArray(firebaseConfig) ||
+      firebaseConfig.projectId !== productionProjectId ||
+      (firebaseConfig.project_id !== undefined &&
+        firebaseConfig.project_id !== productionProjectId)
+    )
+      fail("environment-validation");
   }
+  return productionProjectId;
 }
 
 function exactAuthorizationData(value, expected) {
@@ -279,6 +405,46 @@ export async function runAuthorizationWriter({
   };
 }
 
+export async function executeControlledAuthorizationWriter({
+  projectId,
+  inventory,
+  confirmation,
+  environment = process.env,
+  loadServiceAccount,
+  loadExpectedPrincipal,
+  initializeClients,
+}) {
+  validateProjectId(projectId);
+  validateInventory(inventory, projectId);
+  if (confirmation !== writeConfirmation) fail("write-confirmation");
+  validateExecuteEnvironment(environment);
+  if (
+    typeof loadServiceAccount !== "function" ||
+    typeof loadExpectedPrincipal !== "function" ||
+    typeof initializeClients !== "function"
+  )
+    fail("client-validation");
+  const serviceAccount = validateServiceAccount(
+    loadServiceAccount(),
+    projectId,
+  );
+  const expectedPrincipal = loadExpectedPrincipal();
+  if (
+    typeof expectedPrincipal !== "string" ||
+    serviceAccount.client_email.trim().toLowerCase() !== expectedPrincipal
+  )
+    fail("principal-validation");
+  const clients = await initializeClients(serviceAccount);
+  return runAuthorizationWriter({
+    projectId,
+    inventory,
+    execute: true,
+    confirmation,
+    auth: clients?.auth,
+    firestore: clients?.firestore,
+  });
+}
+
 export async function runSanitizedWriter(input, logger = console.log) {
   try {
     const result = await runAuthorizationWriter(input);
@@ -303,7 +469,14 @@ export function parseCommandArguments(argumentsList = process.argv.slice(2)) {
       execute = true;
       continue;
     }
-    if (!["--project", "--inventory", "--confirm"].includes(argument))
+    if (
+      ![
+        "--project",
+        "--inventory",
+        "--expected-principal",
+        "--confirm",
+      ].includes(argument)
+    )
       fail("command-validation");
     const value = argumentsList[index + 1];
     if (!value || value.startsWith("--") || values[argument] !== undefined)
@@ -314,9 +487,11 @@ export function parseCommandArguments(argumentsList = process.argv.slice(2)) {
   const projectId = values["--project"];
   const inventoryPath = values["--inventory"];
   if (!projectId || !inventoryPath) fail("command-validation");
+  if (execute && !values["--expected-principal"]) fail("command-validation");
   return {
     projectId,
     inventoryPath,
+    expectedPrincipalPath: values["--expected-principal"],
     execute,
     confirmation: values["--confirm"],
   };
@@ -326,34 +501,45 @@ async function main() {
   let app;
   try {
     const command = parseCommandArguments();
+    const repositoryRoot = writerRepositoryRoot();
     const inventory = readExternalInventory(
       command.inventoryPath,
-      writerRepositoryRoot(),
+      repositoryRoot,
     );
-    if (!command.execute) {
-      await runSanitizedWriter({
-        projectId: command.projectId,
-        inventory,
-      });
-      return;
-    }
-    if (command.confirmation !== writeConfirmation) fail("write-confirmation");
-    const serviceAccount = readServiceAccount(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS,
-      command.projectId,
-    );
-    app = initializeApp(
-      { credential: cert(serviceAccount), projectId: command.projectId },
-      `production-staff-authorization-${Date.now()}`,
-    );
-    await runSanitizedWriter({
-      projectId: command.projectId,
-      inventory,
-      execute: true,
-      confirmation: command.confirmation,
-      auth: getAuth(app),
-      firestore: getFirestore(app),
-    });
+    const result = command.execute
+      ? await executeControlledAuthorizationWriter({
+          projectId: command.projectId,
+          inventory,
+          confirmation: command.confirmation,
+          environment: process.env,
+          loadServiceAccount: () =>
+            readServiceAccount(
+              process.env.GOOGLE_APPLICATION_CREDENTIALS,
+              command.projectId,
+              repositoryRoot,
+            ),
+          loadExpectedPrincipal: () =>
+            readExpectedPrincipal(
+              command.expectedPrincipalPath,
+              command.projectId,
+              repositoryRoot,
+            ),
+          initializeClients: (serviceAccount) => {
+            app = initializeApp(
+              {
+                credential: cert(serviceAccount),
+                projectId: command.projectId,
+              },
+              `production-staff-authorization-${Date.now()}`,
+            );
+            return { auth: getAuth(app), firestore: getFirestore(app) };
+          },
+        })
+      : await runAuthorizationWriter({
+          projectId: command.projectId,
+          inventory,
+        });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
     const stage = error instanceof WriterError ? error.stage : "unexpected";
     process.stderr.write(
