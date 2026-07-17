@@ -64,6 +64,10 @@ export function createOwnerReference(uid) {
     : "";
 }
 
+export function isExactVerifiedIdentityToken(decoded, uid, projectId) {
+  return decoded?.uid === uid && decoded?.aud === projectId;
+}
+
 export function validateExactHumanUatChain({
   requestId,
   request,

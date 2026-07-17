@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createOwnerReference,
+  exactUatProjectId,
   isAutomatedUatRecord,
+  isExactVerifiedIdentityToken,
   timestampMillis,
   validateExactAnonymousOrphan,
   validateExactHumanUatChain,
@@ -107,6 +109,30 @@ describe("App Check Human-UAT cleanup policy", () => {
         ownerAuthorizationExists: false,
         designatedStaffUids: [],
       }).valid,
+    ).toBe(false);
+  });
+
+  it("accepts only a verified token for the exact UID and UAT audience", () => {
+    expect(
+      isExactVerifiedIdentityToken(
+        { uid: "anonymous-owner", aud: exactUatProjectId },
+        "anonymous-owner",
+        exactUatProjectId,
+      ),
+    ).toBe(true);
+    expect(
+      isExactVerifiedIdentityToken(
+        { uid: "another-owner", aud: exactUatProjectId },
+        "anonymous-owner",
+        exactUatProjectId,
+      ),
+    ).toBe(false);
+    expect(
+      isExactVerifiedIdentityToken(
+        { uid: "anonymous-owner", aud: "greek-yogert" },
+        "anonymous-owner",
+        exactUatProjectId,
+      ),
     ).toBe(false);
   });
 });

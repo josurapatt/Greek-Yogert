@@ -6,6 +6,7 @@ import {
   createOwnerReference,
   exactUatProjectId,
   isAutomatedUatRecord,
+  isExactVerifiedIdentityToken,
   productionProjectId,
   timestampMillis,
   validateExactAnonymousOrphan,
@@ -91,9 +92,11 @@ async function deleteIdentityAsExactUser(uid) {
     token: customToken,
     returnSecureToken: true,
   });
+  assert(identity.idToken, "Exact isolated UAT identity exchange failed");
+  const verified = await auth.verifyIdToken(identity.idToken);
   assert(
-    identity.localId === uid && identity.idToken,
-    "Exact isolated UAT identity exchange failed",
+    isExactVerifiedIdentityToken(verified, uid, projectId),
+    "Exchanged identity token is outside the exact UAT identity boundary",
   );
   await identityRequest("delete", { idToken: identity.idToken });
 }
