@@ -143,6 +143,13 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS="$credential_path" node -e 'const fs=require("fs"); const value=JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,"utf8")); if(value.project_id!=="greek-yogert-customer-uat-2026"||value.project_id==="greek-yogert") process.exit(1)'
           echo "GOOGLE_APPLICATION_CREDENTIALS=$credential_path" >> "$GITHUB_ENV"
 
+      - name: Establish enabled isolated-UAT intake baseline
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          pnpm uat:wp5:state -- --command set-control --enabled true --confirm WP5_SET_CUSTOMER_ORDERING --output "$RUNNER_TEMP/app-check-preflight-enable.json"
+
       - name: Deploy monitoring client to isolated UAT Hosting only
         run: |
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
