@@ -212,6 +212,7 @@ jobs:
       - name: Run full Customer-to-Staff browser smoke and cleanup
         env:
           CUSTOMER_UAT_DESIGNATED_STAFF: "true"
+          CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: release-rehearsal
           CUSTOMER_UAT_REHEARSAL_MARKER_PREFIX: WP5-AUTO-UI
         run: node scripts/wp3BrowserUat.mjs > "$RUNNER_TEMP/wp5-browser-evidence.json"
 

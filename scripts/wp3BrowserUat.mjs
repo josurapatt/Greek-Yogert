@@ -19,6 +19,12 @@ const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 const useDesignatedStaff = process.env.CUSTOMER_UAT_DESIGNATED_STAFF === "true";
+const expectedAppEnvironment =
+  process.env.CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT;
+const allowedAppEnvironments = new Set([
+  "customer-qr-uat",
+  "release-rehearsal",
+]);
 const designatedStaffEmail =
   process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
 const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -28,6 +34,10 @@ if (projectId !== "greek-yogert-customer-uat-2026")
   );
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
 const appCheckDebugBoundary = resolveAppCheckDebugBoundary(process.env);
+if (useDesignatedStaff && !allowedAppEnvironments.has(expectedAppEnvironment))
+  throw new Error(
+    "Designated-Staff browser UAT requires an explicit isolated artifact identity",
+  );
 if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
   throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
 let adminCredential = applicationDefault();
@@ -373,16 +383,19 @@ try {
       .waitFor(),
   ]);
   if (useDesignatedStaff) {
+    const actualAppEnvironment = await customerPage
+      .locator("html")
+      .getAttribute("data-app-environment");
     assert(
-      (await customerPage
-        .locator("html")
-        .getAttribute("data-app-environment")) === "release-rehearsal",
-      "WP5 browser artifact lacks its release-rehearsal identity",
+      actualAppEnvironment === expectedAppEnvironment,
+      `Browser artifact identity mismatch: expected ${expectedAppEnvironment}, received ${actualAppEnvironment ?? "missing"}`,
     );
-    assert(
-      (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) === 0,
-      "WP5 Customer page exposed UAT-only display content",
-    );
+    if (expectedAppEnvironment === "release-rehearsal")
+      assert(
+        (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) ===
+          0,
+        "WP5 Customer page exposed UAT-only display content",
+      );
   }
   await (
     await unique(

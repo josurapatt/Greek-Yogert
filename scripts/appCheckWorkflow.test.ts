@@ -5,6 +5,11 @@ const workflow = readFileSync(
   ".github/workflows/app-check-monitoring-uat.yml",
   "utf8",
 );
+const browserUat = readFileSync("scripts/wp3BrowserUat.mjs", "utf8");
+const browserStep = workflow.slice(
+  workflow.indexOf("Run App Check Customer-to-Staff browser UAT and cleanup"),
+  workflow.indexOf("Run ordinary-Staff emergency-control browser UAT"),
+);
 
 describe("App Check monitoring workflow boundary", () => {
   it("is deliberately triggered, exact-branch-bound, and isolated-UAT-only", () => {
@@ -43,5 +48,18 @@ describe("App Check monitoring workflow boundary", () => {
     expect(workflow).toContain("--mode production-disabled");
     expect(workflow).toContain("--mode normal-uat");
     expect(workflow).toContain("--mode release-rehearsal");
+  });
+
+  it("asserts the deployed normal-UAT artifact identity independently of designated Staff", () => {
+    expect(browserStep).toContain(
+      "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: customer-qr-uat",
+    );
+    expect(browserStep).not.toContain(
+      "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: release-rehearsal",
+    );
+    expect(browserUat).toContain("CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT");
+    expect(browserUat).toContain(
+      "actualAppEnvironment === expectedAppEnvironment",
+    );
   });
 });
