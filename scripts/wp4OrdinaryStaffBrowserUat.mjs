@@ -27,6 +27,8 @@ const capableEmail =
 const ordinaryEmail =
   process.env.CUSTOMER_UAT_ORDINARY_STAFF_EMAIL?.trim().toLowerCase();
 const ordinaryPassword = process.env.CUSTOMER_UAT_ORDINARY_STAFF_PASSWORD;
+const useCustomTokenIntercept =
+  process.env.CUSTOMER_UAT_ORDINARY_STAFF_CUSTOM_TOKEN === "true";
 const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
 
@@ -42,9 +44,10 @@ if (capableEmail !== expectedCapableEmail)
 if (ordinaryEmail !== expectedOrdinaryEmail)
   throw new Error("The exact ordinary UAT Staff account is required");
 if (
-  typeof ordinaryPassword !== "string" ||
-  ordinaryPassword.length < 8 ||
-  ordinaryPassword.length > 128
+  !useCustomTokenIntercept &&
+  (typeof ordinaryPassword !== "string" ||
+    ordinaryPassword.length < 8 ||
+    ordinaryPassword.length > 128)
 )
   throw new Error("The ephemeral ordinary Staff password is unavailable");
 if (!credentialsPath)
@@ -121,7 +124,17 @@ let capableClientFirestore;
 let controlRestored = false;
 let validationFailure;
 const cleanupFailures = [];
-const temporaryAnonymousUids = new Set();
+const temporaryAnonymousIdentities = new Map();
+
+function recordCleanupFailure(operation, cause) {
+  cleanupFailures.push({
+    operation,
+    code:
+      cause && typeof cause === "object" && typeof cause.code === "string"
+        ? cause.code
+        : "unknown",
+  });
+}
 
 async function restoreAsCapableStaff() {
   const customToken = await adminAuth.createCustomToken(capableAccount.uid);
@@ -200,9 +213,41 @@ try {
     viewport: { width: 1280, height: 900 },
   });
   const staffPage = await staffContext.newPage();
+  if (useCustomTokenIntercept) {
+    const customToken = await adminAuth.createCustomToken(ordinaryAccount.uid);
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: customToken, returnSecureToken: true }),
+      },
+    );
+    assert(response.ok, "Ordinary Staff custom-token exchange failed");
+    const signInResponse = await response.json();
+    await staffPage.route(
+      /identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithPassword/,
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...signInResponse,
+            localId: ordinaryAccount.uid,
+            email: ordinaryEmail,
+            registered: true,
+          }),
+        });
+      },
+    );
+  }
   await staffPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await staffPage.locator('input[type="email"]').fill(ordinaryEmail);
-  await staffPage.locator('input[type="password"]').fill(ordinaryPassword);
+  await staffPage
+    .locator('input[type="password"]')
+    .fill(
+      useCustomTokenIntercept ? "WP5-CUSTOM-TOKEN-INTERCEPT" : ordinaryPassword,
+    );
   await staffPage.locator("form button.primary").click();
   await staffPage.locator("button.logout").waitFor();
   await staffPage.goto(`${baseUrl}/customer-requests`, {
@@ -222,7 +267,7 @@ try {
     .getByText("ปิดรับคำสั่งซื้อได้ แต่ไม่มีสิทธิ์เปิดกลับ", { exact: true })
     .waitFor();
 
-  const reason = `WP4 ordinary Staff emergency disable ${Date.now()}`;
+  const reason = `${useCustomTokenIntercept ? "WP5" : "WP4"} ordinary Staff emergency disable ${Date.now()}`;
   const message = "ปิดรับคำสั่งซื้อใหม่ชั่วคราวระหว่างการทดสอบ UAT";
   const textInputs = panel.locator(
     '.operations-action-form input:not([type="checkbox"])',
@@ -305,7 +350,8 @@ try {
       response.url().includes("accounts:signUp")
     ) {
       const body = await response.json().catch(() => null);
-      if (body?.localId) temporaryAnonymousUids.add(body.localId);
+      if (body?.localId && body?.idToken)
+        temporaryAnonymousIdentities.set(body.localId, body.idToken);
     }
   });
   await customerPage.goto(`${baseUrl}/order`, {
@@ -363,7 +409,9 @@ try {
     JSON.stringify({
       status: "passed",
       projectId,
-      ordinaryExistingAccountLogin: "passed",
+      ordinaryExistingAccountLogin: useCustomTokenIntercept
+        ? "custom-token-intercept-passed-without-password-change"
+        : "email-password-passed",
       ordinaryEmergencyDisable: "passed",
       ordinaryReenableUi: "blocked",
       disabledCustomerIntake: "passed",
@@ -383,33 +431,50 @@ try {
       .doc("settings/customerOrdering")
       .get()
       .catch((cause) => {
-        cleanupFailures.push(cause);
+        recordCleanupFailure("read-ordering-control", cause);
         return null;
       });
     if (current?.data()?.enabled === false)
       await restoreAsCapableStaff().catch((cause) =>
-        cleanupFailures.push(cause),
+        recordCleanupFailure("restore-ordering-control", cause),
       );
   }
   if (capableClientAuth)
     await signOut(capableClientAuth).catch((cause) =>
-      cleanupFailures.push(cause),
+      recordCleanupFailure("sign-out-capable-client", cause),
     );
   if (capableClientApp)
     await deleteApp(capableClientApp).catch((cause) =>
-      cleanupFailures.push(cause),
+      recordCleanupFailure("delete-capable-client", cause),
     );
   if (browser)
-    await browser.close().catch((cause) => cleanupFailures.push(cause));
-  for (const uid of temporaryAnonymousUids)
-    await adminAuth
-      .deleteUser(uid)
-      .catch((cause) => cleanupFailures.push(cause));
+    await browser
+      .close()
+      .catch((cause) => recordCleanupFailure("close-browser", cause));
+  for (const idToken of temporaryAnonymousIdentities.values()) {
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      },
+    ).catch((cause) => {
+      recordCleanupFailure("delete-temporary-anonymous-user", cause);
+      return null;
+    });
+    if (response && !response.ok)
+      recordCleanupFailure("delete-temporary-anonymous-user", {
+        code: `identity-http-${response.status}`,
+      });
+  }
 }
 
 if (cleanupFailures.length)
   throw new Error(
-    `Ordinary Staff browser UAT cleanup failed for ${cleanupFailures.length} resources`,
+    `Ordinary Staff browser UAT cleanup failed: ${cleanupFailures
+      .map(({ operation, code }) => `${operation} (${code})`)
+      .join(", ")}`,
     { cause: validationFailure },
   );
 if (validationFailure) throw validationFailure;

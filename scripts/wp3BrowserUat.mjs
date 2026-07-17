@@ -1,5 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
+import { readFileSync } from "node:fs";
+import {
+  applicationDefault,
+  cert,
+  getApps,
+  initializeApp,
+} from "firebase-admin/app";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { chromium } from "playwright";
 import XLSX from "xlsx";
@@ -7,18 +14,51 @@ import XLSX from "xlsx";
 const projectId = process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID;
 const apiKey = process.env.CUSTOMER_UAT_FIREBASE_API_KEY;
 const baseUrl = "https://greek-yogert-customer-uat-2026.web.app";
+const useDesignatedStaff = process.env.CUSTOMER_UAT_DESIGNATED_STAFF === "true";
+const designatedStaffEmail =
+  process.env.CUSTOMER_UAT_MANAGER_EMAIL?.trim().toLowerCase();
+const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 if (projectId !== "greek-yogert-customer-uat-2026")
   throw new Error(
     "Customer browser UAT requires the exact isolated UAT project",
   );
 if (!apiKey) throw new Error("Missing isolated UAT Firebase API key");
+if (useDesignatedStaff && designatedStaffEmail !== "greekmore.uat@gmail.com")
+  throw new Error("WP5 browser rehearsal requires the exact capable UAT Staff");
+let adminCredential = applicationDefault();
+if (useDesignatedStaff) {
+  if (!credentialsPath)
+    throw new Error("WP5 browser rehearsal requires the isolated credential");
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(readFileSync(credentialsPath, "utf8"));
+  } catch {
+    throw new Error("The isolated UAT credential is malformed");
+  }
+  if (
+    serviceAccount?.type !== "service_account" ||
+    serviceAccount.project_id !== projectId ||
+    typeof serviceAccount.client_email !== "string" ||
+    !serviceAccount.client_email.endsWith(
+      `@${projectId}.iam.gserviceaccount.com`,
+    ) ||
+    typeof serviceAccount.private_key !== "string"
+  )
+    throw new Error("The browser credential is outside the UAT boundary");
+  adminCredential = cert(serviceAccount);
+}
 if (!getApps().length)
-  initializeApp({ credential: applicationDefault(), projectId });
+  initializeApp({ credential: adminCredential, projectId });
 const firestore = getFirestore();
+const adminAuth = getAdminAuth();
 
-const marker = `WP4-AUTO-UI-${Date.now()}`;
-const staffEmail = `${marker.toLowerCase()}@example.com`;
-const staffPassword = `Wp3!${randomBytes(18).toString("base64url")}`;
+const marker = `${process.env.CUSTOMER_UAT_REHEARSAL_MARKER_PREFIX ?? "WP4-AUTO-UI"}-${Date.now()}`;
+const staffEmail = useDesignatedStaff
+  ? designatedStaffEmail
+  : `${marker.toLowerCase()}@example.com`;
+const staffPassword = useDesignatedStaff
+  ? "WP5-CUSTOM-TOKEN-INTERCEPT"
+  : `Wp3!${randomBytes(18).toString("base64url")}`;
 const paymentRequired = "กรุณาเลือกวิธีการชำระเงินก่อนยืนยันคำสั่งซื้อ";
 const mismatchMessage =
   "คำขอไม่ตรงกับเมนูหรือการตั้งค่าปัจจุบัน กรุณาให้ลูกค้าแก้ไขหรือสร้างคำขอใหม่";
@@ -31,6 +71,7 @@ const customerIdentities = new Map();
 let browser;
 let requestId;
 let orderId;
+let legacyOrderId;
 let queueNumber;
 let validationFailure;
 let humanUatEvidence = null;
@@ -58,6 +99,33 @@ async function identityRequest(action, body) {
 }
 
 async function createStaffIdentity() {
+  if (useDesignatedStaff) {
+    const account = await adminAuth.getUserByEmail(staffEmail);
+    assert(
+      !account.disabled,
+      "The designated capable Staff account is disabled",
+    );
+    const authorization = await firestore.doc(`users/${account.uid}`).get();
+    const data = authorization.data();
+    assert(
+      authorization.exists &&
+        data?.role === "staff" &&
+        data.active === true &&
+        data.canManageCustomerOrdering === true,
+      "The designated capable Staff authorization is not ready",
+    );
+    const customToken = await adminAuth.createCustomToken(account.uid);
+    const signInResponse = await identityRequest("signInWithCustomToken", {
+      token: customToken,
+      returnSecureToken: true,
+    });
+    return {
+      localId: account.uid,
+      email: staffEmail,
+      designated: true,
+      signInResponse,
+    };
+  }
   const identity = await identityRequest("signUp", {
     email: staffEmail,
     password: staffPassword,
@@ -76,7 +144,7 @@ async function createStaffIdentity() {
 }
 
 async function deleteIdentity(identity) {
-  if (!identity?.idToken) return;
+  if (!identity?.idToken || identity.designated) return;
   await identityRequest("delete", { idToken: identity.idToken });
 }
 
@@ -184,31 +252,33 @@ async function attachConsoleCapture(page, allowedErrors = []) {
 }
 
 try {
-  let humanRequests = await firestore
-    .collection("customerOrderRequests")
-    .where("customerName", "==", humanUatMarker)
-    .get();
-  if (humanRequests.empty)
-    humanRequests = await firestore
+  if (!useDesignatedStaff) {
+    let humanRequests = await firestore
       .collection("customerOrderRequests")
-      .where("customerNote", "==", humanUatMarker)
+      .where("customerName", "==", humanUatMarker)
       .get();
-  if (!humanRequests.empty) {
-    const humanRequest = humanRequests.docs[0];
-    const data = humanRequest.data();
-    const [items, groups] = await Promise.all([
-      humanRequest.ref.collection("items").get(),
-      humanRequest.ref.collection("itemGroups").get(),
-    ]);
-    humanUatEvidence = {
-      requestId: humanRequest.id,
-      status: data.status ?? null,
-      ownerPresent: typeof data.ownerUid === "string",
-      normalizedItemDocuments: items.size,
-      normalizedSummaryDocuments: groups.size,
-      statusUrl: `${baseUrl}/order/status/${humanRequest.id}`,
-      preserved: true,
-    };
+    if (humanRequests.empty)
+      humanRequests = await firestore
+        .collection("customerOrderRequests")
+        .where("customerNote", "==", humanUatMarker)
+        .get();
+    if (!humanRequests.empty) {
+      const humanRequest = humanRequests.docs[0];
+      const data = humanRequest.data();
+      const [items, groups] = await Promise.all([
+        humanRequest.ref.collection("items").get(),
+        humanRequest.ref.collection("itemGroups").get(),
+      ]);
+      humanUatEvidence = {
+        requestId: humanRequest.id,
+        status: data.status ?? null,
+        ownerPresent: typeof data.ownerUid === "string",
+        normalizedItemDocuments: items.size,
+        normalizedSummaryDocuments: groups.size,
+        statusUrl: `${baseUrl}/order/status/${humanRequest.id}`,
+        preserved: true,
+      };
+    }
   }
   staffIdentity = await createStaffIdentity();
   browser = await chromium.launch({ headless: true });
@@ -220,8 +290,14 @@ try {
   });
   const customerPage = await customerContext.newPage();
   const secondCustomerPage = await customerContext.newPage();
-  const customerErrors = await attachConsoleCapture(customerPage);
-  const secondCustomerErrors = await attachConsoleCapture(secondCustomerPage);
+  const recoverableFirestoreStartupError =
+    "Could not reach Cloud Firestore backend. Connection failed 1 times.";
+  const customerErrors = await attachConsoleCapture(customerPage, [
+    recoverableFirestoreStartupError,
+  ]);
+  const secondCustomerErrors = await attachConsoleCapture(secondCustomerPage, [
+    recoverableFirestoreStartupError,
+  ]);
   const captureCustomerIdentity = (page) =>
     page.on("response", async (response) => {
       if (
@@ -255,6 +331,18 @@ try {
       .filter({ hasText: "Apple Ohlala" })
       .waitFor(),
   ]);
+  if (useDesignatedStaff) {
+    assert(
+      (await customerPage
+        .locator("html")
+        .getAttribute("data-app-environment")) === "release-rehearsal",
+      "WP5 browser artifact lacks its release-rehearsal identity",
+    );
+    assert(
+      (await customerPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) === 0,
+      "WP5 Customer page exposed UAT-only display content",
+    );
+  }
   await (
     await unique(
       customerPage.getByRole("button").filter({ hasText: "Size S" }),
@@ -365,6 +453,26 @@ try {
     "Total quantity limit feedback did not clear after correction",
   );
   await firstCartLine.locator(".customer-cart-quantity button").first().click();
+  if (useDesignatedStaff) {
+    await (
+      await unique(
+        customerPage.getByRole("button").filter({ hasText: "Plain Greek" }),
+        "second WP5 Customer product",
+      )
+    ).click();
+    await (
+      await unique(
+        customerPage
+          .locator(".modal-card .primary")
+          .filter({ hasText: "เพิ่มลงตะกร้า" }),
+        "second WP5 add-to-cart action",
+      )
+    ).click();
+    assert(
+      (await customerPage.locator(".customer-cart-line").count()) === 2,
+      "WP5 Customer request does not contain exactly two lines",
+    );
+  }
   const nameField = customerPage.getByPlaceholder("ชื่อเล่น (ไม่บังคับ)");
   const noteField = customerPage.getByPlaceholder(
     "หมายเหตุถึงร้าน (ไม่บังคับ)",
@@ -409,6 +517,24 @@ try {
       "second-tab add-to-cart action",
     )
   ).click();
+  if (useDesignatedStaff) {
+    await (
+      await unique(
+        secondCustomerPage
+          .getByRole("button")
+          .filter({ hasText: "Plain Greek" }),
+        "second-tab second WP5 Customer product",
+      )
+    ).click();
+    await (
+      await unique(
+        secondCustomerPage
+          .locator(".modal-card .primary")
+          .filter({ hasText: "เพิ่มลงตะกร้า" }),
+        "second-tab second WP5 add-to-cart action",
+      )
+    ).click();
+  }
   await secondCustomerPage
     .getByPlaceholder("ชื่อเล่น (ไม่บังคับ)")
     .fill(marker);
@@ -674,8 +800,25 @@ try {
   const staffPage = await staffContext.newPage();
   const staffUnexpectedErrors = await attachConsoleCapture(staffPage, [
     "Customer request confirmation failed",
-    "Could not reach Cloud Firestore backend. Connection failed 1 times.",
+    recoverableFirestoreStartupError,
   ]);
+  if (useDesignatedStaff) {
+    await staffPage.route(
+      /identitytoolkit\.googleapis\.com\/v1\/accounts:signInWithPassword/,
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...staffIdentity.signInResponse,
+            localId: staffIdentity.localId,
+            email: staffIdentity.email,
+            registered: true,
+          }),
+        });
+      },
+    );
+  }
   await staffPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await staffPage.getByLabel("อีเมล").fill(staffEmail);
   await staffPage.getByLabel("รหัสผ่าน").fill(staffPassword);
@@ -683,6 +826,17 @@ try {
   await staffPage
     .getByRole("link", { name: /คำขอลูกค้า/ })
     .waitFor({ state: "visible" });
+  if (useDesignatedStaff) {
+    assert(
+      (await staffPage.locator(".demo-pill").textContent())?.trim() ===
+        "ระบบจริง",
+      "WP5 Staff display is not Production-like",
+    );
+    assert(
+      (await staffPage.getByText(/Demo\/UAT|โหมดทดลอง|Seed/).count()) === 0,
+      "WP5 Staff page exposed UAT-only display content",
+    );
+  }
 
   const responsiveLayouts = [];
   const customerRequestSearchLayouts = [];
@@ -919,6 +1073,14 @@ try {
     "Missing payment was not marked invalid",
   );
   await payment.selectOption({ label: "สด" });
+  if (useDesignatedStaff) {
+    const paymentControls = staffPage.getByRole("combobox");
+    assert(
+      (await paymentControls.count()) === 2,
+      "WP5 mixed-payment rehearsal requires exactly two payment controls",
+    );
+    await paymentControls.nth(1).selectOption({ label: "โอน" });
+  }
   assert(
     (await staffPage.getByText(paymentRequired, { exact: true }).count()) === 0,
     "Payment guidance did not clear",
@@ -1085,6 +1247,78 @@ try {
     )
   ).click();
   await staffPage.waitForURL(`${baseUrl}/queue`);
+  if (useDesignatedStaff) {
+    const legacyMarker = `${marker}-LEGACY`;
+    await staffPage.goto(`${baseUrl}/order`, { waitUntil: "domcontentloaded" });
+    const channelCards = staffPage.locator(".channel-card");
+    await staffPage.waitForFunction(() =>
+      Boolean(
+        document.querySelector(".channel-card") ??
+          document.querySelector(".product-card"),
+      ),
+    );
+    if ((await channelCards.count()) > 0) {
+      await channelCards.first().click();
+    }
+    await (
+      await unique(
+        staffPage.locator(".product-card").first(),
+        "legacy-compatible Staff product",
+      )
+    ).click();
+    const legacyModal = staffPage.locator(".modal-card");
+    await legacyModal.waitFor();
+    const legacyChoices = staffPage.locator(".modal-card .choice:enabled");
+    if ((await legacyChoices.count()) > 0) await legacyChoices.first().click();
+    const legacyAddButton = legacyModal
+      .locator(".primary")
+      .filter({ hasText: "เพิ่มลงตะกร้า" });
+    const firstToppingIncrease = legacyModal
+      .locator(".topping-row")
+      .first()
+      .locator("button")
+      .last();
+    for (
+      let attempt = 0;
+      !(await legacyAddButton.isEnabled()) &&
+      (await firstToppingIncrease.count()) > 0 &&
+      attempt < 10;
+      attempt += 1
+    )
+      await firstToppingIncrease.click();
+    assert(
+      await legacyAddButton.isEnabled(),
+      "The current Staff product could not satisfy its option requirements",
+    );
+    await (
+      await unique(legacyAddButton, "legacy Staff add-to-cart action")
+    ).click();
+    await (
+      await unique(
+        staffPage.locator(".cart-button"),
+        "legacy Staff cart navigation",
+      )
+    ).click();
+    await staffPage.waitForURL(`${baseUrl}/cart`);
+    await staffPage.getByPlaceholder("ลูกค้าทั่วไป").fill(legacyMarker);
+    await staffPage.getByLabel("สด", { exact: true }).check();
+    await staffPage.getByRole("button", { name: "สั่งออเดอร์" }).click();
+    await staffPage.waitForURL((url) => url.pathname.startsWith("/orders/"));
+    await staffPage.goto(`${baseUrl}/queue`, { waitUntil: "domcontentloaded" });
+    await staffPage.getByText(legacyMarker, { exact: true }).waitFor();
+    const legacyOrders = await firestore
+      .collection("orders")
+      .where("customerName", "==", legacyMarker)
+      .get();
+    assert(
+      legacyOrders.size === 1,
+      `Expected one legacy Staff Order, found ${legacyOrders.size}`,
+    );
+    legacyOrderId = legacyOrders.docs[0].id;
+    await staffPage.getByRole("link").filter({ hasText: legacyMarker }).click();
+    await staffPage.getByRole("button", { name: "ยกเลิกออเดอร์" }).click();
+    await staffPage.getByRole("button", { name: "นำกลับเข้าคิว" }).waitFor();
+  }
   await (
     await unique(
       staffPage.getByRole("link", { name: "ประวัติ", exact: true }),
@@ -1093,6 +1327,8 @@ try {
   ).click();
   await staffPage.waitForURL(`${baseUrl}/history`);
   await staffPage.getByText(marker, { exact: true }).waitFor();
+  if (useDesignatedStaff)
+    await staffPage.getByText(`${marker}-LEGACY`, { exact: true }).waitFor();
   await (
     await unique(
       staffPage.getByRole("link", { name: "รายงาน", exact: true }),
@@ -1118,6 +1354,11 @@ try {
     rows.some((row) => row["ชื่อลูกค้า"] === marker),
     "Excel output does not contain the valid browser Order",
   );
+  if (useDesignatedStaff)
+    assert(
+      rows.some((row) => row["ชื่อลูกค้า"] === `${marker}-LEGACY`),
+      "Excel output does not contain the legacy Staff Order",
+    );
 
   const paginationSource = (
     await firestore.doc(`orders/${orderId}`).get()
@@ -1158,6 +1399,12 @@ try {
       status: "passed",
       projectId,
       marker,
+      releaseDisplay: useDesignatedStaff
+        ? "production-like-without-uat-controls"
+        : "uat",
+      staffIdentity: useDesignatedStaff
+        ? "existing-designated-capable-staff-unchanged"
+        : "temporary-isolated-uat-staff",
       requestId,
       orderId,
       queueNumber,
@@ -1199,6 +1446,7 @@ try {
       responsiveOperationsLayout: responsiveLayouts,
       customerRequestSearchLayout: customerRequestSearchLayouts,
       paymentValidation: "visible-and-cleared",
+      mixedPayment: useDesignatedStaff ? "cash-and-transfer-passed" : "not-run",
       customerStatus: "updated",
       duplicateConfirmation: "blocked-without-write",
       negativeControl: {
@@ -1213,6 +1461,9 @@ try {
       history: "passed",
       reports: "passed",
       excel: "passed",
+      legacyStaffFlow: useDesignatedStaff
+        ? "order-queue-cancel-history-reports-excel-passed"
+        : "not-run",
       pagination: "51 records crossed the 50-row cursor boundary",
       browserConsole: "no-unexpected-errors",
     }),
@@ -1225,6 +1476,11 @@ try {
   if (orderId)
     await firestore
       .doc(`orders/${orderId}`)
+      .delete()
+      .catch((cause) => cleanupFailures.push(cause));
+  if (legacyOrderId)
+    await firestore
+      .doc(`orders/${legacyOrderId}`)
       .delete()
       .catch((cause) => cleanupFailures.push(cause));
   if (paginationOrderIds.length) {
@@ -1257,14 +1513,15 @@ try {
     .doc(`customerOrderRequests/${negativeRequestId}`)
     .delete()
     .catch((cause) => cleanupFailures.push(cause));
-  if (staffIdentity?.localId)
+  if (staffIdentity?.localId && !staffIdentity.designated)
     await firestore
       .doc(`users/${staffIdentity.localId}`)
       .delete()
       .catch((cause) => cleanupFailures.push(cause));
-  await deleteIdentity(staffIdentity).catch((cause) =>
-    cleanupFailures.push(cause),
-  );
+  if (!staffIdentity?.designated)
+    await deleteIdentity(staffIdentity).catch((cause) =>
+      cleanupFailures.push(cause),
+    );
   for (const identity of customerIdentities.values())
     await deleteIdentity(identity).catch((cause) =>
       cleanupFailures.push(cause),

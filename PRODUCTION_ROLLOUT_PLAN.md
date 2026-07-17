@@ -2,7 +2,7 @@
 
 ## 1. Purpose and authority
 
-This document is a verified release-readiness plan for Customer QR Ordering and the completed Work Package 1–4 changes merged into `main`. It does not approve or perform a Production change.
+This document is a verified release-readiness plan for Customer QR Ordering, the completed Work Package 1–4 changes merged into `main`, and the WP5 automated isolated release-rehearsal and Human-UAT evidence on PR #9. It does not approve or perform a Production change.
 
 Every approval in this plan is independent. Approval of an earlier PR, isolated UAT, or this document does not approve Authentication, Firestore, data/configuration, Hosting, smoke testing, or Production rollout.
 
@@ -57,6 +57,15 @@ Every approval in this plan is independent. Approval of an earlier PR, isolated 
 - Work Package 4 known defects: None
 - Work Package 4 approval and merge: Complete
 - Production changes during Work Package 4: None
+- Work Package 5 branch: `feature/full-isolated-production-release-rehearsal`
+- Work Package 5 PR: [#9 — Full isolated Production release rehearsal](https://github.com/josurapatt/Greek-Yogert/pull/9) — open and unmerged; Ready-for-Review transition follows final documentation-head validation
+- Work Package 5 verified automated-rehearsal head: `b11ed1a1b1a3265460e0ac75f266fbdb93dd662d`
+- Work Package 5 exact-head workflow: [29514726894](https://github.com/josurapatt/Greek-Yogert/actions/runs/29514726894) — successful
+- Work Package 5 manifest: Rules SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`; indexes SHA-256 `90e5075281d826511a99bc42433f8c86753455284bfd8eba143f0e242e32e991`; Projection V2 `wp4-5c4fce122e7d5d4f`; rollback bundle SHA-256 `4827d9e36710c99315a9590d4a1781a826d310e08bb88f98c056d77975490c25`; manifest SHA-256 `4506ed9e00878c1fb1ed373706020da7bcfb4257f75b3c404002908b7cd48b16`
+- Work Package 5 automated result: Complete in isolated UAT only; full tests/builds, six Ready indexes, zero-write projection review/apply/idempotency, production-like browser flows, designated Staff controls, rollback/restoration, post-restore security, and cleanup passed
+- Work Package 5 final isolated-UAT state: Customer Ordering enabled, designated Staff unchanged, temporary WP5 requests/Orders 0/0, bounded control-audit evidence retained
+- Work Package 5 Human UAT: Passed with no known defects; trusted mismatch no-write protection and audit evidence accepted from the automated evidence
+- Production changes during Work Package 5: None
 
 The repository, not the live Production data, was inspected for application behavior and rules. Deployed Production rules and Authentication provider state must be captured in the Firebase Console immediately before release; this task did not read Production users, orders, or business data.
 
@@ -68,18 +77,20 @@ The repository, not the live Production data, was inspected for application beha
 
 ### Overall decision
 
-**Not ready for Production deployment. Work Package 4 implementation, automated isolated UAT, final Human UAT, exact-head approval, and squash merge are complete, but WP5 and every Production prerequisite and approval remain pending.**
+**Not ready for Production deployment. WP5 implementation, exact-head automated isolated rehearsal, rollback rehearsal, and final Human UAT are complete with no known defects, but PR #9 exact-head review approval/merge, the App Check or residual-risk decision, and every Production prerequisite and approval remain pending.**
 
 `main` uses a neutral, fail-closed `VITE_CUSTOMER_QR_ENABLED` setting and a separate environment/display mode. The safeguarded Production workflow explicitly builds with Customer QR disabled, while the isolated UAT workflow explicitly enables it. No Customer QR hardening Work Package has been deployed to Production.
 
 ### Mandatory prerequisites before rollout approval
 
-1. Separately approve the exact Emulator-tested Production-candidate rules; the WP4 merge does not approve their Production deployment.
-2. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
-3. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
-4. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.
-5. Preserve the merged exact Production project guard and disabled Customer QR build until separate Hosting and activation approvals are granted.
-6. Obtain every separate approval listed in section 11.
+1. Obtain separate explicit exact-head review approval and squash-merge approval for PR #9; isolated-UAT and Human-UAT completion do not approve Production.
+2. Separately approve the exact Emulator-tested Production-candidate rules; the WP4 merge does not approve their Production deployment.
+3. Inventory every legitimate Production Staff Auth UID and obtain separate approval before provisioning authorization documents administratively.
+4. Obtain separate approval to execute the reviewed one-time projection process from current private Production products/settings to public collections. Do not use the UAT seed action.
+5. Use the implemented reject-mismatch trusted confirmation boundary; do not silently recalculate or substitute Customer selections.
+6. Preserve the merged exact Production project guard and disabled Customer QR build until separate Hosting and activation approvals are granted.
+7. Decide whether to accept the documented residual abuse risk with staffed shutdown authority or approve a separate staged App Check task; do not infer enforcement approval from WP5.
+8. Obtain every separate approval listed in section 11.
 
 ## 4. Production and UAT configuration comparison
 
