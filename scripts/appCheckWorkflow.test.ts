@@ -1,11 +1,27 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const workflow = readFileSync(
-  ".github/workflows/app-check-monitoring-uat.yml",
-  "utf8",
+function normalizeInspectedText(value: string) {
+  return value.replace(/\r\n?/g, "\n");
+}
+
+const releaseRehearsalArtifactAssignment =
+  'isReleaseRehearsalArtifact =\n  expectedAppEnvironment === "release-rehearsal"';
+
+function expectBrowserArtifactIdentityGuards(value: string) {
+  expect(value).toContain("CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT");
+  expect(value).toContain("actualAppEnvironment === expectedAppEnvironment");
+  expect(value).toContain(releaseRehearsalArtifactAssignment);
+  expect(value).toContain("if (isReleaseRehearsalArtifact)");
+  expect(value).toContain("allowedExactErrors.includes(entry.trim())");
+}
+
+const workflow = normalizeInspectedText(
+  readFileSync(".github/workflows/app-check-monitoring-uat.yml", "utf8"),
 );
-const browserUat = readFileSync("scripts/wp3BrowserUat.mjs", "utf8");
+const browserUat = normalizeInspectedText(
+  readFileSync("scripts/wp3BrowserUat.mjs", "utf8"),
+);
 const browserStep = workflow.slice(
   workflow.indexOf("Run App Check Customer-to-Staff browser UAT and cleanup"),
   workflow.indexOf("Run ordinary-Staff emergency-control browser UAT"),
@@ -61,15 +77,7 @@ describe("App Check monitoring workflow boundary", () => {
     expect(browserStep).not.toContain(
       "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT: release-rehearsal",
     );
-    expect(browserUat).toContain("CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT");
-    expect(browserUat).toContain(
-      "actualAppEnvironment === expectedAppEnvironment",
-    );
-    expect(browserUat).toContain(
-      'isReleaseRehearsalArtifact =\n  expectedAppEnvironment === "release-rehearsal"',
-    );
-    expect(browserUat).toContain("if (isReleaseRehearsalArtifact)");
-    expect(browserUat).toContain("allowedExactErrors.includes(entry.trim())");
+    expectBrowserArtifactIdentityGuards(browserUat);
   });
 
   it("recovers a prior fail-closed run only inside the exact isolated UAT boundary", () => {
@@ -95,5 +103,40 @@ describe("App Check monitoring workflow boundary", () => {
         "Run App Check Customer-to-Staff browser UAT and cleanup",
       ),
     );
+  });
+});
+
+describe("App Check workflow source-inspection line endings", () => {
+  it.each(["\n", "\r\n", "\r"])(
+    "preserves exact artifact assertions for %j input",
+    (lineEnding) => {
+      const source = [
+        "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT",
+        "actualAppEnvironment === expectedAppEnvironment",
+        "isReleaseRehearsalArtifact =",
+        '  expectedAppEnvironment === "release-rehearsal"',
+        "if (isReleaseRehearsalArtifact)",
+        "allowedExactErrors.includes(entry.trim())",
+      ].join(lineEnding);
+
+      expectBrowserArtifactIdentityGuards(normalizeInspectedText(source));
+    },
+  );
+
+  it("still rejects an incorrect release-rehearsal artifact guard", () => {
+    const incorrectSource = [
+      "CUSTOMER_UAT_EXPECTED_APP_ENVIRONMENT",
+      "actualAppEnvironment === expectedAppEnvironment",
+      "isReleaseRehearsalArtifact =",
+      '  expectedAppEnvironment === "customer-qr-uat"',
+      "if (isReleaseRehearsalArtifact)",
+      "allowedExactErrors.includes(entry.trim())",
+    ].join("\r\n");
+
+    expect(() =>
+      expectBrowserArtifactIdentityGuards(
+        normalizeInspectedText(incorrectSource),
+      ),
+    ).toThrow();
   });
 });
