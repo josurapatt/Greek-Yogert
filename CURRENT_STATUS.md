@@ -62,9 +62,9 @@ designated Staff and the WP5-only `release-rehearsal` display identity. The
 browser harness now requires an explicit isolated artifact identity, keeps the
 normal App Check artifact bound to `customer-qr-uat`, keeps WP5 bound to
 `release-rehearsal`, restores the isolated intake baseline before a retry, and
-accepts only the exact headless reCAPTCHA storage-access console message inside
-the exact CI debug boundary. All other environment, project, console, and
-fail-closed checks remain strict.
+accepts only the exact headless reCAPTCHA storage-access and report-only CSP
+console messages inside the exact CI debug boundary. All other environment,
+project, console, and fail-closed checks remain strict.
 
 Human UAT and exact-head approval remain pending. No App Check enforcement has
 been enabled, and no Production resource has been accessed or changed.

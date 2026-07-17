@@ -1,6 +1,8 @@
 const isolatedUatProjectId = "greek-yogert-customer-uat-2026";
 const headlessRecaptchaStorageAccessError =
   "console:requestStorageAccess: Permission denied.";
+const headlessRecaptchaFrameAncestorsReport =
+  "console:Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: \"frame-ancestors 'self'\". The violation has been logged, but no further action has been taken.";
 
 export function resolveAppCheckDebugBoundary(environment) {
   const mode = environment.CUSTOMER_UAT_APP_CHECK_DEBUG_MODE;
@@ -32,6 +34,9 @@ export function resolveAppCheckBrowserConsoleAllowance(
   expectedAppEnvironment,
 ) {
   return boundary.enabled && expectedAppEnvironment === "customer-qr-uat"
-    ? [headlessRecaptchaStorageAccessError]
+    ? [
+        headlessRecaptchaStorageAccessError,
+        headlessRecaptchaFrameAncestorsReport,
+      ]
     : [];
 }

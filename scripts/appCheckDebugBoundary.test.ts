@@ -55,7 +55,10 @@ describe("App Check CI debug boundary", () => {
     const boundary = resolveAppCheckDebugBoundary(valid);
     expect(
       resolveAppCheckBrowserConsoleAllowance(boundary, "customer-qr-uat"),
-    ).toEqual(["console:requestStorageAccess: Permission denied."]);
+    ).toEqual([
+      "console:requestStorageAccess: Permission denied.",
+      "console:Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: \"frame-ancestors 'self'\". The violation has been logged, but no further action has been taken.",
+    ]);
     expect(
       resolveAppCheckBrowserConsoleAllowance(boundary, "release-rehearsal"),
     ).toEqual([]);
