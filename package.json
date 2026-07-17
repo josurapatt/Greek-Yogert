@@ -27,6 +27,7 @@
     "uat:wp5:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp5:hosting-probe": "node scripts/wp5HostingProbe.mjs",
     "uat:wp5:manifest": "node scripts/wp5ReleaseManifest.mjs",
+    "uat:app-check:human-data": "node scripts/appCheckHumanUatCleanup.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

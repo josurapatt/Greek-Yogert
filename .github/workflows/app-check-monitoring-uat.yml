@@ -7,6 +7,28 @@ on:
         description: Exact feature/app-check-monitoring commit SHA
         required: true
         type: string
+      human_uat_action:
+        description: Optional guarded Human-UAT data operation
+        required: true
+        default: none
+        type: choice
+        options: [none, inspect, cleanup]
+      human_uat_submitted_after:
+        description: Exact lower ISO timestamp boundary for Human UAT
+        required: false
+        type: string
+      human_uat_request_id:
+        description: Exact request ID for a confirmed cleanup operation
+        required: false
+        type: string
+      human_uat_order_id:
+        description: Exact Order ID for a confirmed cleanup operation
+        required: false
+        type: string
+      human_uat_cleanup_confirmation:
+        description: Typed confirmation required for cleanup
+        required: false
+        type: string
   pull_request:
     branches: [main]
     types: [labeled]
@@ -181,6 +203,28 @@ jobs:
           CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN: ${{ secrets.CUSTOMER_UAT_APP_CHECK_DEBUG_TOKEN }}
         run: node scripts/wp4OrdinaryStaffBrowserUat.mjs > "$RUNNER_TEMP/app-check-ordinary-staff-evidence.json"
 
+      - name: Inspect or clean exact Human-UAT temporary data
+        if: github.event_name == 'workflow_dispatch' && inputs.human_uat_action != 'none'
+        env:
+          HUMAN_UAT_ACTION: ${{ inputs.human_uat_action }}
+          HUMAN_UAT_SUBMITTED_AFTER: ${{ inputs.human_uat_submitted_after }}
+          HUMAN_UAT_REQUEST_ID: ${{ inputs.human_uat_request_id }}
+          HUMAN_UAT_ORDER_ID: ${{ inputs.human_uat_order_id }}
+          HUMAN_UAT_CLEANUP_CONFIRMATION: ${{ inputs.human_uat_cleanup_confirmation }}
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test "$HUMAN_UAT_ACTION" = "inspect" || test "$HUMAN_UAT_ACTION" = "cleanup"
+          test -n "$HUMAN_UAT_SUBMITTED_AFTER"
+          arguments=(--command "$HUMAN_UAT_ACTION" --submitted-after "$HUMAN_UAT_SUBMITTED_AFTER" --output "$RUNNER_TEMP/app-check-human-uat-data.json")
+          if [ "$HUMAN_UAT_ACTION" = "cleanup" ]; then
+            test -n "$HUMAN_UAT_REQUEST_ID"
+            test -n "$HUMAN_UAT_ORDER_ID"
+            test "$HUMAN_UAT_CLEANUP_CONFIRMATION" = "APP_CHECK_HUMAN_UAT_EXACT_CLEANUP"
+            arguments+=(--request-id "$HUMAN_UAT_REQUEST_ID" --order-id "$HUMAN_UAT_ORDER_ID" --confirm "$HUMAN_UAT_CLEANUP_CONFIRMATION")
+          fi
+          pnpm uat:app-check:human-data -- "${arguments[@]}"
+
       - name: Capture final isolated-UAT state
         run: |
           pnpm uat:wp5:state -- --command capture --phase app-check-monitoring-final --output "$RUNNER_TEMP/app-check-final-state.json"
@@ -196,6 +240,7 @@ jobs:
             ${{ runner.temp }}/app-check-browser-evidence.json
             ${{ runner.temp }}/app-check-ordinary-staff-evidence.json
             ${{ runner.temp }}/app-check-final-state.json
+            ${{ runner.temp }}/app-check-human-uat-data.json
 
       - name: Fail closed after an isolated-UAT rehearsal failure
         if: failure()
