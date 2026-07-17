@@ -9,6 +9,8 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
 - Current branch: `feature/app-check-monitoring`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
+- App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
+- App Check PR: [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) — Draft, open, and unmerged
 - App Check decision: Path B approved; isolated-UAT monitoring implementation in progress; enforcement unapproved and disabled
 - WP5 base `main` SHA: `bcac47999734d2dfbb887401908b5423dae8e9b1`
 - WP5 approved PR head: `b6825948d63faeee8e67d61bbaf759cfe0461330`
@@ -185,8 +187,7 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Publish one Draft PR, then obtain explicit manual
-authorization for the isolated-UAT reCAPTCHA Enterprise registration described
+Obtain explicit manual authorization for the isolated-UAT reCAPTCHA Enterprise registration described
 in `APP_CHECK_MONITORING_RUNBOOK.md`. Keep Production No-Go. Production App
 Check registration/monitoring, Firestore enforcement, Authentication
 enforcement, and every independent Production approval remain pending.

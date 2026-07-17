@@ -150,6 +150,7 @@ Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md
 Current App Check state:
 
 - [x] Residual-risk decision completed with Path B selected.
+- [x] Draft PR [#10 — Add isolated UAT App Check monitoring](https://github.com/josurapatt/Greek-Yogert/pull/10) opened and remains unmerged.
 - [x] Scope is limited to `greek-yogert-customer-uat-2026` with
       `ReCaptchaEnterpriseProvider` and monitoring only.
 - [x] Production App Check registration and every enforcement decision remain
