@@ -60,10 +60,12 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Projection V2 applied and reverified idempotent at fingerprint `wp4-37375c730dcfa076`
 - [x] Exact ordinary/capable Staff authorization verified
 - [x] Production bundle contamination removed structurally in PR #18; strict Production scan passed
-- [x] Hosting-only corrected release created as `1784534447340000` / `edef93d356cbacea`
-- [x] Focused smoke created no Customer request, Order, counter, or other business document
-- [x] Rollback completed to release `1784534995471000` / version `99bd52bcb09ba8e9`; Anonymous Authentication disabled
-- [ ] Rerun the corrected bounded Production smoke under a new explicit approval, accounting for the intentional own-authorization-document `404` behavior
+- [x] Ephemeral own-authorization assertion corrected and validated with 4/4 focused cases; missing own document `404` is non-Staff, not authorization
+- [x] Retained corrected version `edef93d356cbacea` reactivated as release `1784536019544000` with exact bundle SHA and zero prohibited markers
+- [x] One-identity access smoke passed public reads, Anonymous denials, six non-Staff protected denials, own-document `404`, and independently verified identity cleanup
+- [x] No Customer request, Order, counter, or business mutation was issued by the focused harness
+- [x] Rollback completed to release `1784536193769000` / version `99bd52bcb09ba8e9`; Anonymous Authentication disabled
+- [ ] Rerun one corrected bounded Production smoke under new explicit approval with each runtime/non-mutating telemetry assertion reported separately
 - [ ] After that smoke passes, activate Customer Ordering through the capable-Staff Settings control with a clear Production reason
 
 ## 4. Completed Capabilities
