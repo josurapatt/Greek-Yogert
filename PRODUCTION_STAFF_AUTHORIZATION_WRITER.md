@@ -66,11 +66,14 @@ inventory, exact project, and exact desired authorization schemas. Input record
 order and email casing do not change it. Any approved UID, email, role, project,
 or authorization schema change does.
 
-The approval fingerprint additionally binds the freshly observed state of each
-target (`missing` or `exact`) and the exact fields planned for each missing
-target. It therefore changes if a target changes between planning and applying.
-Only the complete fingerprint from the immediately reviewed online plan is
-accepted by apply mode.
+The approval fingerprint additionally binds the normalized expected
+service-account principal after that principal has exactly matched the loaded
+credential, the freshly observed state of each target (`missing` or `exact`),
+and the exact fields planned for each missing target. It therefore changes if
+the matched principal or a target changes between planning and applying. The
+principal itself is never included in output; only the resulting fingerprint is
+returned. Only the complete fingerprint from the immediately reviewed online
+plan is accepted by apply mode.
 
 Fingerprints are opaque approval handles. They are not substitutes for reviewing
 the protected inventory through the approved secure channel.
@@ -151,7 +154,9 @@ Require `identifiersLogged` to be `false`.
 
 Review the inventory fingerprint, state counts, planned field names, and complete
 approval fingerprint. Do not proceed with a partial, conflicting, malformed, or
-unexpected result.
+unexpected result. Verify the protected expected-principal file and matching
+credential through the approved secure channel; the principal value is
+intentionally absent from writer output.
 
 Any existing document is accepted only if it exactly equals its approved schema:
 
@@ -185,12 +190,13 @@ if ($applyExitCode -ne 0 -or $applyOutput.Count -ne 1) {
 $apply = $applyOutput[0] | ConvertFrom-Json
 ```
 
-Apply mode first repeats Authentication verification and both document reads.
+Apply mode first revalidates the protected expected principal against the loaded
+credential, then repeats Authentication verification and both document reads.
 It recalculates the full plan and stops before a batch is created unless the
-fresh fingerprint exactly equals the approved fingerprint. For each still-
-missing approved target, it adds one Firestore batch `create`. The atomic batch
-therefore contains zero, one, or two creates. `create` preconditions prevent a
-race from overwriting a document.
+matched principal and fresh state produce the exact approved fingerprint. For
+each still-missing approved target, it adds one Firestore batch `create`. The
+atomic batch therefore contains zero, one, or two creates. `create`
+preconditions prevent a race from overwriting a document.
 
 After a successful non-empty batch, or immediately on the zero-create path, the
 writer reads both documents again. Both must exactly equal their approved
@@ -233,8 +239,9 @@ other Production action are separate operations requiring separate authority.
 - Existing exact documents are preserved. Existing non-exact documents stop the
   process. No existing document is updated, merged, overwritten, deleted,
   repaired, or broadened.
-- A stale or malformed fingerprint, state race, create-precondition failure,
-  failed commit, or failed post-apply read stops the process.
+- A changed expected principal, stale or malformed fingerprint, state race,
+  create-precondition failure, failed commit, or failed post-apply read stops
+  the process.
 - Output contains only sanitized states, counts, field names, fingerprints, and
   stages. It contains no UID, email, principal, document path, credential, or
   underlying Firebase error text.

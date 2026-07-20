@@ -10,7 +10,7 @@ export const productionProjectId = "greek-yogert";
 export const inventoryFingerprintSchema =
   "production-staff-authorization-inventory-v2";
 export const approvalFingerprintSchema =
-  "production-staff-authorization-plan-v2";
+  "production-staff-authorization-plan-v3";
 export const applyConfirmation =
   "APPLY_APPROVED_PRODUCTION_STAFF_AUTHORIZATIONS";
 
@@ -284,6 +284,18 @@ export function readServiceAccount(
   );
 }
 
+function normalizeExpectedPrincipal(value, projectId = productionProjectId) {
+  validateProjectId(projectId);
+  if (typeof value !== "string") fail("principal-validation");
+  const normalized = value.trim().toLowerCase();
+  if (
+    !isInventoryEmail(normalized) ||
+    !normalized.endsWith(`@${productionProjectId}.iam.gserviceaccount.com`)
+  )
+    fail("principal-validation");
+  return normalized;
+}
+
 export function validateExpectedPrincipal(
   value,
   projectId = productionProjectId,
@@ -291,14 +303,10 @@ export function validateExpectedPrincipal(
   validateProjectId(projectId);
   if (
     !hasExactKeys(value, ["projectId", "serviceAccountEmail"]) ||
-    value.projectId !== productionProjectId ||
-    !isInventoryEmail(value.serviceAccountEmail) ||
-    !value.serviceAccountEmail.endsWith(
-      `@${productionProjectId}.iam.gserviceaccount.com`,
-    )
+    value.projectId !== productionProjectId
   )
     fail("principal-validation");
-  return value.serviceAccountEmail.trim().toLowerCase();
+  return normalizeExpectedPrincipal(value.serviceAccountEmail, projectId);
 }
 
 export function readExpectedPrincipal(
@@ -407,7 +415,7 @@ async function readAuthorizationTargets(firestore, records, stage) {
   }
 }
 
-function createPlan(records, targets, projectId) {
+function createPlan(records, targets, projectId, expectedPrincipal) {
   const inventoryFingerprint = fingerprintValidatedRecords(records, projectId);
   const existingExactDocuments = targets.filter(
     (target) => target.state === "exact",
@@ -425,6 +433,7 @@ function createPlan(records, targets, projectId) {
       fields: Object.keys(target.record.data).sort(),
     }));
   const approvalFingerprint = sha256Fingerprint(approvalFingerprintSchema, {
+    expectedPrincipal,
     inventoryFingerprint,
     projectId,
     targets: targets.map((target) => ({
@@ -462,14 +471,20 @@ function createPlan(records, targets, projectId) {
   };
 }
 
-async function buildOnlinePlan({ projectId, records, auth, firestore }) {
+async function buildOnlinePlan({
+  projectId,
+  records,
+  expectedPrincipal,
+  auth,
+  firestore,
+}) {
   await verifyAuthentication(auth, records);
   const targets = await readAuthorizationTargets(
     firestore,
     records,
     "authorization-document-read",
   );
-  const plan = createPlan(records, targets, projectId);
+  const plan = createPlan(records, targets, projectId, expectedPrincipal);
   if (plan.result.conflictingDocuments !== 0)
     fail("authorization-document-conflict", {
       existingExactDocuments: plan.result.existingExactDocuments,
@@ -489,7 +504,12 @@ function validateApprovalFingerprint(value) {
   return value;
 }
 
-async function verifyPostApply(firestore, records, projectId) {
+async function verifyPostApply(
+  firestore,
+  records,
+  projectId,
+  expectedPrincipal,
+) {
   const targets = await readAuthorizationTargets(
     firestore,
     records,
@@ -497,7 +517,7 @@ async function verifyPostApply(firestore, records, projectId) {
   );
   if (targets.some((target) => target.state !== "exact"))
     fail("post-write-verification");
-  const plan = createPlan(records, targets, projectId);
+  const plan = createPlan(records, targets, projectId, expectedPrincipal);
   if (plan.result.plannedCreates !== 0) fail("post-write-verification");
   return plan.result;
 }
@@ -505,11 +525,18 @@ async function verifyPostApply(firestore, records, projectId) {
 async function applyApprovedPlan({
   projectId,
   records,
+  expectedPrincipal,
   approvedFingerprint,
   auth,
   firestore,
 }) {
-  const plan = await buildOnlinePlan({ projectId, records, auth, firestore });
+  const plan = await buildOnlinePlan({
+    projectId,
+    records,
+    expectedPrincipal,
+    auth,
+    firestore,
+  });
   if (plan.result.approvalFingerprint !== approvedFingerprint)
     fail("fingerprint-mismatch");
 
@@ -529,7 +556,12 @@ async function applyApprovedPlan({
     }
   }
 
-  const postApplyPlan = await verifyPostApply(firestore, records, projectId);
+  const postApplyPlan = await verifyPostApply(
+    firestore,
+    records,
+    projectId,
+    expectedPrincipal,
+  );
   return {
     status: missingTargets.length === 0 ? "already-current" : "applied",
     projectValidation: "passed",
@@ -558,6 +590,7 @@ export async function runAuthorizationWriter({
   mode = "validate",
   confirmation,
   approvedFingerprint,
+  expectedPrincipal,
   auth,
   firestore,
 }) {
@@ -583,14 +616,26 @@ export async function runAuthorizationWriter({
     if (confirmation !== applyConfirmation) fail("write-confirmation");
     validateApprovalFingerprint(approvedFingerprint);
   }
+  const normalizedExpectedPrincipal = normalizeExpectedPrincipal(
+    expectedPrincipal,
+    projectId,
+  );
   if (!auth || typeof auth.getUser !== "function" || !firestore)
     fail("client-validation");
   if (mode === "plan")
-    return (await buildOnlinePlan({ projectId, records, auth, firestore }))
-      .result;
+    return (
+      await buildOnlinePlan({
+        projectId,
+        records,
+        expectedPrincipal: normalizedExpectedPrincipal,
+        auth,
+        firestore,
+      })
+    ).result;
   return applyApprovedPlan({
     projectId,
     records,
+    expectedPrincipal: normalizedExpectedPrincipal,
     approvedFingerprint,
     auth,
     firestore,
@@ -626,11 +671,11 @@ export async function executeControlledAuthorizationWriter({
     loadServiceAccount(),
     projectId,
   );
-  const expectedPrincipal = loadExpectedPrincipal();
-  if (
-    typeof expectedPrincipal !== "string" ||
-    serviceAccount.client_email.trim().toLowerCase() !== expectedPrincipal
-  )
+  const expectedPrincipal = normalizeExpectedPrincipal(
+    loadExpectedPrincipal(),
+    projectId,
+  );
+  if (serviceAccount.client_email.trim().toLowerCase() !== expectedPrincipal)
     fail("principal-validation");
   const clients = await initializeClients(serviceAccount);
   return runAuthorizationWriter({
@@ -639,6 +684,7 @@ export async function executeControlledAuthorizationWriter({
     mode,
     confirmation,
     approvedFingerprint,
+    expectedPrincipal,
     auth: clients?.auth,
     firestore: clients?.firestore,
   });

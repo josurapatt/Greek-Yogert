@@ -27,6 +27,8 @@ const ordinaryEmail = "ordinary.operator@greekyogurt-shop.co.th";
 const capableEmail = "capable.operator@greekyogurt-shop.co.th";
 const principalEmail =
   "writer-principal-000000@greek-yogert.iam.gserviceaccount.com";
+const alternatePrincipalEmail =
+  "writer-principal-111111@greek-yogert.iam.gserviceaccount.com";
 const ordinaryPath = `users/${ordinaryUid}`;
 const capablePath = `users/${capableUid}`;
 const ordinaryAuthorization = { role: "staff", active: true };
@@ -237,11 +239,13 @@ function externalJson(value: unknown) {
 async function planWith(
   clients: ReturnType<typeof fakeClients>,
   selectedInventory = inventory(),
+  expectedPrincipal = principalEmail,
 ) {
   return runAuthorizationWriter({
     projectId: productionProjectId,
     inventory: selectedInventory,
     mode: "plan",
+    expectedPrincipal,
     auth: clients.auth,
     firestore: clients.firestore,
   });
@@ -251,6 +255,7 @@ async function applyWith(
   clients: ReturnType<typeof fakeClients>,
   approvedFingerprint: string,
   selectedInventory = inventory(),
+  expectedPrincipal = principalEmail,
 ) {
   return runAuthorizationWriter({
     projectId: productionProjectId,
@@ -258,6 +263,7 @@ async function applyWith(
     mode: "apply",
     confirmation: applyConfirmation,
     approvedFingerprint,
+    expectedPrincipal,
     auth: clients.auth,
     firestore: clients.firestore,
   });
@@ -630,6 +636,86 @@ describe("Production Staff authorization controlled online boundary", () => {
       }),
     ).resolves.toMatchObject({ status: "planned", plannedCreates: 2 });
     expect(initializeClients).toHaveBeenCalledTimes(1);
+  });
+
+  it("reproduces the approval fingerprint for the same normalized principal and state", async () => {
+    const firstClients = fakeClients();
+    const first = await executeControlledAuthorizationWriter({
+      projectId: productionProjectId,
+      inventory: inventory(),
+      mode: "plan",
+      environment: {},
+      loadServiceAccount: () => serviceAccount(),
+      loadExpectedPrincipal: () => principalEmail,
+      initializeClients: () => firstClients,
+    });
+    const repeatedClients = fakeClients();
+    const repeated = await executeControlledAuthorizationWriter({
+      projectId: productionProjectId,
+      inventory: inventory(),
+      mode: "plan",
+      environment: {},
+      loadServiceAccount: () => serviceAccount(),
+      loadExpectedPrincipal: () => ` ${principalEmail.toUpperCase()} `,
+      initializeClients: () => repeatedClients,
+    });
+    expect(repeated.approvalFingerprint).toBe(first.approvalFingerprint);
+    expect(JSON.stringify([first, repeated])).not.toContain(principalEmail);
+  });
+
+  it("changes the approval fingerprint for a different matched principal", async () => {
+    const first = await executeControlledAuthorizationWriter({
+      projectId: productionProjectId,
+      inventory: inventory(),
+      mode: "plan",
+      environment: {},
+      loadServiceAccount: () => serviceAccount(),
+      loadExpectedPrincipal: () => principalEmail,
+      initializeClients: () => fakeClients(),
+    });
+    const alternate = await executeControlledAuthorizationWriter({
+      projectId: productionProjectId,
+      inventory: inventory(),
+      mode: "plan",
+      environment: {},
+      loadServiceAccount: () =>
+        serviceAccount({ client_email: alternatePrincipalEmail }),
+      loadExpectedPrincipal: () => alternatePrincipalEmail,
+      initializeClients: () => fakeClients(),
+    });
+    expect(alternate.approvalFingerprint).not.toBe(first.approvalFingerprint);
+    const output = JSON.stringify([first, alternate]);
+    expect(output).not.toContain(principalEmail);
+    expect(output).not.toContain(alternatePrincipalEmail);
+  });
+
+  it("rejects principal A approval under matched principal B before batching", async () => {
+    const approved = await executeControlledAuthorizationWriter({
+      projectId: productionProjectId,
+      inventory: inventory(),
+      mode: "plan",
+      environment: {},
+      loadServiceAccount: () => serviceAccount(),
+      loadExpectedPrincipal: () => principalEmail,
+      initializeClients: () => fakeClients(),
+    });
+    const applyClients = fakeClients();
+    await expect(
+      executeControlledAuthorizationWriter({
+        projectId: productionProjectId,
+        inventory: inventory(),
+        mode: "apply",
+        confirmation: applyConfirmation,
+        approvedFingerprint: approved.approvalFingerprint,
+        environment: {},
+        loadServiceAccount: () =>
+          serviceAccount({ client_email: alternatePrincipalEmail }),
+        loadExpectedPrincipal: () => alternatePrincipalEmail,
+        initializeClients: () => applyClients,
+      }),
+    ).rejects.toMatchObject({ stage: "fingerprint-mismatch" });
+    expect(applyClients.creates).toEqual([]);
+    expect(applyClients.mutations.batchCalls).toBe(0);
   });
 
   it("requires the exact principal before Firebase initialization", async () => {
@@ -1130,6 +1216,7 @@ describe("Production Staff authorization sanitized command surface", () => {
         projectId: productionProjectId,
         inventory: inventory(),
         mode: "plan",
+        expectedPrincipal: principalEmail,
         auth: successClients.auth,
         firestore: successClients.firestore,
       },
@@ -1142,12 +1229,31 @@ describe("Production Staff authorization sanitized command surface", () => {
           projectId: productionProjectId,
           inventory: inventory(),
           mode: "plan",
+          expectedPrincipal: principalEmail,
           auth: failedClients.auth,
           firestore: failedClients.firestore,
         },
         (message: string) => output.push(message),
       ),
     ).rejects.toThrow();
+    const principalAPlan = await planWith(fakeClients());
+    const mismatchClients = fakeClients();
+    await expect(
+      runSanitizedWriter(
+        {
+          projectId: productionProjectId,
+          inventory: inventory(),
+          mode: "apply",
+          confirmation: applyConfirmation,
+          approvedFingerprint: principalAPlan.approvalFingerprint,
+          expectedPrincipal: alternatePrincipalEmail,
+          auth: mismatchClients.auth,
+          firestore: mismatchClients.firestore,
+        },
+        (message: string) => output.push(message),
+      ),
+    ).rejects.toMatchObject({ stage: "fingerprint-mismatch" });
+    expect(mismatchClients.mutations.batchCalls).toBe(0);
     const logs = output.join("\n");
     for (const sensitive of [
       ordinaryUid,
@@ -1155,6 +1261,7 @@ describe("Production Staff authorization sanitized command surface", () => {
       ordinaryEmail,
       capableEmail,
       principalEmail,
+      alternatePrincipalEmail,
       "sensitive credential failure",
     ])
       expect(logs).not.toContain(sensitive);
@@ -1172,6 +1279,7 @@ describe("Production Staff authorization sanitized command surface", () => {
           projectId: productionProjectId,
           inventory: inventory(),
           mode: "plan",
+          expectedPrincipal: principalEmail,
           auth: clients.auth,
           firestore: clients.firestore,
         },
