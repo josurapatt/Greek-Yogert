@@ -1,24 +1,30 @@
 # Production Staff Authorization Writer
 
-This runbook documents a one-shot, Production-specific authorization writer. It
-does not authorize a Production action by itself.
+This runbook defines a Production-specific, create-only authorization gate. It
+does not authorize Production access by itself. Online planning and applying
+require their own exact-head approval and a controlled Production window.
 
-## Writer path
+The gate supports three modes:
 
-```text
-C:\Users\surapat.c\Desktop\GreekYogurtOrderApp\scripts\productionStaffAuthorizationWriter.mjs
-```
+1. offline inventory validation;
+2. online read-only planning with a deterministic approval fingerprint;
+3. approved create-only application followed by read-only verification.
 
-The writer accepts the Staff inventory, service-account credential, and expected
-service-account principal only from absolute paths outside this repository. Each
-path must exist and resolve through its real path outside the repository; a
-symlink or junction into this repository is rejected. Never copy an inventory,
-UID, email, credential, token, or service-account file into Git, logs,
-artifacts, or chat.
+It never updates, merges, overwrites, deletes, or repairs an existing
+authorization document.
 
-## Required external inputs
+## Writer and protected inputs
 
-The external inventory JSON must contain exactly:
+The writer is `scripts/productionStaffAuthorizationWriter.mjs`. The Staff
+inventory, service-account credential, and expected service-account principal
+must be JSON files at absolute paths outside the repository. Each path must
+exist and resolve through its real path outside the repository; a symlink or
+junction into the repository is rejected.
+
+Never copy an inventory, UID, email, credential, token, or service-account file
+into Git, logs, artifacts, or chat. Do not print the protected file paths.
+
+The external inventory must contain exactly:
 
 ```json
 {
@@ -40,7 +46,7 @@ The external inventory JSON must contain exactly:
 }
 ```
 
-The separately protected expected-principal JSON must contain exactly:
+The separately protected expected-principal file must contain exactly:
 
 ```json
 {
@@ -49,30 +55,50 @@ The separately protected expected-principal JSON must contain exactly:
 }
 ```
 
-The writer requires the credential `client_email` to match that external
-principal exactly before it initializes Firebase. Neither value is printed.
-Placeholders and obvious non-production identifiers or reserved email domains
-are rejected.
+The credential `client_email` must match that expected principal exactly before
+Firebase is initialized. Neither value is printed. Placeholders, obvious
+non-Production identifiers, and reserved email domains are rejected.
 
-## Safe validation command
+## Fingerprint contract
 
-This is the default mode. It validates only the project and external inventory;
-it does not initialize Firebase or contact Production.
+The inventory fingerprint is a SHA-256 fingerprint of the normalized, ordered
+inventory, exact project, and exact desired authorization schemas. Input record
+order and email casing do not change it. Any approved UID, email, role, project,
+or authorization schema change does.
+
+The approval fingerprint additionally binds the normalized expected
+service-account principal after that principal has exactly matched the loaded
+credential, the freshly observed state of each target (`missing` or `exact`),
+and the exact fields planned for each missing target. It therefore changes if
+the matched principal or a target changes between planning and applying. The
+principal itself is never included in output; only the resulting fingerprint is
+returned. Only the complete fingerprint from the immediately reviewed online
+plan is accepted by apply mode.
+
+Fingerprints are opaque approval handles. They are not substitutes for reviewing
+the protected inventory through the approved secure channel.
+
+## Offline validation
+
+The default mode validates the project and external inventory and calculates
+the inventory fingerprint. It does not initialize Firebase or contact
+Production.
 
 ```powershell
-C:\Users\surapat.c\Tools\NodePortable\node-v24.17.0-win-x64\node.exe `
-  C:\Users\surapat.c\Desktop\GreekYogurtOrderApp\scripts\productionStaffAuthorizationWriter.mjs `
+& $nodeExecutable `
+  $writerPath `
   --project greek-yogert `
-  --inventory <secure-external-inventory-path>
+  --inventory $secureInventoryPath
 ```
 
-## Controlled-window command
+Require one JSON output line, a zero exit code, `status` equal to
+`validation-only`, both validations equal to `passed`, `approvedStaff` equal to
+`2`, `authorizationDocumentsCreated` equal to `0`, and
+`identifiersLogged` equal to `false`.
 
-Run only after separate exact-head approval and immediately before the separately
-approved Rules-only deployment. Do not echo any external path or content. The
-writer rejects any emulator-routing environment variable, a conflicting project
-environment variable, or conflicting `FIREBASE_CONFIG` before it reads a
-credential or initializes Firebase.
+## Controlled environment guard
+
+Before either online mode, confirm that no emulator-routing variable is present:
 
 ```powershell
 $emulatorVariables = @(
@@ -85,79 +111,148 @@ $emulatorVariables = @(
 foreach ($name in $emulatorVariables) {
   if (Test-Path "Env:$name") { throw "Emulator routing variable is present." }
 }
-
-$previousCredential = [Environment]::GetEnvironmentVariable(
-  "GOOGLE_APPLICATION_CREDENTIALS", "Process"
-)
-try {
-  $env:GOOGLE_APPLICATION_CREDENTIALS = <secure-external-credential-path>
-  $writerOutput = @(
-    & C:\Users\surapat.c\Tools\NodePortable\node-v24.17.0-win-x64\node.exe `
-      C:\Users\surapat.c\Desktop\GreekYogurtOrderApp\scripts\productionStaffAuthorizationWriter.mjs `
-      --project greek-yogert `
-      --inventory <secure-external-inventory-path> `
-      --expected-principal <secure-external-principal-path> `
-      --execute `
-      --confirm CREATE_EXACTLY_TWO_STAFF_AUTHORIZATIONS
-  )
-  $writerExitCode = $LASTEXITCODE
-  $expectedWriterOutput = '{"status":"created","projectValidation":"passed","inventoryValidation":"passed","existingDocumentCheck":"passed","authorizationDocumentsCreated":2,"identifiersLogged":false}'
-
-  if ($writerExitCode -ne 0) { throw "Authorization writer failed." }
-  if ($writerOutput.Count -ne 1) { throw "Unexpected writer output count." }
-  if (-not [string]::Equals(
-    [string]$writerOutput[0],
-    $expectedWriterOutput,
-    [System.StringComparison]::Ordinal
-  )) { throw "Unexpected writer output." }
-
-  # Stop here. Any Rules action is a separate, explicitly approved operation.
-}
-finally {
-  if ($null -eq $previousCredential) {
-    Remove-Item Env:GOOGLE_APPLICATION_CREDENTIALS -ErrorAction SilentlyContinue
-  }
-  else {
-    $env:GOOGLE_APPLICATION_CREDENTIALS = $previousCredential
-  }
-}
 ```
 
-The captured output is never printed. A missing line, extra line, changed field
-order, changed value, changed casing, or non-zero exit stops the controlled
-window. Any Rules workflow is a separate authorized operation, not a
-continuation of this command, and is neither included nor dispatched here.
+The writer independently repeats this check before reading credentials. It also
+rejects a conflicting `GCLOUD_PROJECT` or `GOOGLE_CLOUD_PROJECT`, and rejects
+malformed or conflicting `FIREBASE_CONFIG`.
 
-## Contract and stop conditions
+Set `GOOGLE_APPLICATION_CREDENTIALS` only for the approved controlled process,
+restore its previous process value in `finally`, and never print it.
 
-- The only accepted project is `greek-yogert`; missing, malformed, UAT, and all
-  other projects fail closed.
-- Execute mode fails before credential reads or Firebase initialization if an
-  emulator variable is present, `GCLOUD_PROJECT` or `GOOGLE_CLOUD_PROJECT`
-  conflicts, or `FIREBASE_CONFIG` is malformed or conflicts.
-- The inventory must be external, exact-shaped, contain exactly two enabled
-  records, have unique non-placeholder UIDs and emails, and contain one ordinary
-  and one capable role.
-- The credential and exact expected principal must both be external and
-  real-path checked. The credential must be a `greek-yogert` service account
-  and its principal must exactly match the separately protected expected value.
-- The writer reads only the two matching Firebase Authentication users and the
-  two target `users/{uid}` documents. It does not mutate Authentication or
-  enumerate unrelated Firestore data.
-- Both target documents must be absent before the atomic Firestore batch is
-  created. The batch uses create preconditions, never merge or overwrite.
-- The exact created documents are `{ role: "staff", active: true }` for the
-  ordinary mapping and that schema plus
-  `canManageCustomerOrdering: true` for the capable mapping.
-- Any mismatch, existing document, failed commit, or failed post-write check
-  stops the command. Output is limited to sanitized stage/result fields.
-- The command never deploys Rules, indexes, Hosting, or any other resource.
+## Online read-only plan
 
-## Indeterminate verification and rollback limitation
+Online plan mode performs only these remote reads:
 
-If the atomic create fails, no partial result is accepted. If the batch succeeds
-but a later verification cannot complete, finds a missing document, finds a
-schema mismatch, or finds an unexpected field, stop: do not overwrite, repair,
-retry, or delete automatically. This is an indeterminate verification state
-requiring separate exact-state review. A rollback affecting either authorization
-document needs separate approval and must recheck the exact document state first.
+- `getUser(uid)` for the two approved Authentication users;
+- `get()` for the two exact `users/{uid}` documents.
+
+It does not enumerate Authentication, query Firestore, initialize a write batch,
+or perform a mutation.
+
+```powershell
+$planOutput = @(
+  & $nodeExecutable `
+    $writerPath `
+    --plan `
+    --project greek-yogert `
+    --inventory $secureInventoryPath `
+    --expected-principal $securePrincipalPath
+)
+$planExitCode = $LASTEXITCODE
+if ($planExitCode -ne 0 -or $planOutput.Count -ne 1) {
+  throw "Authorization planning failed."
+}
+$plan = $planOutput[0] | ConvertFrom-Json
+```
+
+Require all validation and verification fields to be `passed`, both Staff counts
+to be `1`, `conflictingDocuments` to be `0`, and `plannedCreates` to be `0`,
+`1`, or `2`. The sum of `existingExactDocuments` and `missingDocuments` must be
+`2`, and `plannedCreateFields` must match only the exact missing-role schemas.
+Require `identifiersLogged` to be `false`.
+
+Review the inventory fingerprint, state counts, planned field names, and complete
+approval fingerprint. Do not proceed with a partial, conflicting, malformed, or
+unexpected result. Verify the protected expected-principal file and matching
+credential through the approved secure channel; the principal value is
+intentionally absent from writer output.
+
+Any existing document is accepted only if it exactly equals its approved schema:
+
+- ordinary: `{ role: "staff", active: true }`;
+- capable: the ordinary schema plus
+  `canManageCustomerOrdering: true`.
+
+A missing field, wrong value, or extra field is conflicting and stops planning
+without writes.
+
+## Fingerprinted create-only apply
+
+After the plan has been reviewed and its complete approval fingerprint has been
+approved, provide that exact value to apply mode:
+
+```powershell
+$applyOutput = @(
+  & $nodeExecutable `
+    $writerPath `
+    --apply `
+    --project greek-yogert `
+    --inventory $secureInventoryPath `
+    --expected-principal $securePrincipalPath `
+    --approved-fingerprint $approvedPlanFingerprint `
+    --confirm APPLY_APPROVED_PRODUCTION_STAFF_AUTHORIZATIONS
+)
+$applyExitCode = $LASTEXITCODE
+if ($applyExitCode -ne 0 -or $applyOutput.Count -ne 1) {
+  throw "Authorization apply failed."
+}
+$apply = $applyOutput[0] | ConvertFrom-Json
+```
+
+Apply mode first revalidates the protected expected principal against the loaded
+credential, then repeats Authentication verification and both document reads.
+It recalculates the full plan and stops before a batch is created unless the
+matched principal and fresh state produce the exact approved fingerprint. For
+each still-missing approved target, it adds one Firestore batch `create`. The
+atomic batch therefore contains zero, one, or two creates. `create`
+preconditions prevent a race from overwriting a document.
+
+After a successful non-empty batch, or immediately on the zero-create path, the
+writer reads both documents again. Both must exactly equal their approved
+schemas, and the resulting plan must contain zero creates.
+
+Require:
+
+- `status` equal to `applied` or `already-current`;
+- `authorizationDocumentsCreated` equal to the approved `plannedCreates`;
+- `postWriteVerification` and `idempotencyVerification` equal to `passed`;
+- `postApplyPlannedCreates` equal to `0`;
+- `identifiersLogged` equal to `false`.
+
+## Read-only post-apply and zero-write verification
+
+Run online plan mode again. Require two exact documents, zero missing or
+conflicting documents, and zero planned creates. This is the required read-only
+post-apply verification.
+
+To prove the apply path is idempotent, separately approve that fresh zero-create
+fingerprint and invoke apply mode once more with the same typed confirmation.
+Require `status` equal to `already-current`, both planned and created counts equal
+to `0`, and both post-write and idempotency verification equal to `passed`. The
+writer does not construct or commit a batch on this path.
+
+Stop here. Rules deployment, workflow dispatch, public projection, and every
+other Production action are separate operations requiring separate authority.
+
+## Fail-closed contract
+
+- Only project `greek-yogert` is accepted. UAT, missing, malformed, and all other
+  projects fail closed.
+- The inventory must contain exactly two enabled, unique, non-placeholder
+  mappings: one ordinary and one capable.
+- The credential and expected principal must both be external and exact-project
+  checked, and their principal emails must match exactly.
+- Only the two approved Authentication users and two exact `users/{uid}` paths
+  are read. Authentication is never mutated and unrelated Firestore data is
+  never accessed.
+- Existing exact documents are preserved. Existing non-exact documents stop the
+  process. No existing document is updated, merged, overwritten, deleted,
+  repaired, or broadened.
+- A changed expected principal, stale or malformed fingerprint, state race,
+  create-precondition failure, failed commit, or failed post-apply read stops
+  the process.
+- Output contains only sanitized states, counts, field names, fingerprints, and
+  stages. It contains no UID, email, principal, document path, credential, or
+  underlying Firebase error text.
+- The writer never deploys Rules, indexes, Hosting, App Check, or any other
+  resource.
+
+## Indeterminate result and rollback limitation
+
+An atomic create failure is never treated as partial success. If a commit may
+have succeeded but post-apply verification fails, the result is indeterminate.
+Stop and do not retry, overwrite, repair, update, merge, or delete either
+document. A new read-only exact-state review and separate authorization are
+required. Any rollback affecting an authorization document also requires
+separate approval and a fresh exact-state check.

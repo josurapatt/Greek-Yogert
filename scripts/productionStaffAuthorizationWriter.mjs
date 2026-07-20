@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,7 +7,12 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 export const productionProjectId = "greek-yogert";
-export const writeConfirmation = "CREATE_EXACTLY_TWO_STAFF_AUTHORIZATIONS";
+export const inventoryFingerprintSchema =
+  "production-staff-authorization-inventory-v2";
+export const approvalFingerprintSchema =
+  "production-staff-authorization-plan-v3";
+export const applyConfirmation =
+  "APPLY_APPROVED_PRODUCTION_STAFF_AUTHORIZATIONS";
 
 const emulatorEnvironmentNames = [
   "FIRESTORE_EMULATOR_HOST",
@@ -44,20 +50,28 @@ const reservedEmailDomains = [
   "example.org",
   "example.net",
 ];
+const safeFailureDetailNames = [
+  "existingExactDocuments",
+  "missingDocuments",
+  "conflictingDocuments",
+  "plannedCreates",
+];
+const roleOrder = { ordinary: 0, capable: 1 };
 
 function writerRepositoryRoot() {
   return resolve(fileURLToPath(import.meta.url), "..", "..");
 }
 
 class WriterError extends Error {
-  constructor(stage) {
+  constructor(stage, details = {}) {
     super(stage);
     this.stage = stage;
+    this.details = details;
   }
 }
 
-function fail(stage) {
-  throw new WriterError(stage);
+function fail(stage, details) {
+  throw new WriterError(stage, details);
 }
 
 function hasExactKeys(value, keys) {
@@ -68,6 +82,24 @@ function hasExactKeys(value, keys) {
     actual.length === expected.length &&
     actual.every((key, index) => key === expected[index])
   );
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, stableValue(value[key])]),
+    );
+  return value;
+}
+
+function sha256Fingerprint(schema, value) {
+  const digest = createHash("sha256")
+    .update(JSON.stringify(stableValue({ schema, value })))
+    .digest("hex");
+  return `${schema}-${digest}`;
 }
 
 function isPlaceholder(value) {
@@ -146,10 +178,10 @@ export function validateInventory(inventory, projectId = productionProjectId) {
     fail("inventory-validation");
   if (
     inventory.projectId !== productionProjectId ||
-    !Array.isArray(inventory.staff)
+    !Array.isArray(inventory.staff) ||
+    inventory.staff.length !== 2
   )
     fail("inventory-validation");
-  if (inventory.staff.length !== 2) fail("inventory-validation");
 
   const roles = new Set();
   const uids = new Set();
@@ -174,13 +206,37 @@ export function validateInventory(inventory, projectId = productionProjectId) {
   if (!roles.has("ordinary") || !roles.has("capable"))
     fail("inventory-validation");
 
-  return records.map((record) => ({
-    ...record,
-    data:
-      record.role === "capable"
-        ? { role: "staff", active: true, canManageCustomerOrdering: true }
-        : { role: "staff", active: true },
-  }));
+  return records
+    .map((record) => ({
+      ...record,
+      data:
+        record.role === "capable"
+          ? { role: "staff", active: true, canManageCustomerOrdering: true }
+          : { role: "staff", active: true },
+    }))
+    .sort((left, right) => roleOrder[left.role] - roleOrder[right.role]);
+}
+
+function fingerprintValidatedRecords(records, projectId) {
+  return sha256Fingerprint(inventoryFingerprintSchema, {
+    projectId,
+    staff: records.map((record) => ({
+      authorization: record.data,
+      email: record.email,
+      role: record.role,
+      uid: record.uid,
+    })),
+  });
+}
+
+export function createInventoryFingerprint(
+  inventory,
+  projectId = productionProjectId,
+) {
+  return fingerprintValidatedRecords(
+    validateInventory(inventory, projectId),
+    projectId,
+  );
 }
 
 export function readExternalInventory(
@@ -228,6 +284,18 @@ export function readServiceAccount(
   );
 }
 
+function normalizeExpectedPrincipal(value, projectId = productionProjectId) {
+  validateProjectId(projectId);
+  if (typeof value !== "string") fail("principal-validation");
+  const normalized = value.trim().toLowerCase();
+  if (
+    !isInventoryEmail(normalized) ||
+    !normalized.endsWith(`@${productionProjectId}.iam.gserviceaccount.com`)
+  )
+    fail("principal-validation");
+  return normalized;
+}
+
 export function validateExpectedPrincipal(
   value,
   projectId = productionProjectId,
@@ -235,14 +303,10 @@ export function validateExpectedPrincipal(
   validateProjectId(projectId);
   if (
     !hasExactKeys(value, ["projectId", "serviceAccountEmail"]) ||
-    value.projectId !== productionProjectId ||
-    !isInventoryEmail(value.serviceAccountEmail) ||
-    !value.serviceAccountEmail.endsWith(
-      `@${productionProjectId}.iam.gserviceaccount.com`,
-    )
+    value.projectId !== productionProjectId
   )
     fail("principal-validation");
-  return value.serviceAccountEmail.trim().toLowerCase();
+  return normalizeExpectedPrincipal(value.serviceAccountEmail, projectId);
 }
 
 export function readExpectedPrincipal(
@@ -261,7 +325,7 @@ export function readExpectedPrincipal(
   );
 }
 
-export function validateExecuteEnvironment(environment = process.env) {
+export function validateOnlineEnvironment(environment = process.env) {
   if (
     emulatorEnvironmentNames.some((name) =>
       Object.prototype.hasOwnProperty.call(environment, name),
@@ -324,7 +388,7 @@ async function verifyAuthentication(auth, records) {
     fail("authentication-verification");
 }
 
-async function verifyTargetsDoNotExist(firestore, records) {
+async function readAuthorizationTargets(firestore, records, stage) {
   const references = records.map((record) =>
     firestore.doc(`users/${record.uid}`),
   );
@@ -334,81 +398,256 @@ async function verifyTargetsDoNotExist(firestore, records) {
       references.map((reference) => reference.get()),
     );
   } catch {
-    fail("existing-document-check");
+    fail(stage);
   }
-  if (snapshots.some((snapshot) => snapshot.exists))
-    fail("existing-document-check");
-  return references;
+  try {
+    return records.map((record, index) => {
+      const snapshot = snapshots[index];
+      const state = !snapshot.exists
+        ? "missing"
+        : exactAuthorizationData(snapshot.data(), record.data)
+          ? "exact"
+          : "conflicting";
+      return { record, reference: references[index], state };
+    });
+  } catch {
+    fail(stage);
+  }
 }
 
-async function createAndVerifyAuthorizationDocuments(firestore, records) {
-  const references = await verifyTargetsDoNotExist(firestore, records);
-  let batch;
-  try {
-    batch = firestore.batch();
-    records.forEach((record, index) =>
-      batch.create(references[index], record.data),
-    );
-    await batch.commit();
-  } catch {
-    fail("authorization-write");
-  }
-  let snapshots;
-  try {
-    snapshots = await Promise.all(
-      references.map((reference) => reference.get()),
-    );
-  } catch {
-    fail("post-write-verification");
-  }
+function createPlan(records, targets, projectId, expectedPrincipal) {
+  const inventoryFingerprint = fingerprintValidatedRecords(records, projectId);
+  const existingExactDocuments = targets.filter(
+    (target) => target.state === "exact",
+  ).length;
+  const missingDocuments = targets.filter(
+    (target) => target.state === "missing",
+  ).length;
+  const conflictingDocuments = targets.filter(
+    (target) => target.state === "conflicting",
+  ).length;
+  const plannedCreateFields = targets
+    .filter((target) => target.state === "missing")
+    .map((target) => ({
+      role: target.record.role,
+      fields: Object.keys(target.record.data).sort(),
+    }));
+  const approvalFingerprint = sha256Fingerprint(approvalFingerprintSchema, {
+    expectedPrincipal,
+    inventoryFingerprint,
+    projectId,
+    targets: targets.map((target) => ({
+      fields:
+        target.state === "missing"
+          ? Object.keys(target.record.data).sort()
+          : [],
+      role: target.record.role,
+      state: target.state,
+    })),
+  });
+  return {
+    targets,
+    result: {
+      status: "planned",
+      projectValidation: "passed",
+      inventoryValidation: "passed",
+      authenticationVerification: "passed",
+      authorizationDocumentCheck:
+        conflictingDocuments === 0 ? "passed" : "blocked",
+      approvedStaff: records.length,
+      ordinaryStaff: records.filter((record) => record.role === "ordinary")
+        .length,
+      capableStaff: records.filter((record) => record.role === "capable")
+        .length,
+      existingExactDocuments,
+      missingDocuments,
+      conflictingDocuments,
+      plannedCreates: missingDocuments,
+      plannedCreateFields,
+      inventoryFingerprint,
+      approvalFingerprint,
+      identifiersLogged: false,
+    },
+  };
+}
+
+async function buildOnlinePlan({
+  projectId,
+  records,
+  expectedPrincipal,
+  auth,
+  firestore,
+}) {
+  await verifyAuthentication(auth, records);
+  const targets = await readAuthorizationTargets(
+    firestore,
+    records,
+    "authorization-document-read",
+  );
+  const plan = createPlan(records, targets, projectId, expectedPrincipal);
+  if (plan.result.conflictingDocuments !== 0)
+    fail("authorization-document-conflict", {
+      existingExactDocuments: plan.result.existingExactDocuments,
+      missingDocuments: plan.result.missingDocuments,
+      conflictingDocuments: plan.result.conflictingDocuments,
+      plannedCreates: 0,
+    });
+  return plan;
+}
+
+function validateApprovalFingerprint(value) {
   if (
-    snapshots.some(
-      (snapshot, index) =>
-        !snapshot.exists ||
-        !exactAuthorizationData(snapshot.data(), records[index].data),
-    )
+    typeof value !== "string" ||
+    !new RegExp(`^${approvalFingerprintSchema}-[a-f0-9]{64}$`).test(value)
   )
+    fail("fingerprint-validation");
+  return value;
+}
+
+async function verifyPostApply(
+  firestore,
+  records,
+  projectId,
+  expectedPrincipal,
+) {
+  const targets = await readAuthorizationTargets(
+    firestore,
+    records,
+    "post-write-verification",
+  );
+  if (targets.some((target) => target.state !== "exact"))
     fail("post-write-verification");
+  const plan = createPlan(records, targets, projectId, expectedPrincipal);
+  if (plan.result.plannedCreates !== 0) fail("post-write-verification");
+  return plan.result;
+}
+
+async function applyApprovedPlan({
+  projectId,
+  records,
+  expectedPrincipal,
+  approvedFingerprint,
+  auth,
+  firestore,
+}) {
+  const plan = await buildOnlinePlan({
+    projectId,
+    records,
+    expectedPrincipal,
+    auth,
+    firestore,
+  });
+  if (plan.result.approvalFingerprint !== approvedFingerprint)
+    fail("fingerprint-mismatch");
+
+  const missingTargets = plan.targets.filter(
+    (target) => target.state === "missing",
+  );
+  if (missingTargets.length > 0) {
+    let batch;
+    try {
+      batch = firestore.batch();
+      missingTargets.forEach((target) =>
+        batch.create(target.reference, target.record.data),
+      );
+      await batch.commit();
+    } catch {
+      fail("authorization-write");
+    }
+  }
+
+  const postApplyPlan = await verifyPostApply(
+    firestore,
+    records,
+    projectId,
+    expectedPrincipal,
+  );
+  return {
+    status: missingTargets.length === 0 ? "already-current" : "applied",
+    projectValidation: "passed",
+    inventoryValidation: "passed",
+    authenticationVerification: "passed",
+    authorizationDocumentCheck: "passed",
+    approvedStaff: records.length,
+    ordinaryStaff: records.filter((record) => record.role === "ordinary")
+      .length,
+    capableStaff: records.filter((record) => record.role === "capable").length,
+    inventoryFingerprint: plan.result.inventoryFingerprint,
+    approvedFingerprint,
+    plannedCreates: plan.result.plannedCreates,
+    authorizationDocumentsCreated: missingTargets.length,
+    postWriteVerification: "passed",
+    postApplyPlannedCreates: postApplyPlan.plannedCreates,
+    postApplyApprovalFingerprint: postApplyPlan.approvalFingerprint,
+    idempotencyVerification: "passed",
+    identifiersLogged: false,
+  };
 }
 
 export async function runAuthorizationWriter({
   projectId,
   inventory,
-  execute = false,
+  mode = "validate",
   confirmation,
+  approvedFingerprint,
+  expectedPrincipal,
   auth,
   firestore,
 }) {
   validateProjectId(projectId);
   const records = validateInventory(inventory, projectId);
-  if (!execute)
+  const inventoryFingerprint = fingerprintValidatedRecords(records, projectId);
+  if (mode === "validate")
     return {
       status: "validation-only",
       projectValidation: "passed",
       inventoryValidation: "passed",
+      approvedStaff: records.length,
+      ordinaryStaff: records.filter((record) => record.role === "ordinary")
+        .length,
+      capableStaff: records.filter((record) => record.role === "capable")
+        .length,
+      inventoryFingerprint,
       authorizationDocumentsCreated: 0,
       identifiersLogged: false,
     };
-  if (confirmation !== writeConfirmation) fail("write-confirmation");
+  if (mode !== "plan" && mode !== "apply") fail("mode-validation");
+  if (mode === "apply") {
+    if (confirmation !== applyConfirmation) fail("write-confirmation");
+    validateApprovalFingerprint(approvedFingerprint);
+  }
+  const normalizedExpectedPrincipal = normalizeExpectedPrincipal(
+    expectedPrincipal,
+    projectId,
+  );
   if (!auth || typeof auth.getUser !== "function" || !firestore)
     fail("client-validation");
-
-  await verifyAuthentication(auth, records);
-  await createAndVerifyAuthorizationDocuments(firestore, records);
-  return {
-    status: "created",
-    projectValidation: "passed",
-    inventoryValidation: "passed",
-    existingDocumentCheck: "passed",
-    authorizationDocumentsCreated: 2,
-    identifiersLogged: false,
-  };
+  if (mode === "plan")
+    return (
+      await buildOnlinePlan({
+        projectId,
+        records,
+        expectedPrincipal: normalizedExpectedPrincipal,
+        auth,
+        firestore,
+      })
+    ).result;
+  return applyApprovedPlan({
+    projectId,
+    records,
+    expectedPrincipal: normalizedExpectedPrincipal,
+    approvedFingerprint,
+    auth,
+    firestore,
+  });
 }
 
 export async function executeControlledAuthorizationWriter({
   projectId,
   inventory,
+  mode,
   confirmation,
+  approvedFingerprint,
   environment = process.env,
   loadServiceAccount,
   loadExpectedPrincipal,
@@ -416,8 +655,12 @@ export async function executeControlledAuthorizationWriter({
 }) {
   validateProjectId(projectId);
   validateInventory(inventory, projectId);
-  if (confirmation !== writeConfirmation) fail("write-confirmation");
-  validateExecuteEnvironment(environment);
+  if (mode !== "plan" && mode !== "apply") fail("mode-validation");
+  if (mode === "apply") {
+    if (confirmation !== applyConfirmation) fail("write-confirmation");
+    validateApprovalFingerprint(approvedFingerprint);
+  }
+  validateOnlineEnvironment(environment);
   if (
     typeof loadServiceAccount !== "function" ||
     typeof loadExpectedPrincipal !== "function" ||
@@ -428,21 +671,37 @@ export async function executeControlledAuthorizationWriter({
     loadServiceAccount(),
     projectId,
   );
-  const expectedPrincipal = loadExpectedPrincipal();
-  if (
-    typeof expectedPrincipal !== "string" ||
-    serviceAccount.client_email.trim().toLowerCase() !== expectedPrincipal
-  )
+  const expectedPrincipal = normalizeExpectedPrincipal(
+    loadExpectedPrincipal(),
+    projectId,
+  );
+  if (serviceAccount.client_email.trim().toLowerCase() !== expectedPrincipal)
     fail("principal-validation");
   const clients = await initializeClients(serviceAccount);
   return runAuthorizationWriter({
     projectId,
     inventory,
-    execute: true,
+    mode,
     confirmation,
+    approvedFingerprint,
+    expectedPrincipal,
     auth: clients?.auth,
     firestore: clients?.firestore,
   });
+}
+
+function sanitizedFailure(error) {
+  const result = {
+    status: "failed",
+    stage: error instanceof WriterError ? error.stage : "unexpected",
+  };
+  if (error instanceof WriterError)
+    safeFailureDetailNames.forEach((name) => {
+      if (Number.isInteger(error.details?.[name]))
+        result[name] = error.details[name];
+    });
+  result.identifiersLogged = false;
+  return result;
 }
 
 export async function runSanitizedWriter(input, logger = console.log) {
@@ -451,22 +710,19 @@ export async function runSanitizedWriter(input, logger = console.log) {
     logger(JSON.stringify(result));
     return result;
   } catch (error) {
-    const stage = error instanceof WriterError ? error.stage : "unexpected";
-    logger(
-      JSON.stringify({ status: "failed", stage, identifiersLogged: false }),
-    );
+    logger(JSON.stringify(sanitizedFailure(error)));
     throw error;
   }
 }
 
 export function parseCommandArguments(argumentsList = process.argv.slice(2)) {
   const values = {};
-  let execute = false;
+  let mode = "validate";
   for (let index = 0; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index];
-    if (argument === "--execute") {
-      if (execute) fail("command-validation");
-      execute = true;
+    if (argument === "--plan" || argument === "--apply") {
+      if (mode !== "validate") fail("command-validation");
+      mode = argument.slice(2);
       continue;
     }
     if (
@@ -475,6 +731,7 @@ export function parseCommandArguments(argumentsList = process.argv.slice(2)) {
         "--inventory",
         "--expected-principal",
         "--confirm",
+        "--approved-fingerprint",
       ].includes(argument)
     )
       fail("command-validation");
@@ -486,14 +743,25 @@ export function parseCommandArguments(argumentsList = process.argv.slice(2)) {
   }
   const projectId = values["--project"];
   const inventoryPath = values["--inventory"];
+  const expectedPrincipalPath = values["--expected-principal"];
+  const confirmation = values["--confirm"];
+  const approvedFingerprint = values["--approved-fingerprint"];
   if (!projectId || !inventoryPath) fail("command-validation");
-  if (execute && !values["--expected-principal"]) fail("command-validation");
+  if (mode === "validate") {
+    if (expectedPrincipalPath || confirmation || approvedFingerprint)
+      fail("command-validation");
+  } else if (!expectedPrincipalPath) fail("command-validation");
+  if (mode === "plan" && (confirmation || approvedFingerprint))
+    fail("command-validation");
+  if (mode === "apply" && (!confirmation || !approvedFingerprint))
+    fail("command-validation");
   return {
     projectId,
     inventoryPath,
-    expectedPrincipalPath: values["--expected-principal"],
-    execute,
-    confirmation: values["--confirm"],
+    expectedPrincipalPath,
+    mode,
+    confirmation,
+    approvedFingerprint,
   };
 }
 
@@ -506,45 +774,45 @@ async function main() {
       command.inventoryPath,
       repositoryRoot,
     );
-    const result = command.execute
-      ? await executeControlledAuthorizationWriter({
-          projectId: command.projectId,
-          inventory,
-          confirmation: command.confirmation,
-          environment: process.env,
-          loadServiceAccount: () =>
-            readServiceAccount(
-              process.env.GOOGLE_APPLICATION_CREDENTIALS,
-              command.projectId,
-              repositoryRoot,
-            ),
-          loadExpectedPrincipal: () =>
-            readExpectedPrincipal(
-              command.expectedPrincipalPath,
-              command.projectId,
-              repositoryRoot,
-            ),
-          initializeClients: (serviceAccount) => {
-            app = initializeApp(
-              {
-                credential: cert(serviceAccount),
-                projectId: command.projectId,
-              },
-              `production-staff-authorization-${Date.now()}`,
-            );
-            return { auth: getAuth(app), firestore: getFirestore(app) };
-          },
-        })
-      : await runAuthorizationWriter({
-          projectId: command.projectId,
-          inventory,
-        });
+    const result =
+      command.mode === "validate"
+        ? await runAuthorizationWriter({
+            projectId: command.projectId,
+            inventory,
+          })
+        : await executeControlledAuthorizationWriter({
+            projectId: command.projectId,
+            inventory,
+            mode: command.mode,
+            confirmation: command.confirmation,
+            approvedFingerprint: command.approvedFingerprint,
+            environment: process.env,
+            loadServiceAccount: () =>
+              readServiceAccount(
+                process.env.GOOGLE_APPLICATION_CREDENTIALS,
+                command.projectId,
+                repositoryRoot,
+              ),
+            loadExpectedPrincipal: () =>
+              readExpectedPrincipal(
+                command.expectedPrincipalPath,
+                command.projectId,
+                repositoryRoot,
+              ),
+            initializeClients: (serviceAccount) => {
+              app = initializeApp(
+                {
+                  credential: cert(serviceAccount),
+                  projectId: command.projectId,
+                },
+                `production-staff-authorization-${Date.now()}`,
+              );
+              return { auth: getAuth(app), firestore: getFirestore(app) };
+            },
+          });
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
-    const stage = error instanceof WriterError ? error.stage : "unexpected";
-    process.stderr.write(
-      `${JSON.stringify({ status: "failed", stage, identifiersLogged: false })}\n`,
-    );
+    process.stderr.write(`${JSON.stringify(sanitizedFailure(error))}\n`);
     process.exitCode = 1;
   } finally {
     if (app) await deleteApp(app).catch(() => undefined);
