@@ -26,7 +26,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
-- Production Customer QR status: **No-Go after controlled rollback**; hardened Rules, indexes, Projection V2, and Staff authorization remain active, while Anonymous Authentication is disabled and the prior Hosting version is serving
+- Production Customer QR status: **Released with intake activation pending capable-Staff action**; corrected Hosting and Anonymous Authentication are active, while customer intake remains fail-closed
 
 ## Production rollout state (2026-07-20)
 
@@ -36,12 +36,13 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Both approved Production Staff authorization documents are exact. Email/Password Authentication remains enabled.
 - PR [#18 — Isolate Production bundle environment code](https://github.com/josurapatt/Greek-Yogert/pull/18) was squash-merged as `25c0193a63bb26f019819ec404da1894e4f1c7cd`. The corrected Customer-QR-enabled Production bundle passed strict inspection with zero UAT, rehearsal, Demo/UAT, credential, seed, or App Check SDK markers.
 - The prior `users/{uid}` smoke assertion was an ephemeral protected-process helper, not tracked repository code. Its correction passed 4/4 focused cases: own missing authorization `404` accepted as non-Staff, own existing authorization rejected, protected denial accepted, and protected readability rejected.
-- Retained corrected Hosting version `edef93d356cbacea` was reactivated as release `1784536019544000`. Its served main asset matched SHA-256 `91090b7a2b3cc59f68e8d7c1b7d3125ed4a6be130fa53e2c4a8df8ec032e0163` with zero prohibited markers.
-- The final smoke created exactly one temporary Anonymous identity. Staff login and `/order` rendered; five menu cards and five public documents loaded; availability and request policy were readable; all Anonymous private denials passed; all six non-Staff protected namespaces remained denied; the identity's own missing `users/{uid}` correctly returned `404`; and exact identity deletion was independently verified as user-not-found.
-- The final combined runtime/non-mutating telemetry assertion did not complete. No second identity was created. The harness did not submit a Customer request or issue an Order/counter/business mutation, but the failed combined assertion did not preserve which telemetry subcondition triggered.
-- The rollback gate was invoked. Anonymous Authentication is disabled; Email/Password remains enabled. Active Hosting is rollback release `1784536193769000` on preserved version `99bd52bcb09ba8e9`; corrected version `edef93d356cbacea` remains retained in Hosting history.
-- Customer intake remains fail-closed because both runtime-control documents are missing. Do not perform the capable-Staff activation action until a separately approved one-identity smoke rerun uses individually reported telemetry assertions and passes.
-- App Check remains disabled and unenforced. No Rules/index redeployment, Projection apply, business-data write, Customer request, Order, counter change, IAM change, or UI-branch action occurred during this release attempt.
+- Retained corrected Hosting version `edef93d356cbacea` is active as release `1784536718877000`. Its served main asset matches SHA-256 `91090b7a2b3cc59f68e8d7c1b7d3125ed4a6be130fa53e2c4a8df8ec032e0163` with zero prohibited markers. Rollback version `99bd52bcb09ba8e9` remains retained.
+- Anonymous Authentication and Email/Password are enabled. Their unrelated configuration remained unchanged during the exact one-field Anonymous update.
+- The final telemetry-specific smoke created exactly one temporary Anonymous identity. The minimum public/private/non-Staff checks passed, including five public menu documents, a representative Anonymous denial, a representative non-Staff denial, and the identity's own missing `users/{uid}` returning `404`. Exact deletion was independently verified as user-not-found.
+- All 18 individually named telemetry assertions passed with zero failures and zero missing results. Browser console errors, uncaught page errors, and Firebase initialization failures were each zero.
+- Authoritative Firestore metadata was identical before and after: Customer requests `0` to `0`, Orders `31` to `31`, counters `2` to `2`, all eight protected namespaces unchanged, all eleven reviewed namespaces unchanged, and both runtime-control documents still missing.
+- Customer intake remains fail-closed. The one remaining manual action is for capable Staff to sign in, open Settings, open Customer QR control, enable Customer Ordering, and enter the Production activation reason.
+- App Check remains disabled and unenforced. No Rules/index redeployment, Projection apply, business-data write, Customer request, Order, counter change, IAM change, or UI-branch action occurred during the final release.
 
 ## App Check monitoring work-package state
 

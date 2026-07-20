@@ -21,7 +21,7 @@ Extend
 - Production URL: <https://greek-yogert.firebaseapp.com/>
 - Customer QR changes and the Production bundle-boundary correction are merged into `main`.
 - Hardened Rules, six composite indexes, Projection V2, and exact Staff authorization are active in Production.
-- The Customer-QR-enabled Hosting release was rolled back after the bounded smoke did not complete. Anonymous Authentication is disabled, the prior Hosting version is active, and customer intake remains fail-closed.
+- Corrected Customer-QR-enabled Hosting and Anonymous Authentication are active in Production. Customer intake remains fail-closed pending the capable-Staff activation action.
 
 ### Isolated Customer QR UAT
 
@@ -29,7 +29,7 @@ Extend
 - UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/>
 - UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order>
 - UAT uses Email/Password Authentication for Staff and Anonymous Authentication for customers.
-- Production Authentication and other Production resources remain untouched.
+- Isolated-UAT procedures remain separate from Production release operations.
 
 ## 3. Current Integration State
 
@@ -61,12 +61,12 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Exact ordinary/capable Staff authorization verified
 - [x] Production bundle contamination removed structurally in PR #18; strict Production scan passed
 - [x] Ephemeral own-authorization assertion corrected and validated with 4/4 focused cases; missing own document `404` is non-Staff, not authorization
-- [x] Retained corrected version `edef93d356cbacea` reactivated as release `1784536019544000` with exact bundle SHA and zero prohibited markers
-- [x] One-identity access smoke passed public reads, Anonymous denials, six non-Staff protected denials, own-document `404`, and independently verified identity cleanup
-- [x] No Customer request, Order, counter, or business mutation was issued by the focused harness
-- [x] Rollback completed to release `1784536193769000` / version `99bd52bcb09ba8e9`; Anonymous Authentication disabled
-- [ ] Rerun one corrected bounded Production smoke under new explicit approval with each runtime/non-mutating telemetry assertion reported separately
-- [ ] After that smoke passes, activate Customer Ordering through the capable-Staff Settings control with a clear Production reason
+- [x] Corrected version `edef93d356cbacea` activated as release `1784536718877000` with exact bundle SHA and zero prohibited markers
+- [x] One-identity minimum access smoke passed; exact identity deletion and user-not-found verification passed
+- [x] All 18 individually reported telemetry assertions passed with zero failures or missing results
+- [x] Before/after metadata matched for Customer requests, Orders, counters, eight protected namespaces, eleven reviewed namespaces, and runtime controls
+- [x] Anonymous Authentication enabled with Email/Password and unrelated Authentication configuration unchanged
+- [ ] Capable Staff signs in, opens Settings and Customer QR control, enables Customer Ordering, and enters the Production activation reason
 
 ## 4. Completed Capabilities
 
