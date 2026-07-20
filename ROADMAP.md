@@ -19,7 +19,9 @@ Extend
 
 - Firebase project: `greek-yogert`
 - Production URL: <https://greek-yogert.firebaseapp.com/>
-- Customer QR changes are merged into `main` but are not deployed to Production.
+- Customer QR changes and the Production bundle-boundary correction are merged into `main`.
+- Hardened Rules, six composite indexes, Projection V2, and exact Staff authorization are active in Production.
+- Corrected Customer-QR-enabled Hosting and Anonymous Authentication are active in Production. Customer intake remains fail-closed pending the capable-Staff activation action.
 
 ### Isolated Customer QR UAT
 
@@ -27,7 +29,7 @@ Extend
 - UAT Staff URL: <https://greek-yogert-customer-uat-2026.web.app/>
 - UAT Customer URL: <https://greek-yogert-customer-uat-2026.web.app/order>
 - UAT uses Email/Password Authentication for Staff and Anonymous Authentication for customers.
-- Production Authentication and other Production resources remain untouched.
+- Isolated-UAT procedures remain separate from Production release operations.
 
 ## 3. Current Integration State
 
@@ -38,6 +40,7 @@ Extend
 - Trusted Customer boundary squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Anonymous abuse controls squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - Full isolated Production release rehearsal squash-merge commit: `f85b7f25f483888e48bc019ab982ee774207f128`
+- Production bundle-boundary correction squash-merge commit: `25c0193a63bb26f019819ec404da1894e4f1c7cd`
 - Retained feature branch: `feature/customer-qr-ordering-foundation`
 - Retained hardening branch: `feature/production-rollout-hardening`
 - PR #4: **Merged and closed**
@@ -46,8 +49,24 @@ Extend
 - PR #7: **Approved at exact head `765e015779c696e03dee9e62905b5645307530f6`, squash-merged, and closed**
 - PR #8: **Approved, squash-merged, and closed**
 - PR #9: **Approved at exact head `b6825948d63faeee8e67d61bbaf759cfe0461330`, squash-merged, and closed**
+- PR #18: **Validated, squash-merged, and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
+
+### Production rollout checkpoint
+
+- [x] Hardened Firestore Rules deployed and verified at SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`
+- [x] Six approved composite indexes reached `READY`
+- [x] Projection V2 applied and reverified idempotent at fingerprint `wp4-37375c730dcfa076`
+- [x] Exact ordinary/capable Staff authorization verified
+- [x] Production bundle contamination removed structurally in PR #18; strict Production scan passed
+- [x] Ephemeral own-authorization assertion corrected and validated with 4/4 focused cases; missing own document `404` is non-Staff, not authorization
+- [x] Corrected version `edef93d356cbacea` activated as release `1784536718877000` with exact bundle SHA and zero prohibited markers
+- [x] One-identity minimum access smoke passed; exact identity deletion and user-not-found verification passed
+- [x] All 18 individually reported telemetry assertions passed with zero failures or missing results
+- [x] Before/after metadata matched for Customer requests, Orders, counters, eight protected namespaces, eleven reviewed namespaces, and runtime controls
+- [x] Anonymous Authentication enabled with Email/Password and unrelated Authentication configuration unchanged
+- [ ] Capable Staff signs in, opens Settings and Customer QR control, enables Customer Ordering, and enters the Production activation reason
 
 ## 4. Completed Capabilities
 

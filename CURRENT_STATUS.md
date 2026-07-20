@@ -4,10 +4,11 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-17 (Asia/Bangkok)
+- Last verified: 2026-07-20 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
-- Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `main`
+- Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`
+- Current branch: `agent/document-production-bundle-rollback`
+- Verified implementation baseline: `25c0193a63bb26f019819ec404da1894e4f1c7cd`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
@@ -25,7 +26,23 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
-- Production status: **No-Go**; Production was not accessed or changed during WP5 or the App Check monitoring work package
+- Production Customer QR status: **Released with intake activation pending capable-Staff action**; corrected Hosting and Anonymous Authentication are active, while customer intake remains fail-closed
+
+## Production rollout state (2026-07-20)
+
+- Hardened Firestore Rules are active with SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`.
+- All six approved composite indexes are `READY`.
+- Projection V2 is current for five source products with fingerprint `wp4-37375c730dcfa076`; the final dry run planned and performed zero writes.
+- Both approved Production Staff authorization documents are exact. Email/Password Authentication remains enabled.
+- PR [#18 — Isolate Production bundle environment code](https://github.com/josurapatt/Greek-Yogert/pull/18) was squash-merged as `25c0193a63bb26f019819ec404da1894e4f1c7cd`. The corrected Customer-QR-enabled Production bundle passed strict inspection with zero UAT, rehearsal, Demo/UAT, credential, seed, or App Check SDK markers.
+- The prior `users/{uid}` smoke assertion was an ephemeral protected-process helper, not tracked repository code. Its correction passed 4/4 focused cases: own missing authorization `404` accepted as non-Staff, own existing authorization rejected, protected denial accepted, and protected readability rejected.
+- Retained corrected Hosting version `edef93d356cbacea` is active as release `1784536718877000`. Its served main asset matches SHA-256 `91090b7a2b3cc59f68e8d7c1b7d3125ed4a6be130fa53e2c4a8df8ec032e0163` with zero prohibited markers. Rollback version `99bd52bcb09ba8e9` remains retained.
+- Anonymous Authentication and Email/Password are enabled. Their unrelated configuration remained unchanged during the exact one-field Anonymous update.
+- The final telemetry-specific smoke created exactly one temporary Anonymous identity. The minimum public/private/non-Staff checks passed, including five public menu documents, a representative Anonymous denial, a representative non-Staff denial, and the identity's own missing `users/{uid}` returning `404`. Exact deletion was independently verified as user-not-found.
+- All 18 individually named telemetry assertions passed with zero failures and zero missing results. Browser console errors, uncaught page errors, and Firebase initialization failures were each zero.
+- Authoritative Firestore metadata was identical before and after: Customer requests `0` to `0`, Orders `31` to `31`, counters `2` to `2`, all eight protected namespaces unchanged, all eleven reviewed namespaces unchanged, and both runtime-control documents still missing.
+- Customer intake remains fail-closed. The one remaining manual action is for capable Staff to sign in, open Settings, open Customer QR control, enable Customer Ordering, and enter the Production activation reason.
+- App Check remains disabled and unenforced. No Rules/index redeployment, Projection apply, business-data write, Customer request, Order, counter change, IAM change, or UI-branch action occurred during the final release.
 
 ## App Check monitoring work-package state
 
