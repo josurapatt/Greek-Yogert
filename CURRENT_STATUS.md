@@ -4,10 +4,11 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-17 (Asia/Bangkok)
+- Last verified: 2026-07-20 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
-- Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `main`
+- Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`
+- Current branch: `agent/document-production-bundle-rollback`
+- Verified implementation baseline: `25c0193a63bb26f019819ec404da1894e4f1c7cd`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
@@ -25,7 +26,20 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
-- Production status: **No-Go**; Production was not accessed or changed during WP5 or the App Check monitoring work package
+- Production Customer QR status: **No-Go after controlled rollback**; hardened Rules, indexes, Projection V2, and Staff authorization remain active, while Anonymous Authentication is disabled and the prior Hosting version is serving
+
+## Production rollout state (2026-07-20)
+
+- Hardened Firestore Rules are active with SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`.
+- All six approved composite indexes are `READY`.
+- Projection V2 is current for five source products with fingerprint `wp4-37375c730dcfa076`; the final dry run planned and performed zero writes.
+- Both approved Production Staff authorization documents are exact. Email/Password Authentication remains enabled.
+- PR [#18 — Isolate Production bundle environment code](https://github.com/josurapatt/Greek-Yogert/pull/18) was squash-merged as `25c0193a63bb26f019819ec404da1894e4f1c7cd`. The corrected Customer-QR-enabled Production bundle passed strict inspection with zero UAT, rehearsal, Demo/UAT, credential, seed, or App Check SDK markers.
+- A Hosting-only release was deployed as release `1784534447340000`, version `edef93d356cbacea`. Staff login and `/order` rendered, five public menu cards loaded, anonymous public reads passed, and anonymous private access was denied without creating a request, Order, counter, or business document.
+- The bounded smoke harness could not complete the final non-Staff assertion within the approved temporary-identity boundary: the committed Rules intentionally return `404` for an authenticated user's own nonexistent `users/{uid}` document while denying Staff collections with `403`. This is not a Staff grant, but the exact smoke contract was not completed.
+- The rollback gate was invoked. Anonymous Authentication is disabled; Email/Password remains enabled. Active Hosting is rollback release `1784534995471000` on preserved version `99bd52bcb09ba8e9`; the corrected release remains retained in Hosting history.
+- Customer intake remains fail-closed because both runtime-control documents are missing. Do not perform the capable-Staff activation action until a separately approved corrected smoke rerun passes.
+- App Check remains disabled and unenforced. No Rules/index redeployment, Projection apply, business-data write, Customer request, Order, counter change, IAM change, or UI-branch action occurred during this release attempt.
 
 ## App Check monitoring work-package state
 

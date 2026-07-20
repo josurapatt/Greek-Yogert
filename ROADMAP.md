@@ -19,7 +19,9 @@ Extend
 
 - Firebase project: `greek-yogert`
 - Production URL: <https://greek-yogert.firebaseapp.com/>
-- Customer QR changes are merged into `main` but are not deployed to Production.
+- Customer QR changes and the Production bundle-boundary correction are merged into `main`.
+- Hardened Rules, six composite indexes, Projection V2, and exact Staff authorization are active in Production.
+- The Customer-QR-enabled Hosting release was rolled back after the bounded smoke did not complete. Anonymous Authentication is disabled, the prior Hosting version is active, and customer intake remains fail-closed.
 
 ### Isolated Customer QR UAT
 
@@ -38,6 +40,7 @@ Extend
 - Trusted Customer boundary squash-merge commit: `851ae86137733498c4c4ef7b0fdc94a5e0255726`
 - Anonymous abuse controls squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - Full isolated Production release rehearsal squash-merge commit: `f85b7f25f483888e48bc019ab982ee774207f128`
+- Production bundle-boundary correction squash-merge commit: `25c0193a63bb26f019819ec404da1894e4f1c7cd`
 - Retained feature branch: `feature/customer-qr-ordering-foundation`
 - Retained hardening branch: `feature/production-rollout-hardening`
 - PR #4: **Merged and closed**
@@ -46,8 +49,22 @@ Extend
 - PR #7: **Approved at exact head `765e015779c696e03dee9e62905b5645307530f6`, squash-merged, and closed**
 - PR #8: **Approved, squash-merged, and closed**
 - PR #9: **Approved at exact head `b6825948d63faeee8e67d61bbaf759cfe0461330`, squash-merged, and closed**
+- PR #18: **Validated, squash-merged, and closed**
 
 Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is maintained in `CURRENT_STATUS.md` and must be verified against the repository and GitHub before future work.
+
+### Production rollout checkpoint
+
+- [x] Hardened Firestore Rules deployed and verified at SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`
+- [x] Six approved composite indexes reached `READY`
+- [x] Projection V2 applied and reverified idempotent at fingerprint `wp4-37375c730dcfa076`
+- [x] Exact ordinary/capable Staff authorization verified
+- [x] Production bundle contamination removed structurally in PR #18; strict Production scan passed
+- [x] Hosting-only corrected release created as `1784534447340000` / `edef93d356cbacea`
+- [x] Focused smoke created no Customer request, Order, counter, or other business document
+- [x] Rollback completed to release `1784534995471000` / version `99bd52bcb09ba8e9`; Anonymous Authentication disabled
+- [ ] Rerun the corrected bounded Production smoke under a new explicit approval, accounting for the intentional own-authorization-document `404` behavior
+- [ ] After that smoke passes, activate Customer Ordering through the capable-Staff Settings control with a clear Production reason
 
 ## 4. Completed Capabilities
 
