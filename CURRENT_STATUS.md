@@ -4,10 +4,13 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-17 (Asia/Bangkok)
+- Last verified: 2026-07-20 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`
-- Current branch: `main`
+- Current branch: `feature/light-purple-ui-refresh`
+- Light-purple UI refresh base: `6334c7873c50381e1f5c753c1010ea2c81311d44`
+- Light-purple UI refresh implementation commit: `ed99ea75c1ecb37ee1f72180b125c2919aa2ec1e`
+- Light-purple UI refresh PR: [#14 — Apply light-purple UI refresh](https://github.com/josurapatt/Greek-Yogert/pull/14) — Draft, targeting `main`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
@@ -26,6 +29,23 @@ This is the current operational snapshot. Git history is authoritative for earli
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
 - Production status: **No-Go**; Production was not accessed or changed during WP5 or the App Check monitoring work package
+
+## Light-purple UI refresh work-package state
+
+The approved presentation-only refresh is implemented on
+`feature/light-purple-ui-refresh` from exact `origin/main` base
+`6334c7873c50381e1f5c753c1010ea2c81311d44`. A final-cascade theme layer applies
+purple `#7368B5` and light background `#EFF0F2` styling to existing Staff and
+Customer components without changing routes, workflows, data models, pricing,
+queue behavior, Firebase, Firestore, Authentication, or Production
+configuration.
+
+Focused Staff/Customer UI tests passed 54 tests across 7 files. The complete
+application suite passed 323 tests across 35 files; lint and the TypeScript/Vite
+Production build passed. Local/demo-safe browser QA passed at 1440×1000,
+768×1024, and 390×844 with no horizontal overflow across Customer ordering and
+Staff Home, ordering, cart, Queue, History, Reports, Products, and Settings.
+Draft PR #14 is open for review. No UAT or Production deployment was performed.
 
 ## App Check monitoring work-package state
 
@@ -224,7 +244,8 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Keep Production No-Go and await explicit approval before beginning any next
-Production gate. Production App Check registration/monitoring, Firestore
-enforcement, Authentication enforcement, and every independent Production
-approval remain pending.
+Review Draft PR #14 and complete human visual UAT if requested. Do not merge or
+deploy this work package without separate approval. Production remains No-Go;
+Production App Check registration/monitoring, Firestore enforcement,
+Authentication enforcement, and every independent Production approval remain
+pending.
