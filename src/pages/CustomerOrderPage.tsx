@@ -12,7 +12,7 @@ import {
 import { toppings } from "../data";
 import { customerStorefrontChannel } from "../customerOrder";
 import { useCustomer } from "../customerFirebase";
-import { runtimeConfig } from "../runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import { customerRequestLimits } from "../customerRequestPolicy";
 import type { CartItem, Product } from "../types";
 

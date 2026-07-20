@@ -7,7 +7,7 @@ import {
 import CustomerOrderingSettingsSection from "../components/CustomerOrderingSettingsSection";
 import { db, firebaseReady } from "../firebase";
 import { formatThaiDateTime } from "../lib";
-import { runtimeConfig } from "../runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import { useAuth, useData } from "../store";
 import { loadAllOrdersForBackup } from "../staffFirestore";
 

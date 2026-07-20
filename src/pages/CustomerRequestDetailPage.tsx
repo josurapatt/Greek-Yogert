@@ -21,7 +21,7 @@ import { db } from "../firebase";
 import { formatThaiDateTime, money } from "../lib";
 import { useAuth, useData } from "../store";
 import type { StaffPaymentMethod } from "../types";
-import { runtimeConfig } from "../runtimeConfig";
+import { customerQrStaffLabel } from "@runtime-config";
 import { getCustomerRequestById } from "../staffFirestore";
 import type { CustomerOrderRequest } from "../types";
 
@@ -136,11 +136,7 @@ export default function CustomerRequestDetailPage() {
       <section className="order-detail">
         <header>
           <div>
-            <p className="eyebrow">
-              {runtimeConfig.isCustomerQrUat
-                ? "Customer QR Demo/UAT"
-                : "Customer QR"}
-            </p>
+            <p className="eyebrow">{customerQrStaffLabel}</p>
             <h1>{request.customerName || "ลูกค้าทั่วไป"}</h1>
             <span className="status pending">{request.status}</span>
           </div>

@@ -6,9 +6,16 @@ import { shouldBundleAppCheck } from "./src/appCheckConfig.js";
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const environment = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
-  const bootstrap = shouldBundleAppCheck(environment)
-    ? "./src/appCheckBootstrapEnabled.ts"
-    : "./src/appCheckBootstrapDisabled.ts";
+  const bootstrap =
+    environment.VITE_APP_ENVIRONMENT === "production"
+      ? "./src/appCheckBootstrapProductionDisabled.ts"
+      : shouldBundleAppCheck(environment)
+        ? "./src/appCheckBootstrapEnabled.ts"
+        : "./src/appCheckBootstrapDisabled.ts";
+  const runtimeConfig =
+    environment.VITE_APP_ENVIRONMENT === "production"
+      ? "./src/runtimeConfigProduction.ts"
+      : "./src/runtimeConfig.ts";
 
   return {
     plugins: [react()],
@@ -16,6 +23,9 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@app-check-bootstrap": fileURLToPath(
           new URL(bootstrap, import.meta.url),
+        ),
+        "@runtime-config": fileURLToPath(
+          new URL(runtimeConfig, import.meta.url),
         ),
       },
     },

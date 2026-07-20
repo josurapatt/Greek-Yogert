@@ -5,7 +5,7 @@ import OrderItemSummary from "../components/OrderItemSummary";
 import { formatThaiDateTime, money } from "../lib";
 import { db } from "../firebase";
 import { useCustomer } from "../customerFirebase";
-import { runtimeConfig } from "../runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import type { CustomerOrderRequest } from "../types";
 import { hydrateCustomerRequest } from "../customerRequestChunks";
 import { waitingForShop } from "../customerOrder";
