@@ -21,7 +21,7 @@ Extend
 - Production URL: <https://greek-yogert.firebaseapp.com/>
 - Customer QR changes and the Production bundle-boundary correction are merged into `main`.
 - Hardened Rules, six composite indexes, Projection V2, and exact Staff authorization are active in Production.
-- Corrected Customer-QR-enabled Hosting and Anonymous Authentication are active in Production. Customer intake remains fail-closed pending the capable-Staff activation action.
+- Corrected Customer-QR-enabled Hosting, Anonymous Authentication, and capable-Staff-enabled Customer Ordering are active in Production. The Customer QR rollout is complete.
 
 ### Isolated Customer QR UAT
 
@@ -57,7 +57,8 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 
 - [x] Hardened Firestore Rules deployed and verified at SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`
 - [x] Six approved composite indexes reached `READY`
-- [x] Projection V2 applied and reverified idempotent at fingerprint `wp4-37375c730dcfa076`
+- [x] Projection V2 initially migrated at fingerprint `wp4-37375c730dcfa076`
+- [x] Current content-derived operational fingerprint `wp4-8b0ef465982a3b46` reviewed and accepted after normal Staff-managed product synchronization; deterministic dry run remains `0` planned / `0` performed
 - [x] Exact ordinary/capable Staff authorization verified
 - [x] Production bundle contamination removed structurally in PR #18; strict Production scan passed
 - [x] Ephemeral own-authorization assertion corrected and validated with 4/4 focused cases; missing own document `404` is non-Staff, not authorization
@@ -66,7 +67,8 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] All 18 individually reported telemetry assertions passed with zero failures or missing results
 - [x] Before/after metadata matched for Customer requests, Orders, counters, eight protected namespaces, eleven reviewed namespaces, and runtime controls
 - [x] Anonymous Authentication enabled with Email/Password and unrelated Authentication configuration unchanged
-- [ ] Capable Staff signs in, opens Settings and Customer QR control, enables Customer Ordering, and enters the Production activation reason
+- [x] Customer Ordering enabled through capable-Staff control with exact linked runtime documents, activation reason, and audit evidence
+- [x] Final manual Production verification passed; Customer QR Production rollout complete
 
 ## 4. Completed Capabilities
 
@@ -147,7 +149,7 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 - [x] Final targeted Products-page toggle UX retest: Passed
 - [x] Final manual regression UAT: Passed
 - [x] PR #4 squash-merged into `main`
-- [x] Production rollout plan drafted and verified; approval pending
+- [x] Production rollout plan executed and final Production verification completed
 
 ### Phase 8 — Production Release Isolation
 
@@ -163,6 +165,14 @@ Exact HEAD, working-tree, validation, workflow, deployment, and blocker state is
 Exact validation counts and the latest workflow run belong in `CURRENT_STATUS.md`. Automated validation and an isolated UAT deployment do not constitute final release approval.
 
 ## 5. Current Active Work
+
+**Customer QR Production rollout — complete**
+
+- Hardened Rules, six indexes, Projection V2, exact Staff authorization, corrected Hosting, and both required Authentication providers are active.
+- All 18 final telemetry assertions passed; the temporary identity was deleted and independently verified absent.
+- Customer Ordering was enabled through the capable-Staff control, and final manual Production verification passed.
+- The initial migration fingerprint `wp4-37375c730dcfa076` and current operational fingerprint `wp4-8b0ef465982a3b46` are both retained as accepted lineage; closeout required no Projection write.
+- App Check enforcement, Cloud Functions, billing, and UI Draft PR #14 remain separate and unapproved by this completed rollout.
 
 **App Check Monitoring Work Package — Path B isolated-UAT implementation, Human UAT, exact-head approval, and squash merge complete**
 
@@ -213,8 +223,8 @@ Current state:
 - [x] App Check/trusted-backend options are documented; no App Check enforcement, IAM elevation, API enablement, billing change, or Production action occurred.
 - [x] Final WP5 Human UAT passed with no known defects; trusted-mismatch no-write protection and audit evidence were accepted from the automated rehearsal.
 - [x] Final documentation-head validation, Ready-for-Review transition, explicit exact-head approval, and PR #9 squash merge completed.
-- Preserve independent approvals for Authentication, rules, indexes, data/configuration, Hosting, smoke testing, and monitoring.
-- Keep every Production change pending until explicitly approved.
+- Independent Customer QR Production approvals for Authentication, Rules, indexes, data/configuration, Hosting, telemetry, and manual verification are complete.
+- Future Production changes remain subject to separate explicit approval.
 
 ## 6. Release Gates
 
@@ -248,14 +258,14 @@ Current state:
 - [ ] Production App Check monitoring registration/client release approved
 - [ ] Production Cloud Firestore App Check enforcement approved
 - [ ] Production Firebase Authentication App Check enforcement approved
-- [ ] Production rollout plan approved
-- [ ] Production Authentication decision approved
-- [ ] Production Firestore rules and deployment scope reviewed
-- [ ] Production Staff authorization provisioning approved and completed
-- [ ] Production public projection approved and completed
-- [ ] Production Hosting activation approved and completed
-- [ ] Production smoke test passed
-- [ ] Post-release monitoring completed
+- [x] Production rollout plan approved and completed
+- [x] Production Authentication decision approved and completed
+- [x] Production Firestore Rules and deployment scope reviewed and completed
+- [x] Production Staff authorization provisioning approved and completed
+- [x] Production public projection approved, completed, and reverified idempotent
+- [x] Production Hosting activation approved and completed
+- [x] Production bounded smoke and `18/18` telemetry assertions passed
+- [x] Final manual Production verification and closeout completed
 
 Production Anonymous Authentication must not be enabled automatically.
 
