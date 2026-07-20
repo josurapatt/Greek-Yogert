@@ -1,0 +1,344 @@
+/* Light-purple presentation layer. Keep this import last in main.tsx. */
+:root {
+  --purple: #7368b5;
+  --purple-dark: #4d4383;
+  --lavender: #eceaf8;
+  --pink: #f0eafd;
+  --yellow: #f6f1ff;
+  --green: #e7e3f8;
+  --border: #dedbea;
+  --shadow: 0 14px 40px rgba(66, 57, 113, 0.12);
+  background: #eff0f2;
+}
+
+body,
+.content-shell {
+  background: #eff0f2;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(115, 104, 181, 0.38);
+  outline-offset: 3px;
+}
+
+button:disabled,
+.product-card:disabled {
+  cursor: not-allowed;
+}
+
+.product-card:disabled:hover,
+.primary:disabled:hover,
+.secondary:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Staff navigation and primary interaction states. */
+.sidebar {
+  padding: 1.45rem 1rem;
+  border-right: 0;
+  background: #2d2945;
+  color: #fff;
+}
+
+.brand {
+  padding: 0.25rem 0.5rem;
+}
+
+.brand small,
+.sidebar nav a,
+.logout {
+  color: #ece9f8;
+}
+
+.brand-mark {
+  border-radius: 15px;
+  background: #a79ddb;
+}
+
+.sidebar nav a.active {
+  background: #7368b5;
+  color: #fff;
+}
+
+.sidebar nav a:hover,
+.logout:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.primary {
+  background: #7368b5;
+  box-shadow: 0 7px 18px rgba(115, 104, 181, 0.25);
+}
+
+.primary:hover {
+  background: #4d4383;
+}
+
+.secondary {
+  border-color: #d8d4e7;
+}
+
+.demo-pill,
+.queue-top > span,
+.status.pending,
+.count-bubble {
+  background: #ece9fb;
+  color: #5a4e9d;
+}
+
+.welcome {
+  background: linear-gradient(125deg, #e8e5f7 0%, #f8f7fb 65%, #eff0f2);
+}
+
+.stats article,
+.action-card,
+.channel-card,
+.queue-card,
+.history-row,
+.report-card,
+.manage-card,
+.settings-card,
+.availability-panel,
+.customer-ordering-settings-section > details,
+.cart-item,
+.checkout-card,
+.order-detail {
+  border-color: #dedbea;
+  box-shadow: 0 4px 14px rgba(51, 44, 82, 0.035);
+}
+
+.action-icon,
+.action-card.pink .action-icon,
+.action-card.yellow .action-icon,
+.action-card.blue .action-icon,
+.action-card.green .action-icon,
+.channel-card > span,
+.channel-card.blue > span,
+.channel-card.green > span,
+.channel-card.yellow > span,
+.settings-icon,
+.settings-icon.pink,
+.item-qty {
+  background: #eceaf8;
+  color: #7368b5;
+}
+
+.page-heading {
+  padding-bottom: 0.2rem;
+}
+
+.queue-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.queue-card {
+  padding: 1.15rem;
+  border-radius: 18px;
+}
+
+.queue-card:hover {
+  border-color: #bcb5dd;
+}
+
+.queue-top > strong,
+.queue-small,
+.order-detail h1 {
+  color: #7368b5;
+}
+
+.queue-item-detail,
+.order-summary,
+.operations-state,
+.operations-capability,
+.operations-action-form,
+.operations-indicators .indicator {
+  background: #f7f6fc;
+}
+
+.queue-detail-footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid #ebe8f3;
+}
+
+.bar-row i {
+  background: linear-gradient(90deg, #7368b5, #aca3dc);
+}
+
+.sales-channel-layout,
+.report-grid,
+.report-card,
+.report-table-scroll,
+.hourly-chart-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.date-pair input {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+
+.segmented input,
+.switch input {
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.segmented input:focus-visible + span,
+.switch input:focus-visible + span {
+  outline: 3px solid rgba(115, 104, 181, 0.38);
+  outline-offset: 3px;
+}
+
+/* Customer: one clear product decision at a time with a distinct basket. */
+.customer-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 30px 18px 56px;
+  color: #29263b;
+}
+
+.customer-page header {
+  padding: 6px 4px 2px;
+}
+
+.customer-page header > p {
+  color: #615c72;
+}
+
+.customer-page .product-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.customer-page .product-card {
+  min-height: 150px;
+  padding: 20px 22px 20px 150px;
+  justify-content: center;
+  border: 1px solid #ebe8f4;
+  border-radius: 20px;
+  background: #fbfaff;
+  box-shadow: none;
+}
+
+.customer-page .product-card.product-1,
+.customer-page .product-card.product-2,
+.customer-page .product-card.product-3,
+.customer-page .product-card.product-4 {
+  background: #fbfaff;
+}
+
+.customer-page .product-card::after {
+  display: none;
+}
+
+.customer-page .product-emoji {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  display: grid;
+  width: 112px;
+  height: 112px;
+  margin: 0;
+  place-items: center;
+  border-radius: 16px;
+  background: #aaa0d8;
+  font-size: 3.5rem;
+}
+
+.customer-page .product-card:nth-child(even) .product-emoji {
+  background: #8277bd;
+}
+
+.customer-page .product-card p {
+  color: #706a80;
+  white-space: normal;
+}
+
+.customer-page .product-card strong {
+  color: #7368b5;
+}
+
+.customer-page .product-card:hover {
+  border-color: #b8b0df;
+  box-shadow: var(--shadow);
+}
+
+.customer-page .product-card:disabled {
+  opacity: 0.58;
+}
+
+.customer-cart {
+  margin-top: 18px;
+  border: 1px solid #dfdbea;
+  background: #f2f0fd;
+  box-shadow: none;
+}
+
+.customer-cart h2 {
+  color: #342e57;
+}
+
+.customer-cart-line {
+  border-bottom-color: #dfdbea;
+}
+
+.customer-cart-actions button,
+.customer-cart-quantity button {
+  border-color: #d7d2e7;
+  color: #5b5197;
+}
+
+@media (max-width: 780px) {
+  .queue-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-page {
+    padding: 20px 14px 38px;
+  }
+
+  .customer-page .product-card {
+    min-height: 132px;
+    padding: 18px 15px 18px 132px;
+  }
+
+  .customer-page .product-emoji {
+    bottom: 15px;
+    left: 15px;
+    width: 96px;
+    height: 96px;
+    font-size: 3rem;
+  }
+
+  .bottom-nav {
+    box-shadow: 0 -8px 22px rgba(46, 40, 70, 0.08);
+  }
+}
+
+@media (max-width: 430px) {
+  .customer-page .product-card {
+    min-height: 118px;
+    padding-left: 112px;
+  }
+
+  .customer-page .product-emoji {
+    width: 84px;
+    height: 84px;
+    font-size: 2.65rem;
+  }
+}
