@@ -7,8 +7,8 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Last verified: 2026-07-20 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`
-- Current branch: `agent/document-production-bundle-rollback`
-- Verified implementation baseline: `25c0193a63bb26f019819ec404da1894e4f1c7cd`
+- Integrated branch: `main`
+- Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
@@ -26,13 +26,13 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP4 squash-merge commit: `a41cba9cbed8ba9827db5366764fad0df66d8313`
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
-- Production Customer QR status: **Released with intake activation pending capable-Staff action**; corrected Hosting and Anonymous Authentication are active, while customer intake remains fail-closed
+- Production Customer QR status: **Complete and live**; corrected Hosting, Anonymous Authentication, and capable-Staff-enabled Customer Ordering are active
 
 ## Production rollout state (2026-07-20)
 
 - Hardened Firestore Rules are active with SHA-256 `331eabc38e385c8a03c3ca9643c01b7b5cf6cf3d1c6e663a50eb6d2ee2d22579`.
 - All six approved composite indexes are `READY`.
-- Projection V2 is current for five source products with fingerprint `wp4-37375c730dcfa076`; the final dry run planned and performed zero writes.
+- Projection V2 was initially migrated at fingerprint `wp4-37375c730dcfa076`. The current operational fingerprint is `wp4-8b0ef465982a3b46` after normal Staff-managed product synchronization. The unchanged schema-v2 algorithm deterministically rebuilt the current private sources, matched all public targets and control state, and planned and performed zero writes.
 - Both approved Production Staff authorization documents are exact. Email/Password Authentication remains enabled.
 - PR [#18 — Isolate Production bundle environment code](https://github.com/josurapatt/Greek-Yogert/pull/18) was squash-merged as `25c0193a63bb26f019819ec404da1894e4f1c7cd`. The corrected Customer-QR-enabled Production bundle passed strict inspection with zero UAT, rehearsal, Demo/UAT, credential, seed, or App Check SDK markers.
 - The prior `users/{uid}` smoke assertion was an ephemeral protected-process helper, not tracked repository code. Its correction passed 4/4 focused cases: own missing authorization `404` accepted as non-Staff, own existing authorization rejected, protected denial accepted, and protected readability rejected.
@@ -40,8 +40,9 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Anonymous Authentication and Email/Password are enabled. Their unrelated configuration remained unchanged during the exact one-field Anonymous update.
 - The final telemetry-specific smoke created exactly one temporary Anonymous identity. The minimum public/private/non-Staff checks passed, including five public menu documents, a representative Anonymous denial, a representative non-Staff denial, and the identity's own missing `users/{uid}` returning `404`. Exact deletion was independently verified as user-not-found.
 - All 18 individually named telemetry assertions passed with zero failures and zero missing results. Browser console errors, uncaught page errors, and Firebase initialization failures were each zero.
-- Authoritative Firestore metadata was identical before and after: Customer requests `0` to `0`, Orders `31` to `31`, counters `2` to `2`, all eight protected namespaces unchanged, all eleven reviewed namespaces unchanged, and both runtime-control documents still missing.
-- Customer intake remains fail-closed. The one remaining manual action is for capable Staff to sign in, open Settings, open Customer QR control, enable Customer Ordering, and enter the Production activation reason.
+- Authoritative Firestore metadata was identical before and after the final automated telemetry check: Customer requests `0` to `0`, Orders `31` to `31`, counters `2` to `2`, all eight protected namespaces unchanged, and all eleven reviewed namespaces unchanged.
+- Customer Ordering is enabled through the reviewed capable-Staff control. The private control, public control, and activation audit have exact linked schemas; the activation reason is present. The user attested that the Production Staff application, activation, and customer `/order` experience were tested successfully. Final human verification: **PASS**.
+- The current Projection fingerprint review found two sanitized private product update times paired exactly with public-menu synchronization times. No prior canonical input snapshot was available, but the unchanged algorithm, exact current private/public/control match, zero-write dry run, and committed atomic Staff synchronization path support the accepted content-derived lineage. No Projection write was required during closeout.
 - App Check remains disabled and unenforced. No Rules/index redeployment, Projection apply, business-data write, Customer request, Order, counter change, IAM change, or UI-branch action occurred during the final release.
 
 ## App Check monitoring work-package state
@@ -224,12 +225,13 @@ Defects found and corrected during rehearsal:
 ### Production
 
 - Firebase project: `greek-yogert`
-- Customer QR remains disabled by the Production build boundary
-- No WP4 Production authorization was provisioned or changed
-- No Production Authentication, IAM, Firestore rules, indexes, documents, Hosting, or workflow execution occurred
-- Production remains **No-Go**
+- Customer QR Ordering is live; the corrected Production Hosting version and both required Authentication providers are active.
+- Hardened Rules, six `READY` indexes, Projection V2, and two exact Staff authorization documents are active.
+- Customer Ordering is enabled through the capable-Staff runtime control with linked audit evidence.
+- Final automated telemetry passed `18/18`; the temporary smoke identity was deleted and independently verified absent.
+- Final manual Production verification passed. The Customer QR Production rollout is **complete**.
 
-## Remaining gates
+## Remaining deferred scope
 
 - [x] WP5 implementation and exact-head automated isolated Production release rehearsal complete
 - [x] WP5 Human UAT complete with no known defects; trusted mismatch and audit evidence accepted from automation
@@ -237,11 +239,13 @@ Defects found and corrected during rehearsal:
 - [x] PR #9 received explicit exact-head approval and was squash-merged as `f85b7f25f483888e48bc019ab982ee774207f128`
 - [x] App Check Path B implementation, automated isolated UAT, final Human UAT, visible metrics review, and exact temporary-data cleanup complete
 - [x] PR #10 received explicit approval at exact head `19dc480c8dfbb5ac65d11b61c5a2381cd51e9746` and was squash-merged as `eac7e2243a1f485f25987b2fd386d91df683c14e`
-- [ ] Every independent Production approval in `PRODUCTION_ROLLOUT_PLAN.md` completes
+- [x] Customer QR Production rollout approvals, activation, telemetry, and final manual verification complete
+- [ ] Production App Check registration or enforcement remains separately deferred
+- [ ] Cloud Functions and billing changes remain unapproved
+- [ ] UI Draft PR #14 remains a separate future workstream
 
 ## Immediate next action
 
-Keep Production No-Go and await explicit approval before beginning any next
-Production gate. Production App Check registration/monitoring, Firestore
-enforcement, Authentication enforcement, and every independent Production
-approval remain pending.
+No Production migration gate remains for Customer QR Ordering. Keep App Check,
+Cloud Functions, billing, and UI PR #14 outside this completed rollout until a
+separate task explicitly authorizes their review or implementation.
