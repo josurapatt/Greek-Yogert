@@ -27,7 +27,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, db, firebaseReady } from "./firebase";
-import { runtimeConfig } from "./runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import {
   defaultProducts,
   mergeProducts,

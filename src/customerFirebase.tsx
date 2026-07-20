@@ -22,7 +22,7 @@ import { defaultProducts } from "./data";
 import { ensureCustomerAnonymousSession } from "./customerAnonymousAuth";
 import { toFirestoreData } from "./firestoreData";
 import { auth, authPersistenceReady, db, firebaseReady } from "./firebase";
-import { runtimeConfig } from "./runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import {
   createCustomerRequest,
   customerPublicProductToProduct,

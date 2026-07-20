@@ -52,5 +52,9 @@ export const runtimeConfig = resolveRuntimeConfig({
   VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 });
 
+export const customerQrStaffLabel = runtimeConfig.isCustomerQrUat
+  ? "Customer QR Demo/UAT"
+  : "Customer QR";
+
 if (typeof document !== "undefined")
   document.documentElement.dataset.appEnvironment = runtimeConfig.environment;

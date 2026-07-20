@@ -13,7 +13,7 @@ import {
 import type { CustomerOrderRequest, StaffPaymentMethod } from "../types";
 import { pendingCustomerRequests } from "../customerRequests";
 import OrderItemSummary from "../components/OrderItemSummary";
-import { runtimeConfig } from "../runtimeConfig";
+import { customerQrStaffLabel } from "@runtime-config";
 import {
   customerConfirmationFailureMessage,
   logCustomerConfirmationFailure,
@@ -105,11 +105,7 @@ export default function CustomerRequestsPage() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">
-            {runtimeConfig.isCustomerQrUat
-              ? "Customer QR Demo/UAT"
-              : "Customer QR"}
-          </p>
+          <p className="eyebrow">{customerQrStaffLabel}</p>
           <h1>คำขอจากลูกค้า</h1>
           <p>คำขอจะได้รับเลขคิวเมื่อร้านยืนยันเท่านั้น</p>
         </div>

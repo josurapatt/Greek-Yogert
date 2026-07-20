@@ -10,7 +10,7 @@ import {
   BarChart3,
   MessageSquare,
 } from "lucide-react";
-import { runtimeConfig } from "../runtimeConfig";
+import { runtimeConfig } from "@runtime-config";
 import { NavLink } from "react-router-dom";
 import { useAuth, useCart, useData } from "../store";
 import { channelLabels } from "../lib";
