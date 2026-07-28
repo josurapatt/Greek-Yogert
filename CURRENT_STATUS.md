@@ -44,7 +44,11 @@ This is the current operational snapshot. Git history is authoritative for earli
 - WP-CC-01 implementation is complete on
   `feature/configurable-catalogue-wp-cc-01`; the exact delivered commit is the
   verified current branch/PR head supplied in the Chat 03 handoff. Independent
-  Chat 04 QA remains **Pending** and no self-approval has occurred.
+  Chat 04 QA returned **FAIL** at
+  `59357627148ba954c978d07b72a462ad54f70c0c` for formatting only. Chat 03 has
+  applied the line-ending-stable formatting correction; independent re-QA of
+  the new exact branch head remains **Pending** and no self-approval has
+  occurred.
 - The additive foundation now contains bounded private/public option-group
   models and repositories, deterministic toppings and granola-flavour
   compatibility groups, legacy Product adapters, selection/label/availability/
@@ -60,6 +64,11 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Offline dry-run review fingerprint `cc3-62a7a5c1ee582c6a` was identical
   twice. The empty baseline planned 13 writes and performed 0; the simulated
   current baseline planned 0 writes and performed 0.
+- The formatting-only QA correction pins the changed Prettier-supported files
+  to LF in `.gitattributes`, preventing Windows `core.autocrlf` from changing a
+  clean checkout before Prettier 3.6.2 validation. No application, Rules,
+  migration, pricing, projection, authorization, or dependency semantics
+  changed.
 - Firebase Storage is required for product images. The isolated UAT project is
   documented as Spark, while current Firebase policy requires Blaze for Storage.
   Billing and the Storage-Rules-to-Firestore service permission remain
@@ -289,8 +298,9 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Chat 02 may route the exact delivered WP-CC-01 branch head to independent Chat
-04 QA. Do not start WP-CC-02 unless WP-CC-01 receives an accepted QA verdict
-and the repository predecessor/merge gate is satisfied. Keep Cloud Functions,
-Production, billing, IAM, and UI PR #14 out of the workstream, and retain the
-recorded isolated-UAT Firebase Storage decision gate.
+Chat 02 may route the exact formatting-corrected WP-CC-01 branch head to
+independent Chat 04 re-QA. Do not start WP-CC-02 unless WP-CC-01 receives an
+accepted QA verdict and the repository predecessor/merge gate is satisfied.
+Keep Cloud Functions, Production, billing, IAM, and UI PR #14 out of the
+workstream, and retain the recorded isolated-UAT Firebase Storage decision
+gate.
