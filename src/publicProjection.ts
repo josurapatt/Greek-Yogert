@@ -8,7 +8,6 @@ import {
   selectedOptionLabels,
   toPublicOptionGroup,
 } from "./optionCatalogue";
-import { productSelectedOptionLimits } from "./customerRequestPolicy";
 import type {
   OptionGroup,
   Product,
@@ -190,11 +189,10 @@ export function buildPublicProjection(
   const menu = Object.fromEntries(
     normalizedProducts.map((product) => [
       product.id,
-      toCustomerPublicProduct(product),
+      toCustomerPublicProduct(product, catalogue),
     ]),
   );
   const publicGroups = catalogue
-    .filter((group) => group.active)
     .map((group) =>
       toPublicOptionGroup({
         ...group,
@@ -216,10 +214,7 @@ export function buildPublicProjection(
   ) as ToppingAvailability;
   const productLimits = Object.fromEntries(
     normalizedProducts.map((product) => {
-      const limits =
-        product.optionGroupAssignments === undefined
-          ? productSelectedOptionLimits(product)
-          : effectiveProductSelectionLimits(product, catalogue);
+      const limits = effectiveProductSelectionLimits(product, catalogue);
       const effectiveGroups = effectiveProductOptionGroups(
         product,
         catalogue,
