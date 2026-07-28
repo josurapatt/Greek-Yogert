@@ -897,7 +897,7 @@ records. Production rollback is outside this workstream.
 
 | Work Package | Owner | Status | Implementation commit | QA verdict |
 | --- | --- | --- | --- | --- |
-| WP-CC-01 | Chat 02 to assign Chat 03 | Ready to dispatch | Pending | Pending |
+| WP-CC-01 | Chat 03 | In progress on `feature/configurable-catalogue-wp-cc-01` | Pending | Pending |
 | WP-CC-02 | Unassigned | Blocked on WP-CC-01; remote image UAT also blocked on Storage approval | Pending | Pending |
 | WP-CC-03 | Unassigned | Blocked on WP-CC-02 | Pending | Pending |
 | WP-CC-04 | Unassigned | Blocked on WP-CC-03 | Pending | Pending |

@@ -67,7 +67,7 @@ must independently reconcile Git and the durable files before continuing.
 | Role | Active chat | Outbound count | Rotation state |
 | --- | --- | ---: | --- |
 | Planner | Chat 01 | 0 | Active |
-| Orchestrator | Chat 02 | 0 | Not yet initialized |
+| Orchestrator | Chat 02 | 2 | Active |
 | Production | Chat 03 | 0 | Not yet initialized |
 | QA | Chat 04 | 0 | Not yet initialized |
 

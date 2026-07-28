@@ -38,8 +38,10 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Approved architecture and five dependency-ordered Work Packages are recorded
   in `docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`.
 - Team routing and rotation are recorded in `docs/AI_TEAM_PROTOCOL.md`.
-- WP-CC-01 is ready for Chat 02 to dispatch. No application code has been
-  changed.
+- WP-CC-01 is active on `feature/configurable-catalogue-wp-cc-01`, created
+  from accepted planning SHA `6e1a0f752e4d35b4a513cb14810196e0a55012be`.
+  Chat 03 owns the bounded implementation task; no application code has been
+  changed by orchestration.
 - Firebase Storage is required for product images. The isolated UAT project is
   documented as Spark, while current Firebase policy requires Blaze for Storage.
   Billing and the Storage-Rules-to-Firestore service permission remain
