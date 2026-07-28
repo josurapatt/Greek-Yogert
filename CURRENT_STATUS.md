@@ -4,10 +4,15 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-20 (Asia/Bangkok)
+- Last verified: 2026-07-28 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`
 - Integrated branch: `main`
+- Verified `main` / `origin/main`: `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5` (`0` ahead / `0` behind)
+- Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
+- Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
+- Open PR state: only Draft PR #14 is open; it remains paused and untouched
+- Clean-baseline application validation: 363 tests passed across 37 files
 - Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
@@ -27,6 +32,23 @@ This is the current operational snapshot. Git history is authoritative for earli
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
 - Production Customer QR status: **Complete and live**; corrected Hosting, Anonymous Authentication, and capable-Staff-enabled Customer Ordering are active
+
+## Configurable catalogue workstream state (2026-07-28)
+
+- Approved architecture and five dependency-ordered Work Packages are recorded
+  in `docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`.
+- Team routing and rotation are recorded in `docs/AI_TEAM_PROTOCOL.md`.
+- WP-CC-01 is ready for Chat 02 to dispatch. No application code has been
+  changed.
+- Firebase Storage is required for product images. The isolated UAT project is
+  documented as Spark, while current Firebase policy requires Blaze for Storage.
+  Billing and the Storage-Rules-to-Firestore service permission remain
+  unapproved. Local implementation and Storage Emulator tests may proceed, but
+  remote image UAT and final release readiness are blocked until the user
+  resolves that external gate.
+- The optional member-code field is deferred.
+- No Production, UAT, Firebase, data, migration, deployment, billing, IAM, or PR
+  #14 action occurred during planning.
 
 ## Production rollout state (2026-07-20)
 
@@ -246,6 +268,8 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-No Production migration gate remains for Customer QR Ordering. Keep App Check,
-Cloud Functions, billing, and UI PR #14 outside this completed rollout until a
-separate task explicitly authorizes their review or implementation.
+Chat 02 may dispatch WP-CC-01 from
+`docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`. Keep Cloud Functions, Production,
+billing, IAM, and UI PR #14 out of implementation. Obtain an explicit user
+decision on the recorded isolated-UAT Firebase Storage gate before remote image
+UAT or final release-readiness approval.
