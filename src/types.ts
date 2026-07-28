@@ -21,6 +21,47 @@ export interface ChannelToppingRules {
   extraPremiumPrice: number;
 }
 
+export type OptionChoiceClassification = "normal" | "premium";
+export type OptionGroupPricingMode = "legacy-topping" | "choice-surcharge";
+
+export interface OptionChoice {
+  id: string;
+  name: string;
+  active: boolean;
+  displayOrder: number;
+  classification: OptionChoiceClassification;
+  surcharge: number;
+  availabilityId?: string;
+  everUsed: boolean;
+}
+
+export interface PublicOptionChoice extends Omit<OptionChoice, "everUsed"> {}
+
+export interface OptionGroup {
+  id: string;
+  displayName: string;
+  active: boolean;
+  displayOrder: number;
+  required: boolean;
+  minSelections: number;
+  maxSelections: number;
+  allowDuplicates: boolean;
+  pricingMode: OptionGroupPricingMode;
+  choices: OptionChoice[];
+}
+
+export interface PublicOptionGroup extends Omit<OptionGroup, "choices"> {
+  choices: PublicOptionChoice[];
+}
+
+export interface ProductOptionGroupAssignment {
+  groupId: string;
+  choiceIds?: string[];
+  required?: boolean;
+  minSelections?: number;
+  maxSelections?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -40,6 +81,7 @@ export interface Product {
   channelPrices?: Partial<Record<OrderChannel, number>>;
   channelRules?: Partial<Record<ChannelGroup, ChannelToppingRules>>;
   supportsSeparatedToppingPackaging?: boolean;
+  optionGroupAssignments?: ProductOptionGroupAssignment[];
 }
 
 /** The only product fields that may be written to the Customer QR public menu. */
@@ -60,6 +102,7 @@ export interface PublicCustomerProduct {
   extraNormalPrice: number;
   extraPremiumPrice: number;
   supportsSeparatedToppingPackaging: boolean;
+  optionGroupAssignments?: ProductOptionGroupAssignment[];
 }
 
 export interface PriceBreakdown {

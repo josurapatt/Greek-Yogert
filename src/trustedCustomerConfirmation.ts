@@ -5,9 +5,11 @@ import {
 } from "./customerOrder";
 import { orderTotals, prepareOrderItems } from "./lib";
 import { assertCustomerRequestPolicy } from "./customerRequestPolicy";
+import { selectedOptionLabels } from "./optionCatalogue";
 import type {
   CartItem,
   CustomerOrderRequest,
+  OptionGroup,
   Product,
   ToppingAvailability,
 } from "./types";
@@ -22,7 +24,18 @@ function sameValue(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function canonicalOptionLabels(product: Product, ids: string[]): string[] {
+function canonicalOptionLabels(
+  product: Product,
+  ids: string[],
+  optionGroups?: OptionGroup[],
+): string[] {
+  if (optionGroups) {
+    try {
+      return selectedOptionLabels(product, ids, optionGroups);
+    } catch {
+      mismatch("พบรหัสตัวเลือกที่ไม่รู้จักหรือไม่รองรับสำหรับสินค้า");
+    }
+  }
   if (product.optionMode === "toppings") {
     ids.forEach((id) => {
       const topping = toppings.find((entry) => entry.id === id);
@@ -83,12 +96,14 @@ export function rebuildTrustedCustomerConfirmation(
   request: CustomerOrderRequest,
   privateProducts: Product[],
   availability: ToppingAvailability,
+  privateOptionGroups?: OptionGroup[],
 ): TrustedCustomerConfirmation {
   try {
     assertCustomerRequestPolicy(request, privateProducts, {
       allowLegacyPending: true,
       requireSubmittedAt:
         request.schemaVersion === 2 && Object.hasOwn(request, "submittedAt"),
+      optionGroups: privateOptionGroups,
     });
   } catch (cause) {
     mismatch(cause instanceof Error ? cause.message : "รูปแบบคำขอไม่ถูกต้อง");
@@ -118,6 +133,7 @@ export function rebuildTrustedCustomerConfirmation(
     const selectedOptions = canonicalOptionLabels(
       product,
       submitted.selectedOptionIds,
+      privateOptionGroups,
     );
     let canonical: CartItem;
     try {
@@ -140,6 +156,7 @@ export function rebuildTrustedCustomerConfirmation(
         customerStorefrontChannel,
         toppings,
         availability,
+        privateOptionGroups,
       );
     } catch (cause) {
       mismatch(

@@ -1,4 +1,10 @@
-import type { CartItem, CustomerOrderRequest, Product } from "./types";
+import { effectiveProductSelectionLimits } from "./optionCatalogue";
+import type {
+  CartItem,
+  CustomerOrderRequest,
+  OptionGroup,
+  Product,
+} from "./types";
 
 export const customerRequestSchemaVersion = 2;
 export const customerRequestLimits = {
@@ -96,7 +102,30 @@ function assertMoney(value: unknown, label: string) {
 export function productSelectedOptionLimits(product: Product): {
   minimum: number;
   maximum: number;
+};
+export function productSelectedOptionLimits(
+  product: Product,
+  optionGroups?: OptionGroup[],
+): {
+  minimum: number;
+  maximum: number;
+};
+export function productSelectedOptionLimits(
+  product: Product,
+  optionGroups?: OptionGroup[],
+): {
+  minimum: number;
+  maximum: number;
 } {
+  if (optionGroups || product.optionGroupAssignments !== undefined) {
+    const limits = effectiveProductSelectionLimits(product, optionGroups);
+    if (
+      limits.minimum > customerRequestLimits.maxSelectedOptionsPerLine ||
+      limits.maximum > customerRequestLimits.maxSelectedOptionsPerLine
+    )
+      fail("การตั้งค่าจำนวนตัวเลือกของสินค้าไม่ถูกต้อง");
+    return limits;
+  }
   if (product.optionMode === "none") return { minimum: 0, maximum: 0 };
   if (product.optionMode === "granola") return { minimum: 1, maximum: 1 };
   const minimum = product.includedToppings;
@@ -120,6 +149,7 @@ export function assertCustomerRequestPolicy(
     allowLegacyPending?: boolean;
     requireSubmittedAt?: boolean;
     skipProductLimits?: boolean;
+    optionGroups?: OptionGroup[];
   } = {},
 ): void {
   if (!isRecord(request)) fail("รูปแบบคำขอไม่ถูกต้อง");
@@ -204,7 +234,10 @@ export function assertCustomerRequestPolicy(
     const product = productMap.get(item.productId);
     if (!options.skipProductLimits) {
       if (!product) fail("ไม่พบสินค้าในเมนูปัจจุบัน");
-      const { minimum, maximum } = productSelectedOptionLimits(product);
+      const { minimum, maximum } = productSelectedOptionLimits(
+        product,
+        options.optionGroups,
+      );
       if (
         item.selectedOptionIds.length < minimum ||
         item.selectedOptionIds.length > maximum

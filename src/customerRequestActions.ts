@@ -28,6 +28,10 @@ import {
   hydrateCustomerRequestInTransaction,
   type PersistedCustomerRequestV2,
 } from "./customerRequestChunks";
+import {
+  optionGroupIdsForProducts,
+  readPrivateOptionGroupsInTransaction,
+} from "./optionCatalogueRepository";
 import type {
   CustomerOrderRequest,
   Product,
@@ -94,10 +98,16 @@ export async function confirmCustomerRequestTransaction(
         (availabilitySnapshot.data()?.availability as
           | ToppingAvailability
           | undefined) ?? {};
+      const privateOptionGroups = await readPrivateOptionGroupsInTransaction(
+        firestore,
+        transaction,
+        optionGroupIdsForProducts(privateProducts),
+      );
       const trusted = rebuildTrustedCustomerConfirmation(
         current,
         privateProducts,
         availability,
+        privateOptionGroups,
       );
       const result = confirmCustomerRequest(
         current,

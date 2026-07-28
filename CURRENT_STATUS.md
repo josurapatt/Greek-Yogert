@@ -4,10 +4,18 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-20 (Asia/Bangkok)
+- Last verified: 2026-07-28 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
-- Local repository: `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`
+- Active WP-CC-01 worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-wp-cc-01`
 - Integrated branch: `main`
+- Verified `main` / `origin/main`: `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5` (`0` ahead / `0` behind)
+- Active implementation branch: `feature/configurable-catalogue-wp-cc-01`
+- Verified WP-CC-01 starting SHA: `20a030ded1bf30ab617f0d8bfba20bcec71732f1`
+- WP-CC-01 Draft PR: [#21 — Configurable catalogue foundation](https://github.com/josurapatt/Greek-Yogert/pull/21) — open Draft at `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`; independent Chat 04 re-QA **PASS**; approval and merge remain separate gates
+- Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
+- Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
+- Other open work: Draft PR #14 remains paused and was not queried or changed by WP-CC-01
+- WP-CC-01 application validation: 378 tests passed across 39 files
 - Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
@@ -27,6 +35,49 @@ This is the current operational snapshot. Git history is authoritative for earli
 - PR: [#8 — Harden anonymous ordering abuse controls](https://github.com/josurapatt/Greek-Yogert/pull/8) — approved, squash-merged, and closed
 - PR state gate: complete
 - Production Customer QR status: **Complete and live**; corrected Hosting, Anonymous Authentication, and capable-Staff-enabled Customer Ordering are active
+
+## Configurable catalogue workstream state (2026-07-28)
+
+- Approved architecture and five dependency-ordered Work Packages are recorded
+  in `docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`.
+- Team routing and rotation are recorded in `docs/AI_TEAM_PROTOCOL.md`.
+- WP-CC-01 implementation is complete at
+  `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc` on
+  `feature/configurable-catalogue-wp-cc-01`. The initial independent QA
+  **FAIL** at `59357627148ba954c978d07b72a462ad54f70c0c` was formatting-only;
+  the LF-stable correction was independently re-QA'd **PASS** at the exact
+  current PR head. No self-approval, PR approval, merge, or deployment has
+  occurred.
+- The additive foundation now contains bounded private/public option-group
+  models and repositories, deterministic toppings and granola-flavour
+  compatibility groups, legacy Product adapters, selection/label/availability/
+  duplicate/limit/pricing helpers, Projection and policy V3 with V2 read
+  compatibility and downgrade prevention, private-catalogue trusted
+  confirmation, Rules coverage, and a guarded dry-run-default projection
+  migration mode. Visible ordering and management workflows are unchanged.
+- Focused compatibility, pricing, projection, repository, and trusted-
+  confirmation validation passed 81 tests across 7 files. The full application
+  suite passed 378 tests across 39 files. Canonical Firestore Emulator
+  validation passed 24 tests. Lint, TypeScript Production build, formatting,
+  Rules syntax, focused diff, and changed-file secret checks passed.
+- Offline dry-run review fingerprint `cc3-62a7a5c1ee582c6a` was identical
+  twice. The empty baseline planned 13 writes and performed 0; the simulated
+  current baseline planned 0 writes and performed 0.
+- The formatting-only QA correction pins the changed Prettier-supported files
+  to LF in `.gitattributes`, preventing Windows `core.autocrlf` from changing a
+  clean checkout before Prettier 3.6.2 validation. No application, Rules,
+  migration, pricing, projection, authorization, or dependency semantics
+  changed.
+- Firebase Storage is required for product images. The isolated UAT project is
+  documented as Spark, while current Firebase policy requires Blaze for Storage.
+  Billing and the Storage-Rules-to-Firestore service permission remain
+  unapproved. Local implementation and Storage Emulator tests may proceed, but
+  remote image UAT and final release readiness are blocked until the user
+  resolves that external gate.
+- The optional member-code field is deferred.
+- No Firebase project, remote Firebase data, Production, UAT, migration apply,
+  deployment, billing, IAM, Cloud Functions, or PR #14 access/change occurred
+  during WP-CC-01 implementation.
 
 ## Production rollout state (2026-07-20)
 
@@ -246,6 +297,8 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-No Production migration gate remains for Customer QR Ordering. Keep App Check,
-Cloud Functions, billing, and UI PR #14 outside this completed rollout until a
-separate task explicitly authorizes their review or implementation.
+WP-CC-01 awaits separate PR approval, explicit merge authorization, and merge.
+Do not start WP-CC-02 unless those predecessor/merge gates are satisfied.
+Keep Cloud Functions, Production, billing, IAM, and UI PR #14 out of the
+workstream, and retain the recorded isolated-UAT Firebase Storage decision
+gate.

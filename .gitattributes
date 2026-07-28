@@ -1,1 +1,26 @@
 /package.json text eol=lf
+/.gitattributes text eol=lf
+
+# WP-CC-01 Prettier-supported files must remain LF in Windows worktrees.
+/CURRENT_STATUS.md text eol=lf
+/docs/AI_TEAM_PROTOCOL.md text eol=lf
+/docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md text eol=lf
+/firestore.production.test.ts text eol=lf
+/scripts/projectPublicData.ts text eol=lf
+/scripts/wp4UatValidation.ts text eol=lf
+/src/customerFirebase.tsx text eol=lf
+/src/customerOrder.ts text eol=lf
+/src/customerRequestActions.test.ts text eol=lf
+/src/customerRequestActions.ts text eol=lf
+/src/customerRequestPolicy.ts text eol=lf
+/src/lib.ts text eol=lf
+/src/optionCatalogue.test.ts text eol=lf
+/src/optionCatalogue.ts text eol=lf
+/src/optionCatalogueRepository.test.ts text eol=lf
+/src/optionCatalogueRepository.ts text eol=lf
+/src/publicProjection.test.ts text eol=lf
+/src/publicProjection.ts text eol=lf
+/src/store.tsx text eol=lf
+/src/trustedCustomerConfirmation.test.ts text eol=lf
+/src/trustedCustomerConfirmation.ts text eol=lf
+/src/types.ts text eol=lf

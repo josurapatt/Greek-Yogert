@@ -19,6 +19,8 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { defaultProducts } from "./data";
+import { fallbackOptionGroups } from "./optionCatalogue";
+import { subscribePublicOptionGroups } from "./optionCatalogueRepository";
 import { ensureCustomerAnonymousSession } from "./customerAnonymousAuth";
 import { toFirestoreData } from "./firestoreData";
 import { auth, authPersistenceReady, db, firebaseReady } from "./firebase";
@@ -31,6 +33,7 @@ import {
 import type {
   CartItem,
   CustomerOrderRequest,
+  OptionGroup,
   PublicCustomerProduct,
   Product,
   ToppingAvailability,
@@ -62,6 +65,7 @@ import {
 interface CustomerValue {
   uid: string | null;
   products: Product[];
+  optionGroups: OptionGroup[];
   availability: ToppingAvailability;
   loading: boolean;
   orderingControl: CustomerOrderingControlState;
@@ -92,6 +96,9 @@ export function CustomerProvider({
   const [uid, setUid] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>(() =>
     firebaseReady ? [] : defaultProducts,
+  );
+  const [optionGroups, setOptionGroups] = useState<OptionGroup[]>(() =>
+    fallbackOptionGroups.map((group) => structuredClone(group)),
   );
   const [availability, setAvailability] = useState<ToppingAvailability>({});
   const [loading, setLoading] = useState(Boolean(firebaseReady));
@@ -155,6 +162,14 @@ export function CustomerProvider({
             {},
         ),
     );
+    const stopOptionGroups = subscribePublicOptionGroups(
+      firestore,
+      setOptionGroups,
+      () =>
+        setOptionGroups(
+          fallbackOptionGroups.map((group) => structuredClone(group)),
+        ),
+    );
     const stopControl = onSnapshot(
       doc(firestore, "publicSettings", "customerOrdering"),
       (snapshot) =>
@@ -201,6 +216,7 @@ export function CustomerProvider({
     return () => {
       stopMenu();
       stopAvailability();
+      stopOptionGroups();
       stopControl();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(customerSubmissionStorageEvent, handleStorage);
@@ -423,6 +439,7 @@ export function CustomerProvider({
       value={{
         uid,
         products,
+        optionGroups,
         availability,
         loading,
         orderingControl,
