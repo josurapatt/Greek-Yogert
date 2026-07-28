@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { createCustomerRequest, confirmCustomerRequest } from "./customerOrder";
 import { defaultProducts } from "./data";
+import { toppings } from "./data";
+import { prepareOrderItems } from "./lib";
+import { selectedOptionLabels } from "./optionCatalogue";
 import { rebuildTrustedCustomerConfirmation } from "./trustedCustomerConfirmation";
-import type { CartItem, Product } from "./types";
+import type {
+  CartItem,
+  CustomerOrderRequest,
+  OptionGroup,
+  Product,
+} from "./types";
 
 const apple = defaultProducts.find((product) => product.id === "apple-ohlala")!;
 const sizeS = defaultProducts.find((product) => product.id === "size-s")!;
@@ -219,6 +227,143 @@ describe("trusted Customer confirmation boundary", () => {
     mismatched.items[0].selectedOptions = ["กล้วย"];
     expectMismatch(() =>
       rebuildTrustedCustomerConfirmation(mismatched, defaultProducts, {}),
+    );
+  });
+
+  it("rebuilds canonical V3 generic choices from private groups and rejects stale or forged snapshots", () => {
+    const sauceGroup: OptionGroup = {
+      id: "sauce",
+      displayName: "ซอส",
+      active: true,
+      displayOrder: 1,
+      required: true,
+      minSelections: 1,
+      maxSelections: 1,
+      allowDuplicates: false,
+      pricingMode: "choice-surcharge",
+      choices: [
+        {
+          id: "honey-sauce",
+          name: "น้ำผึ้ง",
+          active: true,
+          displayOrder: 1,
+          classification: "normal",
+          surcharge: 7,
+          availabilityId: "honey-sauce-stock",
+          everUsed: true,
+        },
+      ],
+    };
+    const configurable: Product = {
+      ...defaultProducts.find((product) => product.id === "plain-greek")!,
+      optionGroupAssignments: [
+        {
+          groupId: sauceGroup.id,
+          required: true,
+          minSelections: 1,
+          maxSelections: 1,
+        },
+      ],
+    };
+    const [item] = prepareOrderItems(
+      [
+        {
+          id: "generic-line",
+          productId: configurable.id,
+          productName: configurable.name,
+          basePrice: configurable.price,
+          selectedOptionIds: ["honey-sauce"],
+          selectedOptions: selectedOptionLabels(
+            configurable,
+            ["honey-sauce"],
+            [sauceGroup],
+          ),
+          quantity: 1,
+          unitPrice: 0,
+          toppingPackaging: "included",
+        },
+      ],
+      [configurable],
+      "หน้าร้าน",
+      toppings,
+      {},
+      [sauceGroup],
+    );
+    const request: CustomerOrderRequest = {
+      schemaVersion: 2,
+      id: "generic-request",
+      retryId: "generic-request",
+      ownerUid: "anonymous-uid",
+      status: "รอร้านยืนยัน",
+      channel: "หน้าร้าน",
+      items: [item],
+      subtotal: item.lineTotal!,
+      total: item.lineTotal!,
+      itemCount: 1,
+      createdAt: "2026-07-28T00:00:00.000Z",
+      updatedAt: "2026-07-28T00:00:00.000Z",
+    };
+    expect(
+      rebuildTrustedCustomerConfirmation(request, [configurable], {}, [
+        sauceGroup,
+      ]).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        selectedOptions: ["ซอส: น้ำผึ้ง"],
+        unitPrice: configurable.price + 7,
+      }),
+    );
+
+    const cases: Array<{
+      request?: CustomerOrderRequest;
+      group?: OptionGroup;
+      availability?: Record<string, boolean>;
+    }> = [
+      {
+        request: {
+          ...structuredClone(request),
+          items: [
+            {
+              ...structuredClone(request.items[0]),
+              selectedOptions: ["forged"],
+            },
+          ],
+        },
+      },
+      {
+        request: {
+          ...structuredClone(request),
+          items: [
+            {
+              ...structuredClone(request.items[0]),
+              unitPrice: 1,
+              lineTotal: 1,
+            },
+          ],
+          subtotal: 1,
+          total: 1,
+        },
+      },
+      {
+        group: {
+          ...sauceGroup,
+          choices: sauceGroup.choices.map((choice) => ({
+            ...choice,
+            active: false,
+          })),
+        },
+      },
+      { availability: { "honey-sauce-stock": false } },
+    ];
+    cases.forEach((entry) =>
+      expectMismatch(() =>
+        rebuildTrustedCustomerConfirmation(
+          entry.request ?? structuredClone(request),
+          [configurable],
+          entry.availability ?? {},
+          [entry.group ?? sauceGroup],
+        ),
+      ),
     );
   });
 

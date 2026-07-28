@@ -7,12 +7,12 @@ The approved architecture, scope, work-package state, and handoff are in
 
 ## Roles and routing
 
-| Chat | Role | Receives from | Sends to |
-| --- | --- | --- | --- |
-| Chat 01 | Planner and architecture authority | Chat 02 escalations | Chat 02 approved plan or architecture decisions |
-| Chat 02 | Orchestrator and task-state owner | Chat 01, Chat 03, Chat 04 | One exact task at a time to Chat 03 or Chat 04 |
-| Chat 03 | Production developer | Chat 02 only | Bounded implementation evidence to Chat 02 |
-| Chat 04 | Independent QA | Chat 02 only | Formal `PASS`, `PASS_WITH_NOTES`, or `FAIL` verdict to Chat 02 |
+| Chat    | Role                               | Receives from             | Sends to                                                       |
+| ------- | ---------------------------------- | ------------------------- | -------------------------------------------------------------- |
+| Chat 01 | Planner and architecture authority | Chat 02 escalations       | Chat 02 approved plan or architecture decisions                |
+| Chat 02 | Orchestrator and task-state owner  | Chat 01, Chat 03, Chat 04 | One exact task at a time to Chat 03 or Chat 04                 |
+| Chat 03 | Production developer               | Chat 02 only              | Bounded implementation evidence to Chat 02                     |
+| Chat 04 | Independent QA                     | Chat 02 only              | Formal `PASS`, `PASS_WITH_NOTES`, or `FAIL` verdict to Chat 02 |
 
 Chat 02 routes a delivered Chat 03 commit to Chat 04. A `FAIL` returns only
 actionable findings to Chat 03. Architecture, scope, data-migration, billing,
@@ -64,12 +64,12 @@ handoff. At response 20 it stops taking new work and hands off to the next
 numbered chat (`Chat 02-2`, `Chat 03-2`, or `Chat 04-2`). The replacement chat
 must independently reconcile Git and the durable files before continuing.
 
-| Role | Active chat | Outbound count | Rotation state |
-| --- | --- | ---: | --- |
-| Planner | Chat 01 | 0 | Active |
-| Orchestrator | Chat 02 | 2 | Active |
-| Production | Chat 03 | 0 | Not yet initialized |
-| QA | Chat 04 | 0 | Not yet initialized |
+| Role         | Active chat | Outbound count | Rotation state                             |
+| ------------ | ----------- | -------------: | ------------------------------------------ |
+| Planner      | Chat 01     |              0 | Active                                     |
+| Orchestrator | Chat 02     |              2 | Active                                     |
+| Production   | Chat 03     |              1 | WP-CC-01 delivered; independent QA pending |
+| QA           | Chat 04     |              0 | Not yet initialized                        |
 
 ## Prohibited role behaviour
 

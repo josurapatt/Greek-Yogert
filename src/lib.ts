@@ -1,11 +1,18 @@
 import { granolaFlavorIdsByName, platformExtraToppingIds } from "./data";
 import { productSelectedOptionLimits } from "./customerRequestPolicy";
+import {
+  allowedProductOptionChoices,
+  isOptionChoiceAvailable,
+  selectedChoicesByEffectiveGroup,
+  validateCatalogueSelection,
+} from "./optionCatalogue";
 import type {
   CartItem,
   ChannelGroup,
   ChannelToppingRules,
   OrderChannel,
   OrderDraft,
+  OptionGroup,
   PaymentMethod,
   PriceBreakdown,
   Product,
@@ -155,7 +162,14 @@ export function validatePaymentMethod(
 export function availabilityIdForSelection(
   product: Product,
   selectionId: string,
+  optionGroups?: OptionGroup[],
 ): string {
+  if (optionGroups) {
+    const entry = allowedProductOptionChoices(product, optionGroups, {
+      includeInactive: true,
+    }).find(({ choice }) => choice.id === selectionId);
+    if (entry) return entry.choice.availabilityId ?? entry.choice.id;
+  }
   return product.optionMode === "granola"
     ? (granolaFlavorIdsByName[selectionId] ?? selectionId)
     : selectionId;
@@ -165,9 +179,18 @@ export function isSelectionAvailable(
   product: Product,
   selectionId: string,
   availability: ToppingAvailability = {},
+  optionGroups?: OptionGroup[],
 ): boolean {
+  if (optionGroups) {
+    const entry = allowedProductOptionChoices(product, optionGroups, {
+      includeInactive: true,
+    }).find(({ choice }) => choice.id === selectionId);
+    return entry ? isOptionChoiceAvailable(entry.choice, availability) : false;
+  }
   return (
-    availability[availabilityIdForSelection(product, selectionId)] !== false
+    availability[
+      availabilityIdForSelection(product, selectionId, optionGroups)
+    ] !== false
   );
 }
 
@@ -227,8 +250,42 @@ export function calculatePriceBreakdown(
   selectedIds: string[],
   available: Topping[],
   channel: OrderChannel,
+  optionGroups?: OptionGroup[],
 ): PriceBreakdown {
   const basePrice = getProductPrice(product, channel);
+  if (optionGroups) {
+    const rules = getChannelRules(product, channel);
+    let premiumIncludedSurcharge = 0;
+    let extraToppingCharges = 0;
+    selectedChoicesByEffectiveGroup(product, selectedIds, optionGroups).forEach(
+      ({ group, choices }) => {
+        if (group.pricingMode === "choice-surcharge") {
+          extraToppingCharges += choices.reduce(
+            (sum, choice) => sum + choice.surcharge,
+            0,
+          );
+          return;
+        }
+        choices.forEach((choice, index) => {
+          const premium = choice.classification === "premium";
+          if (index < group.minSelections)
+            premiumIncludedSurcharge += premium
+              ? rules.premiumIncludedSurcharge
+              : 0;
+          else if (rules.allowedExtraToppingIds.includes(choice.id))
+            extraToppingCharges += premium
+              ? rules.extraPremiumPrice
+              : rules.extraNormalPrice;
+        });
+      },
+    );
+    return {
+      basePrice,
+      premiumIncludedSurcharge,
+      extraToppingCharges,
+      unitPrice: basePrice + premiumIncludedSurcharge + extraToppingCharges,
+    };
+  }
   if (product.optionMode !== "toppings")
     return {
       basePrice,
@@ -265,9 +322,15 @@ export function calculateUnitPrice(
   selectedIds: string[],
   available: Topping[],
   channel: OrderChannel = "หน้าร้าน",
+  optionGroups?: OptionGroup[],
 ): number {
-  return calculatePriceBreakdown(product, selectedIds, available, channel)
-    .unitPrice;
+  return calculatePriceBreakdown(
+    product,
+    selectedIds,
+    available,
+    channel,
+    optionGroups,
+  ).unitPrice;
 }
 
 export function validateSelection(
@@ -275,8 +338,30 @@ export function validateSelection(
   selectedIds: string[],
   channel: OrderChannel = "หน้าร้าน",
   availability: ToppingAvailability = {},
+  optionGroups?: OptionGroup[],
 ): string | null {
-  const optionLimits = productSelectedOptionLimits(product);
+  if (optionGroups) {
+    const issue = validateCatalogueSelection(
+      product,
+      selectedIds,
+      optionGroups,
+      availability,
+      getChannelRules(product, channel),
+    );
+    if (!issue) return null;
+    if (issue.code === "maximum")
+      return `เลือกตัวเลือกได้ไม่เกิน ${productSelectedOptionLimits(product, optionGroups).maximum} อย่าง`;
+    if (issue.code === "minimum")
+      return `กรุณาเลือกตัวเลือกอย่างน้อย ${productSelectedOptionLimits(product, optionGroups).minimum} อย่าง`;
+    if (issue.code === "duplicate")
+      return "ช่องทางนี้ไม่อนุญาตให้เลือกตัวเลือกซ้ำ";
+    if (issue.code === "channel-extra")
+      return "ช่องทางนี้เพิ่มพิเศษได้เฉพาะกราโนล่าและบิสคอฟ";
+    if (issue.code === "unavailable-choice")
+      return "ตัวเลือกที่เลือกหมด กรุณาเลือกใหม่";
+    return issue.message;
+  }
+  const optionLimits = productSelectedOptionLimits(product, optionGroups);
   if (selectedIds.length > optionLimits.maximum)
     return `เลือกตัวเลือกได้ไม่เกิน ${optionLimits.maximum} อย่าง`;
   if (product.optionMode === "granola" && selectedIds.length !== 1)
@@ -311,12 +396,14 @@ export function priceCartItem(
   channel: OrderChannel,
   available: Topping[],
   availability: ToppingAvailability = {},
+  optionGroups?: OptionGroup[],
 ): CartItem {
   const priceBreakdown = calculatePriceBreakdown(
     product,
     item.selectedOptionIds,
     available,
     channel,
+    optionGroups,
   );
   const packaging = normalizeToppingPackaging(item.toppingPackaging);
   const packagingValueError = isValidToppingPackaging(item.toppingPackaging)
@@ -328,7 +415,7 @@ export function priceCartItem(
       : null;
   const packagingSurcharge = packagingSurchargePerUnit(channel, packaging);
   const unavailable = item.selectedOptionIds.flatMap((id, index) =>
-    isSelectionAvailable(product, id, availability)
+    isSelectionAvailable(product, id, availability, optionGroups)
       ? []
       : [
           item.selectedOptions[index] ??
@@ -343,6 +430,7 @@ export function priceCartItem(
         item.selectedOptionIds,
         channel,
         availability,
+        optionGroups,
       ) ??
       packagingValueError ??
       packagingError);
@@ -393,11 +481,19 @@ export function repriceCartItems(
   channel: OrderChannel,
   available: Topping[],
   availability: ToppingAvailability = {},
+  optionGroups?: OptionGroup[],
 ): CartItem[] {
   return items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId);
     return product
-      ? priceCartItem(item, product, channel, available, availability)
+      ? priceCartItem(
+          item,
+          product,
+          channel,
+          available,
+          availability,
+          optionGroups,
+        )
       : {
           ...item,
           selectedChannel: channel,
@@ -412,6 +508,7 @@ export function prepareOrderItems(
   channel: OrderChannel,
   available: Topping[],
   availability: ToppingAvailability = {},
+  optionGroups?: OptionGroup[],
 ): CartItem[] {
   const priced = repriceCartItems(
     items,
@@ -419,6 +516,7 @@ export function prepareOrderItems(
     channel,
     available,
     availability,
+    optionGroups,
   );
   const invalid = priced.find((item) => item.validationError);
   if (invalid)

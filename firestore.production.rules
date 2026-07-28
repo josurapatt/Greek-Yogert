@@ -113,10 +113,10 @@ service cloud.firestore {
     function validProjectedRequestPolicy() {
       return exists(/databases/$(database)/documents/publicSettings/customerRequestPolicy)
         && exists(/databases/$(database)/documents/publicProjectionControl/current)
-        && requestPolicy().schemaVersion == 2
+        && requestPolicy().schemaVersion in [2, 3]
         && requestPolicy().fingerprint is string
         && requestPolicy().fingerprint == projectionControl().fingerprint
-        && projectionControl().schemaVersion == 2
+        && projectionControl().schemaVersion == requestPolicy().schemaVersion
         && requestPolicy().productLimits is map;
     }
     function validProjectedOptionCount(item) {
@@ -371,7 +371,7 @@ service cloud.firestore {
           'optionMode', 'includedToppings', 'maxSelectedOptions',
           'granolaOptions', 'availableToppingIds', 'premiumToppingIds',
           'premiumIncludedSurcharge', 'extraNormalPrice', 'extraPremiumPrice',
-          'supportsSeparatedToppingPackaging'
+          'supportsSeparatedToppingPackaging', 'optionGroupAssignments'
         ])
         && data.keys().hasAll([
           'id', 'name', 'emoji', 'description', 'active', 'storefrontPrice',
@@ -400,7 +400,175 @@ service cloud.firestore {
         && data.premiumIncludedSurcharge is number
         && data.extraNormalPrice is number
         && data.extraPremiumPrice is number
-        && data.supportsSeparatedToppingPackaging is bool;
+        && data.supportsSeparatedToppingPackaging is bool
+        && (!data.keys().hasAny(['optionGroupAssignments'])
+          || (data.optionGroupAssignments is list
+            && data.optionGroupAssignments.size() <= 10
+            && validProductAssignmentAt(data.optionGroupAssignments, 0)
+            && validProductAssignmentAt(data.optionGroupAssignments, 1)
+            && validProductAssignmentAt(data.optionGroupAssignments, 2)
+            && validProductAssignmentAt(data.optionGroupAssignments, 3)
+            && validProductAssignmentAt(data.optionGroupAssignments, 4)
+            && validProductAssignmentAt(data.optionGroupAssignments, 5)
+            && validProductAssignmentAt(data.optionGroupAssignments, 6)
+            && validProductAssignmentAt(data.optionGroupAssignments, 7)
+            && validProductAssignmentAt(data.optionGroupAssignments, 8)
+            && validProductAssignmentAt(data.optionGroupAssignments, 9)));
+    }
+    function validProductAssignmentAt(assignments, index) {
+      return assignments.size() <= index
+        || validProductAssignment(assignments[index]);
+    }
+    function validProductAssignment(assignment) {
+      return assignment is map
+        && assignment.keys().hasOnly([
+          'groupId', 'choiceIds', 'required', 'minSelections', 'maxSelections'
+        ])
+        && assignment.keys().hasAll(['groupId'])
+        && validBoundedString(assignment.groupId, 120)
+        && assignment.groupId.size() > 0
+        && (!assignment.keys().hasAny(['choiceIds'])
+          || (assignment.choiceIds is list
+            && assignment.choiceIds.size() <= 50))
+        && (!assignment.keys().hasAny(['required'])
+          || assignment.required is bool)
+        && (!assignment.keys().hasAny(['minSelections'])
+          || (assignment.minSelections is int
+            && assignment.minSelections >= 0
+            && assignment.minSelections <= 10))
+        && (!assignment.keys().hasAny(['maxSelections'])
+          || (assignment.maxSelections is int
+            && assignment.maxSelections >= 0
+            && assignment.maxSelections <= 10))
+        && (!assignment.keys().hasAny(['minSelections', 'maxSelections'])
+          || !assignment.keys().hasAll(['minSelections', 'maxSelections'])
+          || assignment.maxSelections >= assignment.minSelections);
+    }
+    function validOptionChoice(choice, publicData) {
+      return choice is map
+        && (
+          (publicData
+            && choice.keys().hasOnly([
+              'id', 'name', 'active', 'displayOrder', 'classification',
+              'surcharge', 'availabilityId'
+            ])
+            && choice.keys().hasAll([
+              'id', 'name', 'active', 'displayOrder', 'classification',
+              'surcharge'
+            ]))
+          || (!publicData
+            && choice.keys().hasOnly([
+              'id', 'name', 'active', 'displayOrder', 'classification',
+              'surcharge', 'availabilityId', 'everUsed'
+            ])
+            && choice.keys().hasAll([
+              'id', 'name', 'active', 'displayOrder', 'classification',
+              'surcharge', 'everUsed'
+            ])
+            && choice.everUsed is bool)
+        )
+        && validBoundedString(choice.id, 120)
+        && choice.id.size() > 0
+        && validBoundedString(choice.name, 120)
+        && choice.name.size() > 0
+        && choice.active is bool
+        && choice.displayOrder is int
+        && choice.displayOrder >= 0
+        && choice.displayOrder <= 10000
+        && choice.classification in ['normal', 'premium']
+        && choice.surcharge is int
+        && choice.surcharge >= 0
+        && choice.surcharge <= 5000
+        && (!choice.keys().hasAny(['availabilityId'])
+          || (validBoundedString(choice.availabilityId, 120)
+            && choice.availabilityId.size() > 0));
+    }
+    function validOptionChoiceAt(choices, index, publicData) {
+      return choices.size() <= index
+        || validOptionChoice(choices[index], publicData);
+    }
+    function validOptionChoices(choices, publicData) {
+      return choices is list
+        && choices.size() <= 50
+        && validOptionChoiceAt(choices, 0, publicData)
+        && validOptionChoiceAt(choices, 1, publicData)
+        && validOptionChoiceAt(choices, 2, publicData)
+        && validOptionChoiceAt(choices, 3, publicData)
+        && validOptionChoiceAt(choices, 4, publicData)
+        && validOptionChoiceAt(choices, 5, publicData)
+        && validOptionChoiceAt(choices, 6, publicData)
+        && validOptionChoiceAt(choices, 7, publicData)
+        && validOptionChoiceAt(choices, 8, publicData)
+        && validOptionChoiceAt(choices, 9, publicData)
+        && validOptionChoiceAt(choices, 10, publicData)
+        && validOptionChoiceAt(choices, 11, publicData)
+        && validOptionChoiceAt(choices, 12, publicData)
+        && validOptionChoiceAt(choices, 13, publicData)
+        && validOptionChoiceAt(choices, 14, publicData)
+        && validOptionChoiceAt(choices, 15, publicData)
+        && validOptionChoiceAt(choices, 16, publicData)
+        && validOptionChoiceAt(choices, 17, publicData)
+        && validOptionChoiceAt(choices, 18, publicData)
+        && validOptionChoiceAt(choices, 19, publicData)
+        && validOptionChoiceAt(choices, 20, publicData)
+        && validOptionChoiceAt(choices, 21, publicData)
+        && validOptionChoiceAt(choices, 22, publicData)
+        && validOptionChoiceAt(choices, 23, publicData)
+        && validOptionChoiceAt(choices, 24, publicData)
+        && validOptionChoiceAt(choices, 25, publicData)
+        && validOptionChoiceAt(choices, 26, publicData)
+        && validOptionChoiceAt(choices, 27, publicData)
+        && validOptionChoiceAt(choices, 28, publicData)
+        && validOptionChoiceAt(choices, 29, publicData)
+        && validOptionChoiceAt(choices, 30, publicData)
+        && validOptionChoiceAt(choices, 31, publicData)
+        && validOptionChoiceAt(choices, 32, publicData)
+        && validOptionChoiceAt(choices, 33, publicData)
+        && validOptionChoiceAt(choices, 34, publicData)
+        && validOptionChoiceAt(choices, 35, publicData)
+        && validOptionChoiceAt(choices, 36, publicData)
+        && validOptionChoiceAt(choices, 37, publicData)
+        && validOptionChoiceAt(choices, 38, publicData)
+        && validOptionChoiceAt(choices, 39, publicData)
+        && validOptionChoiceAt(choices, 40, publicData)
+        && validOptionChoiceAt(choices, 41, publicData)
+        && validOptionChoiceAt(choices, 42, publicData)
+        && validOptionChoiceAt(choices, 43, publicData)
+        && validOptionChoiceAt(choices, 44, publicData)
+        && validOptionChoiceAt(choices, 45, publicData)
+        && validOptionChoiceAt(choices, 46, publicData)
+        && validOptionChoiceAt(choices, 47, publicData)
+        && validOptionChoiceAt(choices, 48, publicData)
+        && validOptionChoiceAt(choices, 49, publicData);
+    }
+    function validOptionGroup(data, groupId, publicData) {
+      return data.keys().hasOnly([
+          'id', 'displayName', 'active', 'displayOrder', 'required',
+          'minSelections', 'maxSelections', 'allowDuplicates', 'pricingMode',
+          'choices'
+        ])
+        && data.keys().hasAll([
+          'id', 'displayName', 'active', 'displayOrder', 'required',
+          'minSelections', 'maxSelections', 'allowDuplicates', 'pricingMode',
+          'choices'
+        ])
+        && data.id == groupId
+        && validBoundedString(data.id, 120)
+        && validBoundedString(data.displayName, 120)
+        && data.displayName.size() > 0
+        && data.active is bool
+        && data.displayOrder is int
+        && data.displayOrder >= 0
+        && data.displayOrder <= 10000
+        && data.required is bool
+        && data.minSelections is int
+        && data.minSelections >= 0
+        && data.maxSelections is int
+        && data.maxSelections >= data.minSelections
+        && data.maxSelections <= 10
+        && data.allowDuplicates is bool
+        && data.pricingMode in ['legacy-topping', 'choice-surcharge']
+        && validOptionChoices(data.choices, publicData);
     }
     function validPublicAvailability(data) {
       return data.keys().hasOnly(['availability']) && data.availability is map;
@@ -408,14 +576,25 @@ service cloud.firestore {
     function validPublicRequestPolicy(data) {
       return data.keys().hasOnly(['schemaVersion', 'fingerprint', 'productLimits'])
         && data.keys().hasAll(['schemaVersion', 'fingerprint', 'productLimits'])
-        && data.schemaVersion == 2
+        && data.schemaVersion in [2, 3]
         && validBoundedString(data.fingerprint, 64)
         && data.productLimits is map;
     }
     function validProjectionControlData(data) {
-      return data.keys().hasOnly(['schemaVersion', 'fingerprint', 'menuIds'])
-        && data.keys().hasAll(['schemaVersion', 'fingerprint', 'menuIds'])
-        && data.schemaVersion == 2
+      return (
+          (data.schemaVersion == 2
+            && data.keys().hasOnly(['schemaVersion', 'fingerprint', 'menuIds'])
+            && data.keys().hasAll(['schemaVersion', 'fingerprint', 'menuIds']))
+          || (data.schemaVersion == 3
+            && data.keys().hasOnly([
+              'schemaVersion', 'fingerprint', 'menuIds', 'optionGroupIds'
+            ])
+            && data.keys().hasAll([
+              'schemaVersion', 'fingerprint', 'menuIds', 'optionGroupIds'
+            ])
+            && data.optionGroupIds is list
+            && data.optionGroupIds.size() <= 20)
+        )
         && validBoundedString(data.fingerprint, 64)
         && data.menuIds is list
         && data.menuIds.size() <= 100;
@@ -522,6 +701,21 @@ service cloud.firestore {
         && validPublicMenu(request.resource.data, productId);
       allow delete: if false;
     }
+    match /optionGroups/{groupId} {
+      allow get: if isAuthorizedStaff();
+      allow list: if isAuthorizedStaff() && request.query.limit <= 20;
+      allow create, update: if isAuthorizedStaff()
+        && validOptionGroup(request.resource.data, groupId, false);
+      allow delete: if false;
+    }
+    match /publicOptionGroups/{groupId} {
+      allow get: if isAnonymousCustomer() || isAuthorizedStaff();
+      allow list: if (isAnonymousCustomer() || isAuthorizedStaff())
+        && request.query.limit <= 20;
+      allow create, update: if isAuthorizedStaff()
+        && validOptionGroup(request.resource.data, groupId, true);
+      allow delete: if false;
+    }
     match /publicSettings/toppingAvailability {
       allow get: if isAnonymousCustomer() || isAuthorizedStaff();
       allow create, update: if isAuthorizedStaff()
@@ -542,10 +736,20 @@ service cloud.firestore {
     }
     match /publicSettings/customerRequestPolicy {
       allow get: if isAnonymousCustomer() || isAuthorizedStaff();
-      allow create, update: if isAuthorizedStaff()
+      allow create: if isAuthorizedStaff()
         && validPublicRequestPolicy(request.resource.data)
         && getAfter(/databases/$(database)/documents/publicProjectionControl/current).data.fingerprint
-          == request.resource.data.fingerprint;
+          == request.resource.data.fingerprint
+        && getAfter(/databases/$(database)/documents/publicProjectionControl/current).data.schemaVersion
+          == request.resource.data.schemaVersion;
+      allow update: if isAuthorizedStaff()
+        && validPublicRequestPolicy(request.resource.data)
+        && (resource.data.schemaVersion != 3
+          || request.resource.data.schemaVersion == 3)
+        && getAfter(/databases/$(database)/documents/publicProjectionControl/current).data.fingerprint
+          == request.resource.data.fingerprint
+        && getAfter(/databases/$(database)/documents/publicProjectionControl/current).data.schemaVersion
+          == request.resource.data.schemaVersion;
       allow delete: if false;
     }
     match /customerOrderRequests/{requestId} {
@@ -648,10 +852,20 @@ service cloud.firestore {
     }
     match /publicProjectionControl/current {
       allow get: if isAuthorizedStaff();
-      allow create, update: if isAuthorizedStaff()
+      allow create: if isAuthorizedStaff()
         && validProjectionControlData(request.resource.data)
         && getAfter(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data.fingerprint
-          == request.resource.data.fingerprint;
+          == request.resource.data.fingerprint
+        && getAfter(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data.schemaVersion
+          == request.resource.data.schemaVersion;
+      allow update: if isAuthorizedStaff()
+        && validProjectionControlData(request.resource.data)
+        && (resource.data.schemaVersion != 3
+          || request.resource.data.schemaVersion == 3)
+        && getAfter(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data.fingerprint
+          == request.resource.data.fingerprint
+        && getAfter(/databases/$(database)/documents/publicSettings/customerRequestPolicy).data.schemaVersion
+          == request.resource.data.schemaVersion;
       allow list, delete: if false;
     }
     match /users/{userId} {

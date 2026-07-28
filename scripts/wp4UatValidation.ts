@@ -38,6 +38,7 @@ import {
 import { splitCustomerRequestForWrite } from "../src/customerRequestChunks";
 import { rejectCustomerRequestTransaction } from "../src/customerRequestActions";
 import { toFirestoreData } from "../src/firestoreData";
+import { isSupportedPublicProjectionSchemaVersion } from "../src/publicProjection";
 import type {
   CartItem,
   PublicCustomerProduct,
@@ -263,12 +264,24 @@ try {
         doc(customer.firestore, "publicSettings", "customerRequestPolicy"),
       ),
     ]);
-  assert(menu.size > 0, "Public Projection V2 menu is empty");
+  assert(menu.size > 0, "Public Projection menu is empty");
   assert(
-    projectionControl.data()?.schemaVersion === 2,
-    "Projection control is not V2",
+    isSupportedPublicProjectionSchemaVersion(
+      projectionControl.data()?.schemaVersion,
+    ),
+    "Projection control schema is not supported",
   );
-  assert(requestPolicy.data()?.schemaVersion === 2, "Request policy is not V2");
+  assert(
+    isSupportedPublicProjectionSchemaVersion(
+      requestPolicy.data()?.schemaVersion,
+    ),
+    "Request policy schema is not supported",
+  );
+  assert(
+    projectionControl.data()?.schemaVersion ===
+      requestPolicy.data()?.schemaVersion,
+    "Projection and request-policy schemas differ",
+  );
   assert(
     projectionControl.data()?.fingerprint === requestPolicy.data()?.fingerprint,
     "Projection and request-policy fingerprints differ",

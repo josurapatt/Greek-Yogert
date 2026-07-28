@@ -10,10 +10,12 @@ import {
   customerRequestSchemaVersion,
   productSelectedOptionLimits,
 } from "./customerRequestPolicy";
+import { selectedOptionLabels } from "./optionCatalogue";
 import type {
   CartItem,
   CustomerOrderRequest,
   CustomerRequestStatus,
+  OptionGroup,
   PublicCustomerProduct,
   Product,
   ShopOrder,
@@ -64,7 +66,10 @@ export function uniqueLinePaymentMethods(
 export function customerOptionLabels(
   product: Product,
   selectedOptionIds: string[],
+  optionGroups?: OptionGroup[],
 ): string[] {
+  if (optionGroups)
+    return selectedOptionLabels(product, selectedOptionIds, optionGroups);
   if (product.optionMode === "granola")
     return selectedOptionIds.map((name) => `กราโนล่ารส${name}`);
   if (product.optionMode === "toppings")
@@ -99,6 +104,18 @@ export function toCustomerPublicProduct(
     extraPremiumPrice: product.extraPremiumPrice,
     supportsSeparatedToppingPackaging:
       product.supportsSeparatedToppingPackaging !== false,
+    ...(product.optionGroupAssignments !== undefined
+      ? {
+          optionGroupAssignments: product.optionGroupAssignments.map(
+            (assignment) => ({
+              ...assignment,
+              ...(assignment.choiceIds
+                ? { choiceIds: [...assignment.choiceIds] }
+                : {}),
+            }),
+          ),
+        }
+      : {}),
   };
 }
 
@@ -126,6 +143,18 @@ export function customerPublicProductToProduct(
     extraPremiumPrice: product.extraPremiumPrice,
     supportsSeparatedToppingPackaging:
       product.supportsSeparatedToppingPackaging,
+    ...(product.optionGroupAssignments !== undefined
+      ? {
+          optionGroupAssignments: product.optionGroupAssignments.map(
+            (assignment) => ({
+              ...assignment,
+              ...(assignment.choiceIds
+                ? { choiceIds: [...assignment.choiceIds] }
+                : {}),
+            }),
+          ),
+        }
+      : {}),
     channelPrices: { [customerStorefrontChannel]: product.storefrontPrice },
   };
 }

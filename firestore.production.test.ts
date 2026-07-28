@@ -118,6 +118,30 @@ const publicProduct = (id = "plain-greek") => ({
   supportsSeparatedToppingPackaging: true,
 });
 
+const optionGroup = (id = "toppings", options: { public?: boolean } = {}) => ({
+  id,
+  displayName: "ท็อปปิ้ง",
+  active: true,
+  displayOrder: 10,
+  required: true,
+  minSelections: 0,
+  maxSelections: 10,
+  allowDuplicates: true,
+  pricingMode: "legacy-topping",
+  choices: [
+    {
+      id: "banana",
+      name: "กล้วย",
+      active: true,
+      displayOrder: 0,
+      classification: "normal",
+      surcharge: 0,
+      availabilityId: "banana",
+      ...(options.public ? {} : { everUsed: true }),
+    },
+  ],
+});
+
 const seed = async (data: Record<string, unknown>) =>
   environment.withSecurityRulesDisabled(async (context) => {
     const database = context.firestore();
@@ -300,6 +324,56 @@ describe("WP4 Production-candidate Firestore authorization", () => {
       getDocs(query(collection(customer, "customerOrderRequests"), limit(1))),
     );
     await assertFails(getDoc(doc(other, "customerOrderRequests/request-a")));
+  });
+
+  it("keeps private groups Staff-only and allows only bounded public-group reads", async () => {
+    await seed({
+      "optionGroups/toppings": optionGroup(),
+      "publicOptionGroups/toppings": optionGroup("toppings", {
+        public: true,
+      }),
+      "users/staff": { role: "staff", active: true },
+    });
+    const customer = environment
+      .authenticatedContext("customer-a", anonymousToken)
+      .firestore();
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    await assertFails(getDoc(doc(customer, "optionGroups/toppings")));
+    await assertFails(
+      getDocs(query(collection(customer, "optionGroups"), limit(20))),
+    );
+    await assertFails(
+      setDoc(doc(customer, "publicOptionGroups/forged"), optionGroup("forged")),
+    );
+    await assertSucceeds(getDoc(doc(customer, "publicOptionGroups/toppings")));
+    await assertSucceeds(
+      getDocs(query(collection(customer, "publicOptionGroups"), limit(20))),
+    );
+    await assertFails(getDocs(collection(customer, "publicOptionGroups")));
+    await assertFails(
+      getDocs(query(collection(customer, "publicOptionGroups"), limit(21))),
+    );
+    await assertSucceeds(getDoc(doc(staff, "optionGroups/toppings")));
+    await assertSucceeds(
+      getDocs(query(collection(staff, "optionGroups"), limit(20))),
+    );
+    await assertSucceeds(
+      setDoc(doc(staff, "optionGroups/custom"), optionGroup("custom")),
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(staff, "publicOptionGroups/custom"),
+        optionGroup("custom", { public: true }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(staff, "publicOptionGroups/wrong-id"),
+        optionGroup("other", { public: true }),
+      ),
+    );
   });
 
   it("fails closed when runtime control is missing, malformed, or disabled", async () => {
@@ -717,6 +791,59 @@ describe("WP4 Production-candidate Firestore authorization", () => {
         productLimits: {},
       }),
     );
+  });
+
+  it("accepts matching V3 policy/control reads and rejects an atomic downgrade to V2", async () => {
+    await seedRuntime();
+    await seed({ "users/staff": { role: "staff", active: true } });
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const customer = environment
+      .authenticatedContext("customer-a", anonymousToken)
+      .firestore();
+    const upgrade = writeBatch(staff);
+    upgrade.set(doc(staff, "publicSettings/customerRequestPolicy"), {
+      schemaVersion: 3,
+      fingerprint: "cc3-test",
+      productLimits: {
+        "plain-greek": {
+          minimum: 0,
+          maximum: 0,
+          allowedIds: [],
+          allowedLabels: [],
+          groups: [],
+        },
+      },
+    });
+    upgrade.set(doc(staff, "publicProjectionControl/current"), {
+      schemaVersion: 3,
+      fingerprint: "cc3-test",
+      menuIds: ["plain-greek"],
+      optionGroupIds: ["granola-flavour", "toppings"],
+    });
+    await assertSucceeds(upgrade.commit());
+    await assertSucceeds(writeCustomerRequest(customer, request("request-v3")));
+
+    const downgrade = writeBatch(staff);
+    downgrade.set(doc(staff, "publicSettings/customerRequestPolicy"), {
+      schemaVersion: 2,
+      fingerprint: "wp4-downgrade",
+      productLimits: {
+        "plain-greek": {
+          minimum: 0,
+          maximum: 0,
+          allowedIds: [],
+          allowedLabels: [],
+        },
+      },
+    });
+    downgrade.set(doc(staff, "publicProjectionControl/current"), {
+      schemaVersion: 2,
+      fingerprint: "wp4-downgrade",
+      menuIds: ["plain-greek"],
+    });
+    await assertFails(downgrade.commit());
   });
 
   it("preserves Staff order validation and immutable request snapshots", async () => {

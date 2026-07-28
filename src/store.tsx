@@ -44,8 +44,9 @@ import { removeCustomerRequest } from "./customerRequests";
 import {
   buildPublicProjection,
   publicProjectionControlId,
-  publicProjectionSchemaVersion,
 } from "./publicProjection";
+import { fallbackOptionGroups } from "./optionCatalogue";
+import { subscribePrivateOptionGroups } from "./optionCatalogueRepository";
 import {
   subscribePendingCustomerRequests,
   subscribePendingOrders,
@@ -66,6 +67,7 @@ import type {
   CustomerOrderRequest,
   OrderChannel,
   OrderDraft,
+  OptionGroup,
   Product,
   ShopOrder,
   ToppingAvailability,
@@ -187,6 +189,7 @@ export function useAuth() {
 
 interface DataValue {
   products: Product[];
+  optionGroups: OptionGroup[];
   orders: ShopOrder[];
   customerRequests: CustomerOrderRequest[];
   toppingAvailability: ToppingAvailability;
@@ -223,6 +226,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     firebaseReady
       ? []
       : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)),
+  );
+  const [optionGroups, setOptionGroups] = useState<OptionGroup[]>(() =>
+    fallbackOptionGroups.map((group) => structuredClone(group)),
   );
   const [orders, setOrders] = useState<ShopOrder[]>(() =>
     firebaseReady ? [] : readLocal(ORDERS_KEY, []),
@@ -263,6 +269,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setOrders(rows);
       setQueueIncomplete(incomplete);
     });
+    const stopOptionGroups = subscribePrivateOptionGroups(
+      db,
+      setOptionGroups,
+      () =>
+        setOptionGroups(
+          fallbackOptionGroups.map((group) => structuredClone(group)),
+        ),
+    );
     const stopAvailability = onSnapshot(
       doc(db, "settings", "toppingAvailability"),
       (snapshot) => {
@@ -281,6 +295,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {
       stopProducts();
       stopOrders();
+      stopOptionGroups();
       stopAvailability();
       stopCustomerRequests();
     };
@@ -416,21 +431,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
           .filter((entry) => entry.id !== normalized.id),
         normalized,
       ];
-      const projection = buildPublicProjection(source, toppingAvailability);
+      const projection = buildPublicProjection(
+        source,
+        toppingAvailability,
+        optionGroups,
+      );
       const batch = writeBatch(db);
       batch.set(doc(db, "products", normalized.id), normalized);
       Object.entries(projection.menu).forEach(([id, value]) =>
         batch.set(doc(db!, "publicMenu", id), value),
       );
+      Object.entries(projection.optionGroups).forEach(([id, value]) =>
+        batch.set(doc(db!, "publicOptionGroups", id), value),
+      );
       batch.set(
         doc(db, "publicSettings", "customerRequestPolicy"),
         projection.requestPolicy,
       );
-      batch.set(doc(db, "publicProjectionControl", publicProjectionControlId), {
-        schemaVersion: publicProjectionSchemaVersion,
-        fingerprint: projection.fingerprint,
-        menuIds: Object.keys(projection.menu).sort(),
-      });
+      batch.set(
+        doc(db, "publicProjectionControl", publicProjectionControlId),
+        projection.control,
+      );
       await batch.commit();
     } else
       setProducts((rows) => [
@@ -451,7 +472,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             | undefined) ?? {}),
           [id]: available,
         };
-        const projection = buildPublicProjection(products, next);
+        const projection = buildPublicProjection(products, next, optionGroups);
         transaction.set(privateRef, {
           availability: next,
           updatedAt: new Date().toISOString(),
@@ -464,13 +485,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           doc(firestore, "publicSettings", "customerRequestPolicy"),
           projection.requestPolicy,
         );
+        Object.entries(projection.optionGroups).forEach(([groupId, value]) =>
+          transaction.set(doc(firestore, "publicOptionGroups", groupId), value),
+        );
         transaction.set(
           doc(firestore, "publicProjectionControl", publicProjectionControlId),
-          {
-            schemaVersion: publicProjectionSchemaVersion,
-            fingerprint: projection.fingerprint,
-            menuIds: Object.keys(projection.menu).sort(),
-          },
+          projection.control,
         );
       });
     } else setAvailability((current) => ({ ...current, [id]: available }));
@@ -497,7 +517,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           .filter((entry) => !importedIds.has(entry.id)),
         ...importedProducts,
       ];
-      const projection = buildPublicProjection(source, toppingAvailability);
+      const projection = buildPublicProjection(
+        source,
+        toppingAvailability,
+        optionGroups,
+      );
       const batch = writeBatch(firestore);
       importedProducts.forEach((product) =>
         batch.set(doc(firestore, "products", product.id), product),
@@ -505,17 +529,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       Object.entries(projection.menu).forEach(([id, value]) =>
         batch.set(doc(firestore, "publicMenu", id), value),
       );
+      Object.entries(projection.optionGroups).forEach(([id, value]) =>
+        batch.set(doc(firestore, "publicOptionGroups", id), value),
+      );
       batch.set(
         doc(firestore, "publicSettings", "customerRequestPolicy"),
         projection.requestPolicy,
       );
       batch.set(
         doc(firestore, "publicProjectionControl", publicProjectionControlId),
-        {
-          schemaVersion: publicProjectionSchemaVersion,
-          fingerprint: projection.fingerprint,
-          menuIds: Object.keys(projection.menu).sort(),
-        },
+        projection.control,
       );
       await batch.commit();
       await Promise.all(
@@ -533,6 +556,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setCustomerRequests((rows) => removeCustomerRequest(rows, id));
   const value = {
     products,
+    optionGroups,
     orders,
     customerRequests,
     toppingAvailability,

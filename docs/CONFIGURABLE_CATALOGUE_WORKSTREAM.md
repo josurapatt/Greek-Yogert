@@ -28,22 +28,22 @@ deployment, a Production data write, a billing change, or a change to Draft PR
 
 Verified on 28 July 2026 in `Asia/Bangkok`:
 
-| Item | Verified state |
-| --- | --- |
-| Repository | `josurapatt/Greek-Yogert` |
-| Planning base | `origin/main` |
-| Exact base SHA | `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5` |
-| Local `main` vs `origin/main` | `0` ahead / `0` behind |
-| Main worktree | `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge` |
-| Main worktree state | Clean |
-| Planning branch | `feature/configurable-catalogue-workstream-plan` |
-| Planning worktree | `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan` |
-| Existing UI worktree | `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp` |
-| Existing UI branch | `feature/light-purple-ui-refresh`, clean, `0/0` against its remote |
-| Open PRs | Only PR #14 |
-| PR #14 | Open Draft, head `b36f8a88728115228f8363b4ab7185e1e1ace1a8`, no reviews, currently reported unmergeable; paused and untouched |
-| Current application baseline | 363 tests passed across 37 files |
-| Production | Customer QR is live; no Production action occurred during planning |
+| Item                          | Verified state                                                                                                                |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Repository                    | `josurapatt/Greek-Yogert`                                                                                                     |
+| Planning base                 | `origin/main`                                                                                                                 |
+| Exact base SHA                | `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5`                                                                                    |
+| Local `main` vs `origin/main` | `0` ahead / `0` behind                                                                                                        |
+| Main worktree                 | `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp-pr13-merge`                                                                   |
+| Main worktree state           | Clean                                                                                                                         |
+| Planning branch               | `feature/configurable-catalogue-workstream-plan`                                                                              |
+| Planning worktree             | `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`                                       |
+| Existing UI worktree          | `C:\Users\surapat.c\Desktop\GreekYogurtOrderApp`                                                                              |
+| Existing UI branch            | `feature/light-purple-ui-refresh`, clean, `0/0` against its remote                                                            |
+| Open PRs                      | Only PR #14                                                                                                                   |
+| PR #14                        | Open Draft, head `b36f8a88728115228f8363b4ab7185e1e1ace1a8`, no reviews, currently reported unmergeable; paused and untouched |
+| Current application baseline  | 363 tests passed across 37 files                                                                                              |
+| Production                    | Customer QR is live; no Production action occurred during planning                                                            |
 
 `CURRENT_STATUS.md` and `ROADMAP.md` on `main` confirm the completed Customer QR
 Production rollout. Earlier status text on the paused PR #14 branch is stale and
@@ -103,14 +103,14 @@ Use this bounded model:
 
 ```ts
 interface OptionChoice {
-  id: string;                 // stable and globally unique across groups
+  id: string; // stable and globally unique across groups
   name: string;
-  active: boolean;            // definition lifecycle
+  active: boolean; // definition lifecycle
   displayOrder: number;
   classification: "normal" | "premium";
-  surcharge: number;          // generic group surcharge; zero by default
-  availabilityId?: string;    // compatibility key in the existing availability map
-  everUsed: boolean;          // irreversible safe-deletion guard
+  surcharge: number; // generic group surcharge; zero by default
+  availabilityId?: string; // compatibility key in the existing availability map
+  everUsed: boolean; // irreversible safe-deletion guard
 }
 
 interface OptionGroup {
@@ -128,10 +128,10 @@ interface OptionGroup {
 
 interface ProductOptionGroupAssignment {
   groupId: string;
-  choiceIds?: string[];       // omitted means all active group choices
-  required?: boolean;         // optional product override
-  minSelections?: number;     // optional product override
-  maxSelections?: number;     // optional product override
+  choiceIds?: string[]; // omitted means all active group choices
+  required?: boolean; // optional product override
+  minSelections?: number; // optional product override
+  maxSelections?: number; // optional product override
 }
 ```
 
@@ -895,19 +895,20 @@ records. Production rollback is outside this workstream.
 
 ## Current task state
 
-| Work Package | Owner | Status | Implementation commit | QA verdict |
-| --- | --- | --- | --- | --- |
-| WP-CC-01 | Chat 03 | In progress on `feature/configurable-catalogue-wp-cc-01` | Pending | Pending |
-| WP-CC-02 | Unassigned | Blocked on WP-CC-01; remote image UAT also blocked on Storage approval | Pending | Pending |
-| WP-CC-03 | Unassigned | Blocked on WP-CC-02 | Pending | Pending |
-| WP-CC-04 | Unassigned | Blocked on WP-CC-03 | Pending | Pending |
-| WP-CC-05 | Unassigned | Blocked on WP-CC-04 and Storage approval | Pending | Pending |
+| Work Package | Owner      | Status                                                                 | Implementation commit                                               | QA verdict |
+| ------------ | ---------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------- |
+| WP-CC-01     | Chat 03    | Implementation complete; independent Chat 04 QA pending                | Current delivered branch/PR head; verify exact SHA from Git handoff | Pending    |
+| WP-CC-02     | Unassigned | Blocked on WP-CC-01; remote image UAT also blocked on Storage approval | Pending                                                             | Pending    |
+| WP-CC-03     | Unassigned | Blocked on WP-CC-02                                                    | Pending                                                             | Pending    |
+| WP-CC-04     | Unassigned | Blocked on WP-CC-03                                                    | Pending                                                             | Pending    |
+| WP-CC-05     | Unassigned | Blocked on WP-CC-04 and Storage approval                               | Pending                                                             | Pending    |
 
 ## Commit and QA evidence
 
-| Date | Package | Branch / SHA | Evidence |
-| --- | --- | --- | --- |
-| 2026-07-28 | Planning | `feature/configurable-catalogue-workstream-plan`, based on `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5` | Architecture and five-package plan prepared; application code unchanged |
+| Date       | Package                 | Branch / SHA                                                                                                                                                                       | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-28 | Planning                | `feature/configurable-catalogue-workstream-plan`, based on `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5`                                                                              | Architecture and five-package plan prepared; application code unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2026-07-28 | WP-CC-01 implementation | `feature/configurable-catalogue-wp-cc-01`, starting SHA `20a030ded1bf30ab617f0d8bfba20bcec71732f1`; exact ending SHA must be verified from the current PR head and Chat 03 handoff | Bounded catalogue/types/adapters/helpers, V3 projection with V2 compatibility, bounded private/public repositories, private-catalogue trusted confirmation, Rules, and dry-run-default migration completed. Focused 81/81, full app 378/378, canonical Rules 24/24, lint/build/format/Rules syntax/secret checks passed. Offline dry runs shared fingerprint `cc3-62a7a5c1ee582c6a`: 13 planned/0 performed then 0 planned/0 performed. QA remains Pending. No Firebase project, remote data, Production, deployment, or PR #14 action. |
 
 ## Unresolved blockers and decisions
 
@@ -934,8 +935,11 @@ Chat 02 must:
 4. send only WP-CC-01 to Chat 03;
 5. send the exact delivered commit to Chat 04;
 6. stop advancement on a QA `FAIL`; and
-7. escalate only architecture/scope or the recorded Storage decision to Chat
-   01.
+7. escalate only architecture/scope or the recorded Storage decision to Chat 01.
+
+The next permitted action is independent Chat 04 QA of the exact delivered
+WP-CC-01 commit. Chat 03 has not self-approved. WP-CC-02 remains blocked by the
+predecessor approval and merge gate.
 
 No work after WP-CC-01 may start until repository governance and predecessor
 approval/merge gates are satisfied.
