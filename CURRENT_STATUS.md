@@ -11,7 +11,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Verified `main` / `origin/main`: `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5` (`0` ahead / `0` behind)
 - Active implementation branch: `feature/configurable-catalogue-wp-cc-01`
 - Verified WP-CC-01 starting SHA: `20a030ded1bf30ab617f0d8bfba20bcec71732f1`
-- WP-CC-01 Draft PR: [#21 — Configurable catalogue foundation](https://github.com/josurapatt/Greek-Yogert/pull/21) — open Draft; independent QA pending
+- WP-CC-01 Draft PR: [#21 — Configurable catalogue foundation](https://github.com/josurapatt/Greek-Yogert/pull/21) — open Draft at `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`; independent Chat 04 re-QA **PASS**; approval and merge remain separate gates
 - Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
 - Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
 - Other open work: Draft PR #14 remains paused and was not queried or changed by WP-CC-01
@@ -41,13 +41,12 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Approved architecture and five dependency-ordered Work Packages are recorded
   in `docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`.
 - Team routing and rotation are recorded in `docs/AI_TEAM_PROTOCOL.md`.
-- WP-CC-01 implementation is complete on
-  `feature/configurable-catalogue-wp-cc-01`; the exact delivered commit is the
-  verified current branch/PR head supplied in the Chat 03 handoff. Independent
-  Chat 04 QA returned **FAIL** at
-  `59357627148ba954c978d07b72a462ad54f70c0c` for formatting only. Chat 03 has
-  applied the line-ending-stable formatting correction; independent re-QA of
-  the new exact branch head remains **Pending** and no self-approval has
+- WP-CC-01 implementation is complete at
+  `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc` on
+  `feature/configurable-catalogue-wp-cc-01`. The initial independent QA
+  **FAIL** at `59357627148ba954c978d07b72a462ad54f70c0c` was formatting-only;
+  the LF-stable correction was independently re-QA'd **PASS** at the exact
+  current PR head. No self-approval, PR approval, merge, or deployment has
   occurred.
 - The additive foundation now contains bounded private/public option-group
   models and repositories, deterministic toppings and granola-flavour
@@ -298,9 +297,8 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Chat 02 may route the exact formatting-corrected WP-CC-01 branch head to
-independent Chat 04 re-QA. Do not start WP-CC-02 unless WP-CC-01 receives an
-accepted QA verdict and the repository predecessor/merge gate is satisfied.
+WP-CC-01 awaits separate PR approval, explicit merge authorization, and merge.
+Do not start WP-CC-02 unless those predecessor/merge gates are satisfied.
 Keep Cloud Functions, Production, billing, IAM, and UI PR #14 out of the
 workstream, and retain the recorded isolated-UAT Firebase Storage decision
 gate.

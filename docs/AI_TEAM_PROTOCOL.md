@@ -67,9 +67,9 @@ must independently reconcile Git and the durable files before continuing.
 | Role         | Active chat | Outbound count | Rotation state                                             |
 | ------------ | ----------- | -------------: | ---------------------------------------------------------- |
 | Planner      | Chat 01     |              0 | Active                                                     |
-| Orchestrator | Chat 02     |              2 | Active                                                     |
-| Production   | Chat 03     |              2 | Formatting correction delivered; independent re-QA pending |
-| QA           | Chat 04     |              0 | Not yet initialized                                        |
+| Orchestrator | Chat 02     |              4 | QA result durably recorded; awaiting separate PR gate      |
+| Production   | Chat 03     |              2 | Formatting correction delivered                            |
+| QA           | Chat 04     |              2 | Re-QA PASS delivered; awaiting separate PR gate            |
 
 ## Prohibited role behaviour
 
