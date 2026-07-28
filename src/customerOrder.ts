@@ -10,7 +10,10 @@ import {
   customerRequestSchemaVersion,
   productSelectedOptionLimits,
 } from "./customerRequestPolicy";
-import { selectedOptionLabels } from "./optionCatalogue";
+import {
+  mergeOptionGroupsWithFallback,
+  selectedOptionLabels,
+} from "./optionCatalogue";
 import type {
   CartItem,
   CustomerOrderRequest,
@@ -68,8 +71,10 @@ export function customerOptionLabels(
   selectedOptionIds: string[],
   optionGroups?: OptionGroup[],
 ): string[] {
-  if (optionGroups)
-    return selectedOptionLabels(product, selectedOptionIds, optionGroups);
+  if (optionGroups) {
+    const catalogue = mergeOptionGroupsWithFallback(optionGroups);
+    return selectedOptionLabels(product, selectedOptionIds, catalogue);
+  }
   if (product.optionMode === "granola")
     return selectedOptionIds.map((name) => `กราโนล่ารส${name}`);
   if (product.optionMode === "toppings")
@@ -81,6 +86,7 @@ export function customerOptionLabels(
 
 export function toCustomerPublicProduct(
   product: Product,
+  optionGroups?: OptionGroup[],
 ): PublicCustomerProduct {
   const price =
     product.channelPrices?.[customerStorefrontChannel] ?? product.price;
@@ -93,7 +99,8 @@ export function toCustomerPublicProduct(
     storefrontPrice: price,
     optionMode: product.optionMode,
     includedToppings: product.includedToppings,
-    maxSelectedOptions: productSelectedOptionLimits(product).maximum,
+    maxSelectedOptions: productSelectedOptionLimits(product, optionGroups)
+      .maximum,
     granolaOptions: product.granolaOptions,
     availableToppingIds: product.availableToppingIds,
     ...(product.premiumToppingIds

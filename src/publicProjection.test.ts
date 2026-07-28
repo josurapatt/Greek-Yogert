@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { defaultProducts } from "./data";
-import { fallbackOptionGroups } from "./optionCatalogue";
+import {
+  allowedProductOptionChoices,
+  effectiveProductSelectionLimits,
+  fallbackOptionGroups,
+  publicOptionGroupsToCatalogue,
+} from "./optionCatalogue";
 import {
   assertPublicProjectionVersionTransition,
   buildPublicProjection,
@@ -82,6 +87,95 @@ describe("public Customer projection", () => {
         .toppings.choices,
     ).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "banana" })]),
+    );
+  });
+
+  it("projects an active custom group from the authoritative merged catalogue", () => {
+    const customGroup = {
+      id: "sauce",
+      displayName: "ซอส",
+      active: true,
+      displayOrder: 5,
+      required: true,
+      minSelections: 1,
+      maxSelections: 1,
+      allowDuplicates: false,
+      pricingMode: "choice-surcharge" as const,
+      choices: [
+        {
+          id: "honey-sauce",
+          name: "น้ำผึ้ง",
+          active: true,
+          displayOrder: 1,
+          classification: "normal" as const,
+          surcharge: 5,
+          everUsed: true,
+        },
+      ],
+    };
+    const product = {
+      ...defaultProducts[0],
+      optionGroupAssignments: [{ groupId: customGroup.id }],
+    };
+    const projection = buildPublicProjection([product], {}, [
+      ...fallbackOptionGroups,
+      customGroup,
+    ]);
+
+    expect(projection.optionGroups.sauce).toMatchObject({
+      id: "sauce",
+      active: true,
+      displayName: "ซอส",
+    });
+    expect(projection.optionGroups.sauce.choices).toEqual([
+      expect.objectContaining({ id: "honey-sauce", name: "น้ำผึ้ง" }),
+    ]);
+    expect(projection.menu[product.id].maxSelectedOptions).toBe(1);
+    expect(projection.requestPolicy.productLimits[product.id].groups).toEqual([
+      expect.objectContaining({
+        groupId: "sauce",
+        allowedIds: ["honey-sauce"],
+        allowedLabels: ["ซอส: น้ำผึ้ง"],
+      }),
+    ]);
+  });
+
+  it("keeps an inactive persisted fallback group as an inactive public tombstone through reconstruction", () => {
+    const toppingProduct = defaultProducts.find(
+      (product) => product.id === "size-s",
+    )!;
+    const inactiveToppings = {
+      ...fallbackOptionGroups.find((group) => group.id === "toppings")!,
+      active: false,
+    };
+    const projection = buildPublicProjection(defaultProducts, {}, [
+      inactiveToppings,
+    ]);
+
+    expect(projection.optionGroups.toppings).toMatchObject({
+      id: "toppings",
+      active: false,
+    });
+    expect(projection.control.optionGroupIds).toContain("toppings");
+    expect(projection.menu["size-s"].maxSelectedOptions).toBe(0);
+    expect(projection.requestPolicy.productLimits["size-s"]).toMatchObject({
+      minimum: 0,
+      maximum: 0,
+      allowedIds: [],
+      allowedLabels: [],
+      groups: [],
+    });
+    const reconstructed = publicOptionGroupsToCatalogue(
+      Object.values(projection.optionGroups),
+    );
+    expect(
+      reconstructed.find((group) => group.id === "toppings"),
+    ).toMatchObject({ id: "toppings", active: false });
+    expect(
+      effectiveProductSelectionLimits(toppingProduct, reconstructed),
+    ).toEqual({ minimum: 0, maximum: 0 });
+    expect(allowedProductOptionChoices(toppingProduct, reconstructed)).toEqual(
+      [],
     );
   });
 

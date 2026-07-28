@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fallbackOptionGroups } from "./optionCatalogue";
 import type { OptionGroup } from "./types";
 
 const firestoreMocks = vi.hoisted(() => ({
@@ -53,6 +54,27 @@ describe("bounded option catalogue repositories", () => {
     expect(firestoreMocks.orderBy).toHaveBeenCalledWith("displayOrder");
     expect(groups.map((group) => group.id)).toEqual([
       "custom",
+      "toppings",
+      "granola-flavour",
+    ]);
+  });
+
+  it("keeps persisted lifecycle state authoritative while filling only missing fallback groups", async () => {
+    const inactiveToppings = {
+      ...fallbackOptionGroups.find((group) => group.id === "toppings")!,
+      active: false,
+    };
+    firestoreMocks.getDocs.mockResolvedValue({
+      docs: [snapshot("toppings", inactiveToppings)],
+    });
+
+    const groups = await readPrivateOptionGroups({} as never);
+
+    expect(groups.find((group) => group.id === "toppings")).toMatchObject({
+      id: "toppings",
+      active: false,
+    });
+    expect(groups.map((group) => group.id)).toEqual([
       "toppings",
       "granola-flavour",
     ]);
