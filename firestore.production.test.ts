@@ -333,12 +333,16 @@ describe("WP4 Production-candidate Firestore authorization", () => {
         public: true,
       }),
       "users/staff": { role: "staff", active: true },
+      "users/inactive-staff": { role: "staff", active: false },
     });
     const customer = environment
       .authenticatedContext("customer-a", anonymousToken)
       .firestore();
     const staff = environment
       .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const inactiveStaff = environment
+      .authenticatedContext("inactive-staff", passwordToken)
       .firestore();
     await assertFails(getDoc(doc(customer, "optionGroups/toppings")));
     await assertFails(
@@ -361,6 +365,12 @@ describe("WP4 Production-candidate Firestore authorization", () => {
     );
     await assertSucceeds(
       setDoc(doc(staff, "optionGroups/custom"), optionGroup("custom")),
+    );
+    await assertFails(
+      setDoc(
+        doc(inactiveStaff, "optionGroups/inactive-write"),
+        optionGroup("inactive-write"),
+      ),
     );
     await assertSucceeds(
       setDoc(
@@ -750,6 +760,26 @@ describe("WP4 Production-candidate Firestore authorization", () => {
       .firestore();
     await assertSucceeds(
       setDoc(doc(staff, "publicMenu/plain-greek"), publicProduct()),
+    );
+    await assertSucceeds(
+      setDoc(doc(staff, "publicMenu/plain-greek"), {
+        ...publicProduct(),
+        imagePath: "product-images/plain-greek/image-1.webp",
+        imageUrl: "https://example.test/image-1.webp",
+      }),
+    );
+    await assertFails(
+      setDoc(doc(staff, "publicMenu/plain-greek"), {
+        ...publicProduct(),
+        imagePath: "product-images/plain-greek/image-1.webp",
+      }),
+    );
+    await assertFails(
+      setDoc(doc(staff, "publicMenu/plain-greek"), {
+        ...publicProduct(),
+        imagePath: "other/plain-greek/image-1.webp",
+        imageUrl: "https://example.test/image-1.webp",
+      }),
     );
     await assertFails(
       setDoc(doc(staff, "publicMenu/plain-greek"), {

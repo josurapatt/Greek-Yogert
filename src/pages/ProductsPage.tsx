@@ -1,18 +1,28 @@
 import { Plus, Save } from "lucide-react";
 import { useState } from "react";
+import "../catalogue.css";
 import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
+import OptionGroupManager from "../components/OptionGroupManager";
+import ProductImageField from "../components/ProductImageField";
+import ProductOptionAssignmentsField from "../components/ProductOptionAssignmentsField";
+import ProductVisual from "../components/ProductVisual";
 import { normalizeProduct, toppings } from "../data";
 import { getChannelRules, getProductPrice, money } from "../lib";
 import { productSelectedOptionLimits } from "../customerRequestPolicy";
+import {
+  fallbackOptionGroups,
+  toppingsOptionGroupId,
+} from "../optionCatalogue";
 import { useData } from "../store";
 import type {
   ChannelGroup,
   ChannelToppingRules,
+  OptionChoice,
   OrderChannel,
   Product,
 } from "../types";
 
-const blankProduct = () =>
+const blankProduct = (catalogueToppings: OptionChoice[]) =>
   normalizeProduct({
     id: `product-${Date.now()}`,
     name: "สินค้าใหม่",
@@ -23,9 +33,11 @@ const blankProduct = () =>
     includedToppings: 0,
     maxSelectedOptions: 0,
     granolaOptions: ["กล้วย", "เบอร์รี่รวม", "ช็อกโกแลต", "น้ำผึ้ง"],
-    availableToppingIds: toppings.map((item) => item.id),
-    premiumToppingIds: toppings
-      .filter((item) => item.premium)
+    availableToppingIds: catalogueToppings
+      .filter((item) => item.active)
+      .map((item) => item.id),
+    premiumToppingIds: catalogueToppings
+      .filter((item) => item.active && item.classification === "premium")
       .map((item) => item.id),
     premiumIncludedSurcharge: 5,
     extraNormalPrice: 10,
@@ -37,11 +49,27 @@ const blankProduct = () =>
 export default function ProductsPage() {
   const {
     products: storedProducts,
+    optionGroups: storedOptionGroups,
     toppingAvailability,
     saveProduct,
     setToppingAvailability,
   } = useData();
   const products = [...storedProducts];
+  const optionGroups = storedOptionGroups ?? fallbackOptionGroups;
+  const catalogueToppings =
+    optionGroups.find((group) => group.id === toppingsOptionGroupId)?.choices ??
+    toppings.map((topping, displayOrder) => ({
+      id: topping.id,
+      name: topping.name,
+      active: true,
+      displayOrder,
+      classification: topping.premium
+        ? ("premium" as const)
+        : ("normal" as const),
+      surcharge: 0,
+      availabilityId: topping.id,
+      everUsed: true,
+    }));
   const [editing, setEditing] = useState<Product | null>(null);
   const [saved, setSaved] = useState("");
   const [saving, setSaving] = useState(false);
@@ -82,7 +110,7 @@ export default function ProductsPage() {
     try {
       setSaving(true);
       setSaveError("");
-      productSelectedOptionLimits(editing);
+      productSelectedOptionLimits(editing, optionGroups);
       await saveProduct(editing);
       setSaved(editing.id);
       setEditing(null);
@@ -108,7 +136,10 @@ export default function ProductsPage() {
           <h1>จัดการสินค้า</h1>
           <p>ใช้สินค้าเดิมหนึ่งรายการ พร้อมราคาแยกตามช่องทาง</p>
         </div>
-        <button className="primary" onClick={() => setEditing(blankProduct())}>
+        <button
+          className="primary"
+          onClick={() => setEditing(blankProduct(catalogueToppings))}
+        >
           <Plus /> เพิ่มสินค้า
         </button>
       </div>
@@ -119,32 +150,36 @@ export default function ProductsPage() {
           <p>ใช้ร่วมกันทุกช่องทาง รายการเดิมที่ยังไม่มีสถานะถือว่าเปิดขาย</p>
         </div>
         <div className="availability-grid">
-          {toppings.map((topping) => {
-            const available = toppingAvailability[topping.id] !== false;
-            return (
-              <article
-                className={`availability-card ${available ? "available" : "sold-out"}`}
-                key={topping.id}
-              >
-                <span>{topping.name}</span>
-                <button
-                  aria-pressed={!available}
-                  className={
-                    available
-                      ? "availability-toggle"
-                      : "availability-toggle sold-out"
-                  }
-                  onClick={() =>
-                    void setToppingAvailability(topping.id, !available)
-                  }
+          {catalogueToppings
+            .filter((topping) => topping.active)
+            .map((topping) => {
+              const availabilityId = topping.availabilityId ?? topping.id;
+              const available = toppingAvailability[availabilityId] !== false;
+              return (
+                <article
+                  className={`availability-card ${available ? "available" : "sold-out"}`}
+                  key={topping.id}
                 >
-                  {available ? "เปิดขาย" : "หมด"}
-                </button>
-              </article>
-            );
-          })}
+                  <span>{topping.name}</span>
+                  <button
+                    aria-pressed={!available}
+                    className={
+                      available
+                        ? "availability-toggle"
+                        : "availability-toggle sold-out"
+                    }
+                    onClick={() =>
+                      void setToppingAvailability(availabilityId, !available)
+                    }
+                  >
+                    {available ? "เปิดขาย" : "หมด"}
+                  </button>
+                </article>
+              );
+            })}
         </div>
       </section>
+      <OptionGroupManager />
       <section className="manage-grid">
         {products
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -153,7 +188,12 @@ export default function ProductsPage() {
               className={`manage-card ${!product.active ? "disabled" : ""}`}
               key={product.id}
             >
-              <span className="manage-emoji">{product.emoji}</span>
+              <ProductVisual
+                className="manage-emoji"
+                emoji={product.emoji}
+                imageUrl={product.imageUrl}
+                name={product.name}
+              />
               <div>
                 <h2>{product.name}</h2>
                 <p>
@@ -362,6 +402,14 @@ export default function ProductsPage() {
                       }
                     />
                   </label>
+                  <ProductImageField product={editing} onChange={setEditing} />
+                  <ProductOptionAssignmentsField
+                    onChange={(assignments) =>
+                      change("optionGroupAssignments", assignments)
+                    }
+                    optionGroups={optionGroups}
+                    product={editing}
+                  />
                 </div>
                 {editing.optionMode === "toppings" && (
                   <>
@@ -477,33 +525,41 @@ export default function ProductsPage() {
                       </div>
                       <p className="hint">ท็อปปิ้งที่อนุญาตให้เพิ่มพิเศษ</p>
                       <div className="check-grid">
-                        {toppings.map((topping) => (
-                          <label key={topping.id}>
-                            <input
-                              type="checkbox"
-                              checked={platformRules.allowedExtraToppingIds.includes(
-                                topping.id,
-                              )}
-                              onChange={() =>
-                                setRule(
-                                  "platform",
-                                  "allowedExtraToppingIds",
-                                  platformRules.allowedExtraToppingIds.includes(
-                                    topping.id,
+                        {catalogueToppings.map((topping) => {
+                          const selected =
+                            platformRules.allowedExtraToppingIds.includes(
+                              topping.id,
+                            );
+                          return (
+                            <label
+                              className={topping.active ? "" : "disabled"}
+                              key={topping.id}
+                            >
+                              <input
+                                disabled={!topping.active && !selected}
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() =>
+                                  setRule(
+                                    "platform",
+                                    "allowedExtraToppingIds",
+                                    platformRules.allowedExtraToppingIds.includes(
+                                      topping.id,
+                                    )
+                                      ? platformRules.allowedExtraToppingIds.filter(
+                                          (id) => id !== topping.id,
+                                        )
+                                      : [
+                                          ...platformRules.allowedExtraToppingIds,
+                                          topping.id,
+                                        ],
                                   )
-                                    ? platformRules.allowedExtraToppingIds.filter(
-                                        (id) => id !== topping.id,
-                                      )
-                                    : [
-                                        ...platformRules.allowedExtraToppingIds,
-                                        topping.id,
-                                      ],
-                                )
-                              }
-                            />
-                            <span>{topping.name}</span>
-                          </label>
-                        ))}
+                                }
+                              />
+                              <span>{topping.name}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </fieldset>
                     <fieldset>
@@ -511,55 +567,62 @@ export default function ProductsPage() {
                         ท็อปปิ้งที่ขายกับสินค้านี้ (ขาย / พรีเมียม)
                       </legend>
                       <div className="check-grid">
-                        {toppings.map((topping) => (
-                          <label key={topping.id}>
-                            <input
-                              type="checkbox"
-                              checked={editing.availableToppingIds.includes(
-                                topping.id,
-                              )}
-                              onChange={() =>
-                                change(
-                                  "availableToppingIds",
-                                  editing.availableToppingIds.includes(
-                                    topping.id,
+                        {catalogueToppings.map((topping) => {
+                          const selected = editing.availableToppingIds.includes(
+                            topping.id,
+                          );
+                          return (
+                            <label
+                              className={topping.active ? "" : "disabled"}
+                              key={topping.id}
+                            >
+                              <input
+                                disabled={!topping.active && !selected}
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() =>
+                                  change(
+                                    "availableToppingIds",
+                                    editing.availableToppingIds.includes(
+                                      topping.id,
+                                    )
+                                      ? editing.availableToppingIds.filter(
+                                          (id) => id !== topping.id,
+                                        )
+                                      : [
+                                          ...editing.availableToppingIds,
+                                          topping.id,
+                                        ],
                                   )
-                                    ? editing.availableToppingIds.filter(
-                                        (id) => id !== topping.id,
-                                      )
-                                    : [
-                                        ...editing.availableToppingIds,
-                                        topping.id,
-                                      ],
-                                )
-                              }
-                            />
-                            <span>{topping.name}</span>
-                            <input
-                              title="พรีเมียม"
-                              type="checkbox"
-                              checked={editing.premiumToppingIds?.includes(
-                                topping.id,
-                              )}
-                              onChange={() =>
-                                change(
-                                  "premiumToppingIds",
-                                  editing.premiumToppingIds?.includes(
-                                    topping.id,
+                                }
+                              />
+                              <span>{topping.name}</span>
+                              <input
+                                title="พรีเมียม"
+                                type="checkbox"
+                                checked={editing.premiumToppingIds?.includes(
+                                  topping.id,
+                                )}
+                                onChange={() =>
+                                  change(
+                                    "premiumToppingIds",
+                                    editing.premiumToppingIds?.includes(
+                                      topping.id,
+                                    )
+                                      ? editing.premiumToppingIds.filter(
+                                          (id) => id !== topping.id,
+                                        )
+                                      : [
+                                          ...(editing.premiumToppingIds ?? []),
+                                          topping.id,
+                                        ],
                                   )
-                                    ? editing.premiumToppingIds.filter(
-                                        (id) => id !== topping.id,
-                                      )
-                                    : [
-                                        ...(editing.premiumToppingIds ?? []),
-                                        topping.id,
-                                      ],
-                                )
-                              }
-                            />
-                            <small>พรีเมียม</small>
-                          </label>
-                        ))}
+                                }
+                              />
+                              <small>พรีเมียม</small>
+                            </label>
+                          );
+                        })}
                       </div>
                     </fieldset>
                   </>

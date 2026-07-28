@@ -17,6 +17,10 @@ const initialization = vi.hoisted(() => ({
     initialization.sequence.push("firestore");
     return { name: "firestore" };
   }),
+  getStorage: vi.fn(() => {
+    initialization.sequence.push("storage");
+    return { name: "storage" };
+  }),
   setPersistence: vi.fn(() => Promise.resolve()),
 }));
 
@@ -32,6 +36,9 @@ vi.mock("firebase/auth", () => ({
 }));
 vi.mock("firebase/firestore", () => ({
   getFirestore: initialization.getFirestore,
+}));
+vi.mock("firebase/storage", () => ({
+  getStorage: initialization.getStorage,
 }));
 vi.mock("@app-check-bootstrap", () => ({
   initializeAppCheckBeforeFirebaseServices: initialization.appCheck,
@@ -64,11 +71,13 @@ describe("Firebase initialization ordering", () => {
     expect(initialization.appCheck).toHaveBeenCalledTimes(1);
     expect(initialization.getAuth).toHaveBeenCalledTimes(1);
     expect(initialization.getFirestore).toHaveBeenCalledTimes(1);
+    expect(initialization.getStorage).toHaveBeenCalledTimes(1);
     expect(initialization.sequence).toEqual([
       "firebase-app",
       "app-check",
       "auth",
       "firestore",
+      "storage",
     ]);
     expect(initialization.setPersistence).toHaveBeenCalledTimes(1);
   });
@@ -79,6 +88,11 @@ describe("Firebase initialization ordering", () => {
 
     expect(initialization.initializeApp).not.toHaveBeenCalled();
     expect(initialization.getApp).toHaveBeenCalledTimes(1);
-    expect(initialization.sequence).toEqual(["app-check", "auth", "firestore"]);
+    expect(initialization.sequence).toEqual([
+      "app-check",
+      "auth",
+      "firestore",
+      "storage",
+    ]);
   });
 });

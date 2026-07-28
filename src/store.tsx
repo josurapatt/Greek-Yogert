@@ -45,8 +45,21 @@ import {
   buildPublicProjection,
   publicProjectionControlId,
 } from "./publicProjection";
-import { fallbackOptionGroups } from "./optionCatalogue";
-import { subscribePrivateOptionGroups } from "./optionCatalogueRepository";
+import {
+  fallbackOptionGroups,
+  mergeOptionGroupsWithFallback,
+  normalizeOptionGroup,
+} from "./optionCatalogue";
+import {
+  readPrivateOptionGroups,
+  subscribePrivateOptionGroups,
+} from "./optionCatalogueRepository";
+import {
+  prepareCatalogueForProducts,
+  prepareOptionGroupSave,
+  prepareProductCatalogueSave,
+  sameOptionGroup,
+} from "./catalogueAdmin";
 import {
   subscribePendingCustomerRequests,
   subscribePendingOrders,
@@ -201,6 +214,7 @@ interface DataValue {
   replaceOrder(id: string, draft: OrderDraft): Promise<void>;
   setOrderStatus(id: string, status: ShopOrder["status"]): Promise<void>;
   saveProduct(product: Product): Promise<void>;
+  saveOptionGroup(group: OptionGroup, previous?: OptionGroup): Promise<void>;
   setToppingAvailability(id: string, available: boolean): Promise<void>;
   importBackup(data: {
     products: Product[];
@@ -211,6 +225,7 @@ const DataContext = createContext<DataValue | null>(null);
 const PRODUCTS_KEY = "gym-products-v1";
 const ORDERS_KEY = "gym-orders-v1";
 const TOPPING_AVAILABILITY_KEY = "gym-topping-availability-v1";
+const OPTION_GROUPS_KEY = "gym-option-groups-v1";
 
 const readLocal = <T,>(key: string, fallback: T): T => {
   try {
@@ -228,7 +243,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       : mergeProducts(readLocal(PRODUCTS_KEY, defaultProducts)),
   );
   const [optionGroups, setOptionGroups] = useState<OptionGroup[]>(() =>
-    fallbackOptionGroups.map((group) => structuredClone(group)),
+    firebaseReady
+      ? fallbackOptionGroups.map((group) => structuredClone(group))
+      : mergeOptionGroupsWithFallback(readLocal(OPTION_GROUPS_KEY, [])),
   );
   const [orders, setOrders] = useState<ShopOrder[]>(() =>
     firebaseReady ? [] : readLocal(ORDERS_KEY, []),
@@ -314,6 +331,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         JSON.stringify(toppingAvailability),
       );
   }, [toppingAvailability]);
+  useEffect(() => {
+    if (!db)
+      localStorage.setItem(OPTION_GROUPS_KEY, JSON.stringify(optionGroups));
+  }, [optionGroups]);
 
   const submitOrder = useCallback(
     async (draft: OrderDraft) => {
@@ -422,42 +443,184 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const saveProduct = async (product: Product) => {
     const normalized = normalizeProduct(product);
     if (db) {
-      const current = await getDocs(
-        query(collection(db, "products"), limit(100)),
-      );
-      const source = [
-        ...current.docs
-          .map((entry) => normalizeProduct(entry.data() as Product))
-          .filter((entry) => entry.id !== normalized.id),
-        normalized,
-      ];
-      const projection = buildPublicProjection(
-        source,
-        toppingAvailability,
-        optionGroups,
-      );
-      const batch = writeBatch(db);
-      batch.set(doc(db, "products", normalized.id), normalized);
-      Object.entries(projection.menu).forEach(([id, value]) =>
-        batch.set(doc(db!, "publicMenu", id), value),
-      );
-      Object.entries(projection.optionGroups).forEach(([id, value]) =>
-        batch.set(doc(db!, "publicOptionGroups", id), value),
-      );
-      batch.set(
-        doc(db, "publicSettings", "customerRequestPolicy"),
-        projection.requestPolicy,
-      );
-      batch.set(
-        doc(db, "publicProjectionControl", publicProjectionControlId),
-        projection.control,
-      );
-      await batch.commit();
-    } else
-      setProducts((rows) => [
-        ...rows.filter((entry) => entry.id !== normalized.id),
-        normalized,
+      const firestore = db;
+      const [current, catalogue] = await Promise.all([
+        getDocs(query(collection(firestore, "products"), limit(100))),
+        readPrivateOptionGroups(firestore),
       ]);
+      const currentProducts = current.docs.map((entry) =>
+        normalizeProduct(entry.data() as Product),
+      );
+      await runTransaction(firestore, async (transaction) => {
+        const controlRef = doc(
+          firestore,
+          "publicProjectionControl",
+          publicProjectionControlId,
+        );
+        const availabilityRef = doc(
+          firestore,
+          "settings",
+          "toppingAvailability",
+        );
+        const [control, availability] = await Promise.all([
+          transaction.get(controlRef),
+          transaction.get(availabilityRef),
+          ...catalogue.map((group) =>
+            transaction.get(doc(firestore, "optionGroups", group.id)),
+          ),
+        ]);
+        const canonicalAvailability =
+          (availability.data()?.availability as
+            | ToppingAvailability
+            | undefined) ?? {};
+        const currentProjection = buildPublicProjection(
+          currentProducts,
+          canonicalAvailability,
+          catalogue,
+        );
+        if (
+          control.exists() &&
+          control.data().fingerprint !== currentProjection.fingerprint
+        )
+          throw new Error(
+            "Catalogue changed concurrently. Reload Products and try again.",
+          );
+        const prepared = prepareProductCatalogueSave({
+          product: normalized,
+          products: currentProducts,
+          catalogue,
+        });
+        const projection = buildPublicProjection(
+          prepared.products,
+          canonicalAvailability,
+          prepared.catalogue,
+        );
+        transaction.set(
+          doc(firestore, "products", normalized.id),
+          toFirestoreData(normalized),
+        );
+        prepared.catalogue.forEach((group) => {
+          const previous = catalogue.find((entry) => entry.id === group.id);
+          if (!sameOptionGroup(previous, group))
+            transaction.set(
+              doc(firestore, "optionGroups", group.id),
+              toFirestoreData(group),
+            );
+        });
+        Object.entries(projection.menu).forEach(([id, value]) =>
+          transaction.set(doc(firestore, "publicMenu", id), value),
+        );
+        Object.entries(projection.optionGroups).forEach(([id, value]) =>
+          transaction.set(doc(firestore, "publicOptionGroups", id), value),
+        );
+        transaction.set(
+          doc(firestore, "publicSettings", "customerRequestPolicy"),
+          projection.requestPolicy,
+        );
+        transaction.set(controlRef, projection.control);
+      });
+    } else {
+      const prepared = prepareProductCatalogueSave({
+        product: normalized,
+        products,
+        catalogue: optionGroups,
+      });
+      setProducts(prepared.products);
+      setOptionGroups(prepared.catalogue);
+    }
+  };
+
+  const saveOptionGroup = async (
+    group: OptionGroup,
+    previous?: OptionGroup,
+  ) => {
+    const normalized = normalizeOptionGroup(group);
+    if (db) {
+      const firestore = db;
+      const [currentProductsSnapshot, catalogue] = await Promise.all([
+        getDocs(query(collection(firestore, "products"), limit(100))),
+        readPrivateOptionGroups(firestore),
+      ]);
+      const currentProducts = currentProductsSnapshot.docs.map((entry) =>
+        normalizeProduct(entry.data() as Product),
+      );
+      await runTransaction(firestore, async (transaction) => {
+        const controlRef = doc(
+          firestore,
+          "publicProjectionControl",
+          publicProjectionControlId,
+        );
+        const availabilityRef = doc(
+          firestore,
+          "settings",
+          "toppingAvailability",
+        );
+        const groupRef = doc(firestore, "optionGroups", normalized.id);
+        const [control, availability, persistedGroup] = await Promise.all([
+          transaction.get(controlRef),
+          transaction.get(availabilityRef),
+          transaction.get(groupRef),
+        ]);
+        const canonicalAvailability =
+          (availability.data()?.availability as
+            | ToppingAvailability
+            | undefined) ?? {};
+        const currentProjection = buildPublicProjection(
+          currentProducts,
+          canonicalAvailability,
+          catalogue,
+        );
+        if (
+          control.exists() &&
+          control.data().fingerprint !== currentProjection.fingerprint
+        )
+          throw new Error(
+            "Catalogue changed concurrently. Reload Products and try again.",
+          );
+        const currentGroup = persistedGroup.exists()
+          ? normalizeOptionGroup(persistedGroup.data() as OptionGroup)
+          : catalogue.find((entry) => entry.id === normalized.id);
+        if (previous) {
+          if (!sameOptionGroup(previous, currentGroup))
+            throw new Error(
+              "This option group changed concurrently. Reload and try again.",
+            );
+        } else if (persistedGroup.exists()) {
+          throw new Error("An option group with this ID already exists");
+        }
+        const prepared = prepareOptionGroupSave({
+          previous: currentGroup,
+          next: normalized,
+          catalogue,
+          products: currentProducts,
+        });
+        const projection = buildPublicProjection(
+          currentProducts,
+          canonicalAvailability,
+          prepared.catalogue,
+        );
+        transaction.set(groupRef, toFirestoreData(prepared.group));
+        Object.entries(projection.menu).forEach(([id, value]) =>
+          transaction.set(doc(firestore, "publicMenu", id), value),
+        );
+        Object.entries(projection.optionGroups).forEach(([id, value]) =>
+          transaction.set(doc(firestore, "publicOptionGroups", id), value),
+        );
+        transaction.set(
+          doc(firestore, "publicSettings", "customerRequestPolicy"),
+          projection.requestPolicy,
+        );
+        transaction.set(controlRef, projection.control);
+      });
+    } else {
+      const prepared = prepareOptionGroupSave({
+        previous,
+        next: normalized,
+        catalogue: optionGroups,
+        products,
+      });
+      setOptionGroups(prepared.catalogue);
+    }
   };
 
   const setToppingAvailability = async (id: string, available: boolean) => {
@@ -505,9 +668,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (db) {
       const firestore = db;
       const importedProducts = data.products.map(normalizeProduct);
-      const current = await getDocs(
-        query(collection(firestore, "products"), limit(100)),
-      );
+      const [current, catalogue] = await Promise.all([
+        getDocs(query(collection(firestore, "products"), limit(100))),
+        readPrivateOptionGroups(firestore),
+      ]);
       const importedIds = new Set(
         importedProducts.map((product) => product.id),
       );
@@ -517,15 +681,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
           .filter((entry) => !importedIds.has(entry.id)),
         ...importedProducts,
       ];
+      const prepared = prepareCatalogueForProducts(source, catalogue);
       const projection = buildPublicProjection(
-        source,
+        prepared.products,
         toppingAvailability,
-        optionGroups,
+        prepared.catalogue,
       );
       const batch = writeBatch(firestore);
       importedProducts.forEach((product) =>
-        batch.set(doc(firestore, "products", product.id), product),
+        batch.set(
+          doc(firestore, "products", product.id),
+          toFirestoreData(product),
+        ),
       );
+      prepared.catalogue.forEach((group) => {
+        const previous = catalogue.find((entry) => entry.id === group.id);
+        if (!sameOptionGroup(previous, group))
+          batch.set(
+            doc(firestore, "optionGroups", group.id),
+            toFirestoreData(group),
+          );
+      });
       Object.entries(projection.menu).forEach(([id, value]) =>
         batch.set(doc(firestore, "publicMenu", id), value),
       );
@@ -547,7 +723,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ),
       );
     } else {
-      setProducts(data.products);
+      const importedProducts = data.products.map(normalizeProduct);
+      const prepared = prepareCatalogueForProducts(
+        importedProducts,
+        optionGroups,
+      );
+      setProducts(prepared.products);
+      setOptionGroups(prepared.catalogue);
       setOrders(data.orders);
     }
   };
@@ -568,6 +750,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     replaceOrder,
     setOrderStatus,
     saveProduct,
+    saveOptionGroup,
     setToppingAvailability,
     importBackup,
   };
