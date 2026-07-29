@@ -53,6 +53,7 @@ import {
 import {
   readPrivateOptionGroups,
   subscribePrivateOptionGroups,
+  writePrivateOptionGroup,
 } from "./optionCatalogueRepository";
 import {
   prepareCatalogueForProducts,
@@ -92,6 +93,7 @@ interface SessionUser {
   isAnonymous?: boolean;
   canManageCustomerOrdering?: boolean;
 }
+
 interface AuthValue {
   user: SessionUser | null;
   loading: boolean;
@@ -502,10 +504,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         prepared.catalogue.forEach((group) => {
           const previous = catalogue.find((entry) => entry.id === group.id);
           if (!sameOptionGroup(previous, group))
-            transaction.set(
-              doc(firestore, "optionGroups", group.id),
-              toFirestoreData(group),
-            );
+            writePrivateOptionGroup(transaction, firestore, group, previous);
         });
         Object.entries(projection.menu).forEach(([id, value]) =>
           transaction.set(doc(firestore, "publicMenu", id), value),
@@ -577,9 +576,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           throw new Error(
             "Catalogue changed concurrently. Reload Products and try again.",
           );
-        const currentGroup = persistedGroup.exists()
-          ? normalizeOptionGroup(persistedGroup.data() as OptionGroup)
-          : catalogue.find((entry) => entry.id === normalized.id);
+        const currentGroup = catalogue.find(
+          (entry) => entry.id === normalized.id,
+        );
         if (previous) {
           if (!sameOptionGroup(previous, currentGroup))
             throw new Error(
@@ -599,7 +598,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           canonicalAvailability,
           prepared.catalogue,
         );
-        transaction.set(groupRef, toFirestoreData(prepared.group));
+        writePrivateOptionGroup(
+          transaction,
+          firestore,
+          prepared.group,
+          currentGroup,
+        );
         Object.entries(projection.menu).forEach(([id, value]) =>
           transaction.set(doc(firestore, "publicMenu", id), value),
         );
@@ -697,10 +701,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       prepared.catalogue.forEach((group) => {
         const previous = catalogue.find((entry) => entry.id === group.id);
         if (!sameOptionGroup(previous, group))
-          batch.set(
-            doc(firestore, "optionGroups", group.id),
-            toFirestoreData(group),
-          );
+          writePrivateOptionGroup(batch, firestore, group, previous);
       });
       Object.entries(projection.menu).forEach(([id, value]) =>
         batch.set(doc(firestore, "publicMenu", id), value),

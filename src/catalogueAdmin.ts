@@ -86,21 +86,14 @@ export function isChoiceReferenced(
 }
 
 export function hardDeleteChoiceDecision(
-  groupId: string,
-  choice: OptionChoice,
-  products: Product[],
+  _groupId: string,
+  _choice: OptionChoice,
+  _products: Product[],
 ): HardDeleteDecision {
-  if (choice.everUsed)
-    return {
-      allowed: false,
-      reason: "Previously used choices must be archived to preserve history",
-    };
-  if (isChoiceReferenced(groupId, choice.id, products))
-    return {
-      allowed: false,
-      reason: "Assigned choices must be unassigned before deletion",
-    };
-  return { allowed: true };
+  return {
+    allowed: false,
+    reason: "Choices must be archived because physical deletion is disabled",
+  };
 }
 
 export function markAssignedChoicesEverUsed(

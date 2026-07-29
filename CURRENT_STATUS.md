@@ -15,7 +15,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
 - Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
 - Other open work: Draft PR #14 remains paused and unchanged at `b36f8a88728115228f8363b4ab7185e1e1ace1a8`
-- WP-CC-02 application validation: 402 tests passed across 44 files
+- WP-CC-02 application validation: 410 tests passed across 45 files
 - Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
@@ -52,23 +52,29 @@ This is the current operational snapshot. Git history is authoritative for earli
   confirmation, Rules coverage, and a guarded dry-run-default projection
   migration mode.
 - WP-CC-02 local implementation adds bounded Staff CRUD and lifecycle controls
-  for groups and choices, deterministic stable IDs, safe archive/delete policy,
-  sale availability, Product assignments, atomic catalogue/Product/public
-  projection writes, and optimistic concurrency rejection. Existing legacy
-  Product modes and pricing remain supported without a destructive migration.
+  for groups and choices, deterministic stable IDs, archive-only removal, sale
+  availability, Product assignments, atomic catalogue/Product/public projection
+  writes, and optimistic concurrency rejection. Private group documents contain
+  metadata only; each Choice is canonically stored at
+  `optionGroups/{groupId}/choices/{choiceId}`, with the path as its immutable
+  identity. Existing legacy Product modes and pricing remain supported without
+  a destructive migration.
 - Product images use Firebase Storage with JPEG/PNG/WebP and 5 MiB validation,
   minimal Product/public metadata, safe replace/remove rollback, Staff write
   authorization, published-image read authorization, Emoji/neutral fallback,
   emulator coverage, and an exact-head/manual-approval isolated-UAT Storage
   workflow. No remote workflow was run.
-- WP-CC-02 validation passed 50 focused tests across 9 files, 402 full
-  application tests across 44 files, 24 Firestore Rules tests, and 3 Storage
-  Rules tests using portable JDK 21. TypeScript, lint, Production build,
+- WP-CC-02 per-choice correction validation passed 41 focused tests across 7
+  files, 410 full application tests across 45 files, 25 Firestore Rules tests,
+  and 3 Storage Rules tests using portable JDK 21. The real nested Rules also
+  passed an atomic one-group-plus-50-Choice create and a 50-Choice reorder/update
+  proof. TypeScript, lint, Production build,
   actionlint, responsive Staff UI review, formatting, `git diff --check`, and
   changed-file credential checks passed.
 - Offline dry-run review fingerprint `cc3-62a7a5c1ee582c6a` was identical
-  twice. The empty baseline planned 13 writes and performed 0; the simulated
-  current baseline planned 0 writes and performed 0.
+  twice. The empty baseline planned 31 writes, including 18 canonical Choice
+  documents, and performed 0; the simulated current baseline planned 0 writes
+  and performed 0.
 - The pre-merge formatting-only QA correction pins the changed Prettier-supported files
   to LF in `.gitattributes`, preventing Windows `core.autocrlf` from changing a
   clean checkout before Prettier 3.6.2 validation. No application, Rules,

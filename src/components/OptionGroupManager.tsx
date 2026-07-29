@@ -1,9 +1,6 @@
-import { Archive, Plus, Save, Trash2 } from "lucide-react";
+import { Archive, Plus, Save } from "lucide-react";
 import { useState } from "react";
-import {
-  createStableCatalogueId,
-  hardDeleteChoiceDecision,
-} from "../catalogueAdmin";
+import { createStableCatalogueId } from "../catalogueAdmin";
 import { fallbackOptionGroups } from "../optionCatalogue";
 import { useData } from "../store";
 import type { OptionChoice, OptionGroup } from "../types";
@@ -59,7 +56,6 @@ function resolveDraftIds(
 export default function OptionGroupManager() {
   const {
     optionGroups: storedOptionGroups,
-    products,
     toppingAvailability,
     saveOptionGroup,
     setToppingAvailability,
@@ -100,19 +96,8 @@ export default function OptionGroupManager() {
 
   const removeOrArchiveChoice = (choice: OptionChoice) => {
     if (!editor) return;
-    const decision = hardDeleteChoiceDecision(
-      editor.draft.id,
-      choice,
-      products,
-    );
-    const action = decision.allowed ? "permanently delete" : "archive";
-    if (!window.confirm(`Confirm ${action} for “${choice.name}”?`)) return;
-    if (decision.allowed)
-      changeGroup(
-        "choices",
-        editor.draft.choices.filter((entry) => entry.id !== choice.id),
-      );
-    else changeChoice(choice.id, "active", false);
+    if (!window.confirm(`Confirm archive for “${choice.name}”?`)) return;
+    changeChoice(choice.id, "active", false);
   };
 
   const save = async () => {
@@ -347,11 +332,6 @@ export default function OptionGroupManager() {
                   choice.id.startsWith("__draft-") ||
                   toppingAvailability[choice.availabilityId ?? choice.id] !==
                     false;
-                const decision = hardDeleteChoiceDecision(
-                  editor.draft.id,
-                  choice,
-                  products,
-                );
                 return (
                   <fieldset className="catalogue-choice-card" key={choice.id}>
                     <legend>{choice.name}</legend>
@@ -454,11 +434,11 @@ export default function OptionGroupManager() {
                         {available ? "On sale" : "Sold out"}
                       </button>
                       <button
-                        className={decision.allowed ? "danger" : "secondary"}
+                        className="secondary"
                         onClick={() => removeOrArchiveChoice(choice)}
                       >
-                        {decision.allowed ? <Trash2 /> : <Archive />}
-                        {decision.allowed ? "Delete" : "Archive"}
+                        <Archive />
+                        Archive
                       </button>
                     </div>
                   </fieldset>

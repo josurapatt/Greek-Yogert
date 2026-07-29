@@ -457,27 +457,15 @@ service cloud.firestore {
     }
     function validOptionChoice(choice, publicData) {
       return choice is map
-        && (
-          (publicData
-            && choice.keys().hasOnly([
-              'id', 'name', 'active', 'displayOrder', 'classification',
-              'surcharge', 'availabilityId'
-            ])
-            && choice.keys().hasAll([
-              'id', 'name', 'active', 'displayOrder', 'classification',
-              'surcharge'
-            ]))
-          || (!publicData
-            && choice.keys().hasOnly([
-              'id', 'name', 'active', 'displayOrder', 'classification',
-              'surcharge', 'availabilityId', 'everUsed'
-            ])
-            && choice.keys().hasAll([
-              'id', 'name', 'active', 'displayOrder', 'classification',
-              'surcharge', 'everUsed'
-            ])
-            && choice.everUsed is bool)
-        )
+        && publicData
+        && choice.keys().hasOnly([
+          'id', 'name', 'active', 'displayOrder', 'classification',
+          'surcharge', 'availabilityId'
+        ])
+        && choice.keys().hasAll([
+          'id', 'name', 'active', 'displayOrder', 'classification',
+          'surcharge'
+        ])
         && validBoundedString(choice.id, 120)
         && choice.id.size() > 0
         && validBoundedString(choice.name, 120)
@@ -580,6 +568,56 @@ service cloud.firestore {
         && data.allowDuplicates is bool
         && data.pricingMode in ['legacy-topping', 'choice-surcharge']
         && validOptionChoices(data.choices, publicData);
+    }
+    function validPrivateOptionGroup(data, groupId) {
+      return data.keys().hasOnly([
+          'id', 'displayName', 'active', 'displayOrder', 'required',
+          'minSelections', 'maxSelections', 'allowDuplicates', 'pricingMode'
+        ])
+        && data.keys().hasAll([
+          'id', 'displayName', 'active', 'displayOrder', 'required',
+          'minSelections', 'maxSelections', 'allowDuplicates', 'pricingMode'
+        ])
+        && data.id == groupId
+        && validBoundedString(data.id, 120)
+        && validBoundedString(data.displayName, 120)
+        && data.displayName.size() > 0
+        && data.active is bool
+        && data.displayOrder is int
+        && data.displayOrder >= 0
+        && data.displayOrder <= 10000
+        && data.required is bool
+        && data.minSelections is int
+        && data.minSelections >= 0
+        && data.maxSelections is int
+        && data.maxSelections >= data.minSelections
+        && data.maxSelections <= 10
+        && data.allowDuplicates is bool
+        && data.pricingMode in ['legacy-topping', 'choice-surcharge'];
+    }
+    function validPrivateOptionChoiceDocument(data) {
+      return data.keys().hasOnly([
+          'name', 'active', 'displayOrder', 'classification', 'surcharge',
+          'availabilityId', 'everUsed'
+        ])
+        && data.keys().hasAll([
+          'name', 'active', 'displayOrder', 'classification', 'surcharge',
+          'everUsed'
+        ])
+        && validBoundedString(data.name, 120)
+        && data.name.size() > 0
+        && data.active is bool
+        && data.displayOrder is int
+        && data.displayOrder >= 0
+        && data.displayOrder <= 10000
+        && data.classification in ['normal', 'premium']
+        && data.surcharge is int
+        && data.surcharge >= 0
+        && data.surcharge <= 5000
+        && data.everUsed is bool
+        && (!data.keys().hasAny(['availabilityId'])
+          || (validBoundedString(data.availabilityId, 120)
+            && data.availabilityId.size() > 0));
     }
     function validPublicAvailability(data) {
       return data.keys().hasOnly(['availability']) && data.availability is map;
@@ -716,8 +754,23 @@ service cloud.firestore {
       allow get: if isAuthorizedStaff();
       allow list: if isAuthorizedStaff() && request.query.limit <= 20;
       allow create, update: if isAuthorizedStaff()
-        && validOptionGroup(request.resource.data, groupId, false);
+        && validPrivateOptionGroup(request.resource.data, groupId);
       allow delete: if false;
+
+      match /choices/{choiceId} {
+        allow get: if isAuthorizedStaff();
+        allow list: if isAuthorizedStaff() && request.query.limit <= 50;
+        allow create: if isAuthorizedStaff()
+          && validBoundedString(choiceId, 120)
+          && choiceId.size() > 0
+          && validPrivateOptionChoiceDocument(request.resource.data);
+        allow update: if isAuthorizedStaff()
+          && validBoundedString(choiceId, 120)
+          && choiceId.size() > 0
+          && validPrivateOptionChoiceDocument(request.resource.data)
+          && (!resource.data.everUsed || request.resource.data.everUsed);
+        allow delete: if false;
+      }
     }
     match /publicOptionGroups/{groupId} {
       allow get: if isAnonymousCustomer() || isAuthorizedStaff();

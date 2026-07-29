@@ -102,6 +102,7 @@ export async function confirmCustomerRequestTransaction(
         firestore,
         transaction,
         optionGroupIdsForProducts(privateProducts),
+        current.items.flatMap((item) => item.selectedOptionIds),
       );
       const trusted = rebuildTrustedCustomerConfirmation(
         current,

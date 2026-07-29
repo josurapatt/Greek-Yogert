@@ -142,6 +142,25 @@ const optionGroup = (id = "toppings", options: { public?: boolean } = {}) => ({
   ],
 });
 
+const privateOptionGroup = (id = "toppings") => {
+  const { choices: _choices, ...group } = optionGroup(id);
+  void _choices;
+  return group;
+};
+
+const privateOptionChoice = (
+  id: string,
+  overrides: Record<string, unknown> = {},
+) => ({
+  name: id === "banana" ? "กล้วย" : `Choice ${id}`,
+  active: true,
+  displayOrder: 0,
+  classification: "normal",
+  surcharge: 0,
+  everUsed: false,
+  ...overrides,
+});
+
 const seed = async (data: Record<string, unknown>) =>
   environment.withSecurityRulesDisabled(async (context) => {
     const database = context.firestore();
@@ -328,7 +347,7 @@ describe("WP4 Production-candidate Firestore authorization", () => {
 
   it("keeps private groups Staff-only and allows only bounded public-group reads", async () => {
     await seed({
-      "optionGroups/toppings": optionGroup(),
+      "optionGroups/toppings": privateOptionGroup(),
       "publicOptionGroups/toppings": optionGroup("toppings", {
         public: true,
       }),
@@ -364,12 +383,12 @@ describe("WP4 Production-candidate Firestore authorization", () => {
       getDocs(query(collection(staff, "optionGroups"), limit(20))),
     );
     await assertSucceeds(
-      setDoc(doc(staff, "optionGroups/custom"), optionGroup("custom")),
+      setDoc(doc(staff, "optionGroups/custom"), privateOptionGroup("custom")),
     );
     await assertFails(
       setDoc(
         doc(inactiveStaff, "optionGroups/inactive-write"),
-        optionGroup("inactive-write"),
+        privateOptionGroup("inactive-write"),
       ),
     );
     await assertSucceeds(
@@ -382,6 +401,135 @@ describe("WP4 Production-candidate Firestore authorization", () => {
       setDoc(
         doc(staff, "publicOptionGroups/wrong-id"),
         optionGroup("other", { public: true }),
+      ),
+    );
+  });
+
+  it("proves the bounded private Choice-document lifecycle with 50-choice atomic writes", async () => {
+    await seed({
+      "users/staff": { role: "staff", active: true },
+      "users/inactive-staff": { role: "staff", active: false },
+    });
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const inactiveStaff = environment
+      .authenticatedContext("inactive-staff", passwordToken)
+      .firestore();
+    const ordinaryUser = environment
+      .authenticatedContext("ordinary-user", passwordToken)
+      .firestore();
+    const customer = environment
+      .authenticatedContext("customer-a", anonymousToken)
+      .firestore();
+    const groupPath = "optionGroups/phase-a";
+    const choiceIds = Array.from(
+      { length: 50 },
+      (_, index) => `choice-${String(index).padStart(2, "0")}`,
+    );
+
+    const createBatch = writeBatch(staff);
+    createBatch.set(doc(staff, groupPath), privateOptionGroup("phase-a"));
+    choiceIds.forEach((choiceId, index) =>
+      createBatch.set(
+        doc(staff, groupPath, "choices", choiceId),
+        privateOptionChoice(choiceId, {
+          displayOrder: index,
+          everUsed: index === 0,
+        }),
+      ),
+    );
+    await assertSucceeds(createBatch.commit());
+
+    const reorderBatch = writeBatch(staff);
+    choiceIds.forEach((choiceId, index) =>
+      reorderBatch.set(doc(staff, groupPath, "choices", choiceId), {
+        ...privateOptionChoice(choiceId, {
+          displayOrder: choiceIds.length - index - 1,
+          everUsed: index === 0,
+        }),
+      }),
+    );
+    await assertSucceeds(reorderBatch.commit());
+
+    const usedChoiceRef = doc(staff, groupPath, "choices", choiceIds[0]);
+    const unusedChoiceRef = doc(staff, groupPath, "choices", choiceIds[1]);
+    await assertFails(
+      setDoc(
+        usedChoiceRef,
+        privateOptionChoice(choiceIds[0], {
+          displayOrder: 49,
+          everUsed: false,
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        usedChoiceRef,
+        privateOptionChoice(choiceIds[0], {
+          name: "Edited used choice",
+          displayOrder: 49,
+          classification: "premium",
+          surcharge: 25,
+          everUsed: true,
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        unusedChoiceRef,
+        privateOptionChoice(choiceIds[1], {
+          displayOrder: 48,
+          everUsed: true,
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(doc(staff, groupPath), {
+        ...privateOptionGroup("phase-a"),
+        active: false,
+      }),
+    );
+    await assertSucceeds(
+      setDoc(
+        unusedChoiceRef,
+        privateOptionChoice(choiceIds[1], {
+          active: false,
+          displayOrder: 48,
+          everUsed: true,
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(staff, groupPath, "choices", "forged"),
+        privateOptionChoice("forged", { id: "conflict" }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(staff, groupPath, "choices", "invalid"),
+        privateOptionChoice("invalid", { surcharge: -1 }),
+      ),
+    );
+    await assertFails(deleteDoc(usedChoiceRef));
+    await assertFails(deleteDoc(doc(staff, groupPath)));
+    await assertFails(
+      setDoc(
+        doc(customer, groupPath, "choices", "customer-write"),
+        privateOptionChoice("customer-write"),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(inactiveStaff, groupPath, "choices", "inactive-write"),
+        privateOptionChoice("inactive-write"),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(ordinaryUser, groupPath, "choices", "ordinary-write"),
+        privateOptionChoice("ordinary-write"),
       ),
     );
   });

@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { defaultProducts } from "../src/data";
 import {
   fallbackOptionGroups,
+  maxChoicesPerOptionGroup,
   maxOptionGroupsPerCatalogue,
   mergeOptionGroupsWithFallback,
   normalizeOptionGroup,
@@ -13,6 +14,13 @@ import {
   diffPublicProjection,
   projectionFingerprint,
 } from "../src/publicProjection";
+import {
+  normalizeLegacyPrivateOptionGroupDocument,
+  normalizePrivateOptionChoiceDocument,
+  normalizePrivateOptionGroupDocument,
+  serializePrivateOptionChoice,
+  serializePrivateOptionGroup,
+} from "../src/optionCataloguePersistence";
 import type { OptionGroup, Product, ToppingAvailability } from "../src/types";
 
 const productionProject = "greek-yogert";
@@ -21,6 +29,7 @@ const offlineProject = "offline-review";
 const applyConfirmation = "APPLY_PUBLIC_PROJECTION";
 const approvedWriteNamespaces = [
   "optionGroups/*",
+  "optionGroups/*/choices/*",
   "publicOptionGroups/*",
   "publicMenu/*",
   "publicSettings/toppingAvailability",
@@ -131,6 +140,9 @@ function buildResult(
     .map((group) => group.id)
     .filter((id) => !(id in existing.privateGroups))
     .sort();
+  const privateChoiceCreates = fallbackOptionGroups
+    .filter((group) => privateGroupCreates.includes(group.id))
+    .reduce((count, group) => count + group.choices.length, 0);
   const availabilityCurrent = exactCurrentValue(existing.publicAvailability, {
     availability: projection.availability,
   });
@@ -144,6 +156,7 @@ function buildResult(
   );
   const writeCount =
     privateGroupCreates.length +
+    privateChoiceCreates +
     diff.create.length +
     diff.update.length +
     diff.stale.length +
@@ -201,6 +214,7 @@ function buildResult(
       },
       plan: {
         privateOptionGroupCreates: privateGroupCreates,
+        privateOptionChoiceCreates: privateChoiceCreates,
         menuCreates: diff.create,
         menuUpdates: diff.update,
         menuRemovals: diff.stale,
@@ -236,7 +250,10 @@ async function offlineDryRun(
   const existing: ExistingProjectionState = current
     ? {
         privateGroups: Object.fromEntries(
-          fallbackOptionGroups.map((group) => [group.id, group]),
+          fallbackOptionGroups.map((group) => [
+            group.id,
+            serializePrivateOptionGroup(group),
+          ]),
         ),
         publicMenu: projection.menu,
         publicGroups: projection.optionGroups,
@@ -327,10 +344,31 @@ async function remoteRun(
     documentId: snapshot.id,
     product: snapshot.data() as Product,
   }));
-  const groupDocuments = optionGroupsSnapshot.docs.map((snapshot) => ({
-    documentId: snapshot.id,
-    group: snapshot.data() as OptionGroup,
-  }));
+  const groupDocuments = await Promise.all(
+    optionGroupsSnapshot.docs.map(async (snapshot) => {
+      const rawGroup = snapshot.data();
+      const legacy = normalizeLegacyPrivateOptionGroupDocument(
+        snapshot.id,
+        rawGroup,
+      );
+      if (legacy) return { documentId: snapshot.id, rawGroup, group: legacy };
+      const choices = await snapshot.ref
+        .collection("choices")
+        .limit(maxChoicesPerOptionGroup)
+        .get();
+      return {
+        documentId: snapshot.id,
+        rawGroup,
+        group: normalizePrivateOptionGroupDocument(
+          snapshot.id,
+          rawGroup,
+          choices.docs.map((choice) =>
+            normalizePrivateOptionChoiceDocument(choice.id, choice.data()),
+          ),
+        ),
+      };
+    }),
+  );
   assertProductDocuments(productDocuments);
   assertGroupDocuments(groupDocuments);
   const persistedGroups = groupDocuments.map(({ group }) =>
@@ -338,7 +376,7 @@ async function remoteRun(
   );
   const existing: ExistingProjectionState = {
     privateGroups: Object.fromEntries(
-      groupDocuments.map(({ documentId, group }) => [documentId, group]),
+      groupDocuments.map(({ documentId, rawGroup }) => [documentId, rawGroup]),
     ),
     publicMenu: Object.fromEntries(
       publicMenuSnapshot.docs.map((snapshot) => [snapshot.id, snapshot.data()]),
@@ -400,7 +438,16 @@ async function remoteRun(
   result.privateGroupCreates.forEach((id) => {
     const group = fallbackOptionGroups.find((entry) => entry.id === id);
     if (!group) throw new Error(`Missing committed fallback group ${id}`);
-    batch.create(firestore.doc(`optionGroups/${id}`), group);
+    batch.create(
+      firestore.doc(`optionGroups/${id}`),
+      serializePrivateOptionGroup(group),
+    );
+    group.choices.forEach((choice) =>
+      batch.create(
+        firestore.doc(`optionGroups/${id}/choices/${choice.id}`),
+        serializePrivateOptionChoice(choice),
+      ),
+    );
   });
   [...result.diff.create, ...result.diff.update].forEach((id) =>
     batch.set(firestore.doc(`publicMenu/${id}`), result.projection.menu[id]),

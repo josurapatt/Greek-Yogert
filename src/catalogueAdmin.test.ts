@@ -98,11 +98,11 @@ describe("catalogue administration policy", () => {
     expect(saved.group.choices.at(-1)?.id).toBe(first.id);
   });
 
-  it("archives previously used choices and hard-deletes only new unreferenced choices", () => {
+  it("archives every choice and rejects physical deletion", () => {
     const group = customGroup();
     const newChoice = group.choices[0];
-    expect(hardDeleteChoiceDecision(group.id, newChoice, [])).toEqual({
-      allowed: true,
+    expect(hardDeleteChoiceDecision(group.id, newChoice, [])).toMatchObject({
+      allowed: false,
     });
 
     const usedChoice = { ...group.choices[1], everUsed: true };
@@ -117,6 +117,14 @@ describe("catalogue administration policy", () => {
           ...fallbackOptionGroups,
           { ...group, choices: [usedChoice] },
         ],
+        products: [],
+      }),
+    ).toThrow(/archived/i);
+    expect(() =>
+      prepareOptionGroupSave({
+        previous: group,
+        next: { ...group, choices: group.choices.slice(1) },
+        catalogue: [...fallbackOptionGroups, group],
         products: [],
       }),
     ).toThrow(/archived/i);

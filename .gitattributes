@@ -5,6 +5,7 @@
 /CURRENT_STATUS.md text eol=lf
 /docs/AI_TEAM_PROTOCOL.md text eol=lf
 /docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md text eol=lf
+/firestore.production.rules text eol=lf
 /firestore.production.test.ts text eol=lf
 /scripts/projectPublicData.ts text eol=lf
 /scripts/wp4UatValidation.ts text eol=lf
@@ -16,6 +17,8 @@
 /src/lib.ts text eol=lf
 /src/optionCatalogue.test.ts text eol=lf
 /src/optionCatalogue.ts text eol=lf
+/src/optionCataloguePersistence.test.ts text eol=lf
+/src/optionCataloguePersistence.ts text eol=lf
 /src/optionCatalogueRepository.test.ts text eol=lf
 /src/optionCatalogueRepository.ts text eol=lf
 /src/publicProjection.test.ts text eol=lf
