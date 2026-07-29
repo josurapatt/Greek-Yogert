@@ -78,7 +78,7 @@ must independently reconcile Git and the durable files before continuing.
 - Reusing the light-purple UI branch or mixing PR #14 changes into this
   workstream.
 - Searching reflogs, stashes, or old project copies for topping CRUD code.
-- Weakening Firestore or Storage authorization to make tests pass.
+- Weakening Firestore authorization to make tests pass.
 - Repricing, rewriting, or deleting confirmed historical order snapshots.
 - Enabling billing, Blaze, Cloud Functions, App Check enforcement, or any
   Production action without explicit approval.

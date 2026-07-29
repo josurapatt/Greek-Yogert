@@ -3,9 +3,7 @@ import { useState } from "react";
 import "../catalogue.css";
 import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import OptionGroupManager from "../components/OptionGroupManager";
-import ProductImageField from "../components/ProductImageField";
 import ProductOptionAssignmentsField from "../components/ProductOptionAssignmentsField";
-import ProductVisual from "../components/ProductVisual";
 import { normalizeProduct, toppings } from "../data";
 import { getChannelRules, getProductPrice, money } from "../lib";
 import { productSelectedOptionLimits } from "../customerRequestPolicy";
@@ -188,12 +186,7 @@ export default function ProductsPage() {
               className={`manage-card ${!product.active ? "disabled" : ""}`}
               key={product.id}
             >
-              <ProductVisual
-                className="manage-emoji"
-                emoji={product.emoji}
-                imageUrl={product.imageUrl}
-                name={product.name}
-              />
+              <span className="manage-emoji">{product.emoji}</span>
               <div>
                 <h2>{product.name}</h2>
                 <p>
@@ -402,7 +395,6 @@ export default function ProductsPage() {
                       }
                     />
                   </label>
-                  <ProductImageField product={editing} onChange={setEditing} />
                   <ProductOptionAssignmentsField
                     onChange={(assignments) =>
                       change("optionGroupAssignments", assignments)

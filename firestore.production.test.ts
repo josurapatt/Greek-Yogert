@@ -941,26 +941,6 @@ describe("WP4 Production-candidate Firestore authorization", () => {
     await assertSucceeds(
       setDoc(doc(staff, "publicMenu/plain-greek"), publicProduct()),
     );
-    await assertSucceeds(
-      setDoc(doc(staff, "publicMenu/plain-greek"), {
-        ...publicProduct(),
-        imagePath: "product-images/plain-greek/image-1.webp",
-        imageUrl: "https://example.test/image-1.webp",
-      }),
-    );
-    await assertFails(
-      setDoc(doc(staff, "publicMenu/plain-greek"), {
-        ...publicProduct(),
-        imagePath: "product-images/plain-greek/image-1.webp",
-      }),
-    );
-    await assertFails(
-      setDoc(doc(staff, "publicMenu/plain-greek"), {
-        ...publicProduct(),
-        imagePath: "other/plain-greek/image-1.webp",
-        imageUrl: "https://example.test/image-1.webp",
-      }),
-    );
     await assertFails(
       setDoc(doc(staff, "publicMenu/plain-greek"), {
         ...publicProduct(),

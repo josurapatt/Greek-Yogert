@@ -94,9 +94,6 @@ export function toCustomerPublicProduct(
     id: product.id,
     name: product.name,
     emoji: product.emoji,
-    ...(product.imagePath && product.imageUrl
-      ? { imagePath: product.imagePath, imageUrl: product.imageUrl }
-      : {}),
     description: product.description,
     active: product.active,
     storefrontPrice: price,
@@ -138,9 +135,6 @@ export function customerPublicProductToProduct(
     name: product.name,
     price: product.storefrontPrice,
     emoji: product.emoji,
-    ...(product.imagePath && product.imageUrl
-      ? { imagePath: product.imagePath, imageUrl: product.imageUrl }
-      : {}),
     description: product.description,
     active: product.active,
     optionMode: product.optionMode,

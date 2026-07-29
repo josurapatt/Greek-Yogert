@@ -5,7 +5,6 @@ import {
   browserLocalPersistence,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 import { initializeAppCheckBeforeFirebaseServices } from "@app-check-bootstrap";
 
 const config = {
@@ -43,7 +42,6 @@ initializeAppCheckBeforeFirebaseServices(app, {
 
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
-export const storage = app ? getStorage(app) : null;
 export const authPersistenceReady = auth
   ? setPersistence(auth, browserLocalPersistence)
   : Promise.resolve();

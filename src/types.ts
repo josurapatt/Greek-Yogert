@@ -67,8 +67,6 @@ export interface Product {
   name: string;
   price: number;
   emoji: string;
-  imagePath?: string;
-  imageUrl?: string;
   description: string[];
   optionMode: OptionMode;
   includedToppings: number;
@@ -91,8 +89,6 @@ export interface PublicCustomerProduct {
   id: string;
   name: string;
   emoji: string;
-  imagePath?: string;
-  imageUrl?: string;
   description: string[];
   active: boolean;
   storefrontPrice: number;

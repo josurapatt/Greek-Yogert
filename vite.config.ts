@@ -32,11 +32,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: "jsdom",
       globals: true,
-      exclude: [
-        "**/node_modules/**",
-        "firestore.production.test.ts",
-        "storage.rules.test.ts",
-      ],
+      exclude: ["**/node_modules/**", "firestore.production.test.ts"],
     },
     build: {
       chunkSizeWarningLimit: 600,

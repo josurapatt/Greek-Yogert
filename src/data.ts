@@ -178,24 +178,6 @@ export const defaultProducts: Product[] = [
 ];
 
 export function normalizeProduct(product: Product): Product {
-  if ((product.imagePath === undefined) !== (product.imageUrl === undefined))
-    throw new Error(
-      `Product ${product.id} must store imagePath and imageUrl together`,
-    );
-  if (
-    product.imagePath !== undefined &&
-    (!product.imagePath.startsWith(`product-images/${product.id}/`) ||
-      product.imagePath
-        .slice(`product-images/${product.id}/`.length)
-        .includes("/") ||
-      !/\.(?:jpg|png|webp)$/.test(product.imagePath))
-  )
-    throw new Error(`Product ${product.id} has an invalid image path`);
-  if (
-    product.imageUrl !== undefined &&
-    (!product.imageUrl || product.imageUrl.length > 2_048)
-  )
-    throw new Error(`Product ${product.id} has an invalid image URL`);
   const seeded = defaultProducts.find((entry) => entry.id === product.id);
   const basePrice = product.price ?? seeded?.price ?? 0;
   const prices = {

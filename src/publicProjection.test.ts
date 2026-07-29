@@ -15,30 +15,6 @@ import {
 } from "./publicProjection";
 
 describe("public Customer projection", () => {
-  it("projects only minimal Product image metadata and fingerprints it", () => {
-    const product = {
-      ...defaultProducts[0],
-      imagePath: `product-images/${defaultProducts[0].id}/image-1.webp`,
-      imageUrl: "https://example.test/image-1.webp",
-    };
-    const withImage = buildPublicProjection(
-      [product],
-      {},
-      fallbackOptionGroups,
-    );
-    const withoutImage = buildPublicProjection(
-      [defaultProducts[0]],
-      {},
-      fallbackOptionGroups,
-    );
-
-    expect(withImage.menu[product.id]).toMatchObject({
-      imagePath: product.imagePath,
-      imageUrl: product.imageUrl,
-    });
-    expect(withImage.fingerprint).not.toBe(withoutImage.fingerprint);
-  });
-
   it("whitelists only approved Customer menu fields and emits V3 policy/control", () => {
     const projection = buildPublicProjection(defaultProducts, {
       banana: false,
