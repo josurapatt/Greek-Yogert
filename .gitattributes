@@ -33,7 +33,10 @@
 /.github/workflows/deploy-catalogue-storage-uat.yml text eol=lf
 /firebase.customer-uat.json text eol=lf
 /firebase.json text eol=lf
+/scripts/catalogueOverflowRecovery.test.ts text eol=lf
+/scripts/catalogueOverflowRecovery.ts text eol=lf
 /scripts/catalogueStorageWorkflow.test.ts text eol=lf
+/scripts/runCatalogueOverflowRecovery.mjs text eol=lf
 /src/catalogue.css text eol=lf
 /src/catalogueAdmin.test.ts text eol=lf
 /src/catalogueAdmin.ts text eol=lf
