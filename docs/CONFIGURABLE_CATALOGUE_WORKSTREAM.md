@@ -919,6 +919,10 @@ records. Production rollback is outside this workstream.
 
 ## Unresolved blockers and decisions
 
+### Exceptional catalogue overflow recovery
+
+If the Staff application reports `Option group <groupId> exceeds the maximum of 50 choices.`, ordinary Staff clients must not attempt deletion. An approved operator first runs `pnpm catalogue:recover-overflow -- --project <approved-non-production-project> --group <groupId> --choice <choiceId>` to inspect one inactive, unused and unreferenced excess Choice. After separate environment approval, repeat with `--apply`; record the exact deleted path and operator evidence, then verify normal catalogue reads and the projection dry run. The command rejects Production, project mismatch, non-overflow groups, active/used/referenced/missing Choices, and deletes exactly one Choice. This is an exceptional controlled recovery procedure, not a Staff UI feature.
+
 1. **User decision required before remote product-image UAT:** approve Blaze and
    the required Storage-Rules-to-Firestore service permission on
    `greek-yogert-customer-uat-2026`, or provide a separate approved
