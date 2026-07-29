@@ -7,6 +7,7 @@
 /docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md text eol=lf
 /firestore.production.rules text eol=lf
 /firestore.production.test.ts text eol=lf
+/scripts/projectPublicData.test.ts text eol=lf
 /scripts/projectPublicData.ts text eol=lf
 /scripts/wp4UatValidation.ts text eol=lf
 /src/customerFirebase.tsx text eol=lf

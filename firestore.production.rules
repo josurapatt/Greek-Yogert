@@ -759,7 +759,7 @@ service cloud.firestore {
 
       match /choices/{choiceId} {
         allow get: if isAuthorizedStaff();
-        allow list: if isAuthorizedStaff() && request.query.limit <= 50;
+        allow list: if isAuthorizedStaff() && request.query.limit <= 51;
         allow create: if isAuthorizedStaff()
           && validBoundedString(choiceId, 120)
           && choiceId.size() > 0

@@ -56,6 +56,7 @@ function resolveDraftIds(
 export default function OptionGroupManager() {
   const {
     optionGroups: storedOptionGroups,
+    catalogueError,
     toppingAvailability,
     saveOptionGroup,
     setToppingAvailability,
@@ -152,6 +153,11 @@ export default function OptionGroupManager() {
           <Plus /> Add group
         </button>
       </div>
+      {catalogueError && (
+        <p className="validation" role="alert">
+          {catalogueError}
+        </p>
+      )}
       <div className="catalogue-group-list">
         {[...optionGroups]
           .sort(

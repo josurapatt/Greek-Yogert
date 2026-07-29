@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertOptionChoiceCount,
   normalizeLegacyPrivateOptionGroupDocument,
   normalizePrivateOptionChoiceDocument,
   normalizePrivateOptionGroupDocument,
+  optionChoiceReadLimit,
   serializePrivateOptionChoice,
   serializePrivateOptionGroup,
 } from "./optionCataloguePersistence";
@@ -33,6 +35,14 @@ const group: OptionGroup = {
 };
 
 describe("private option catalogue persistence", () => {
+  it("accepts the complete 50-Choice bound and rejects the sentinel overflow", () => {
+    expect(() => assertOptionChoiceCount("sauce", 50)).not.toThrow();
+    expect(optionChoiceReadLimit).toBe(51);
+    expect(() =>
+      assertOptionChoiceCount("sauce", optionChoiceReadLimit),
+    ).toThrow("Option group sauce exceeds the maximum of 50 choices.");
+  });
+
   it("stores group metadata without a mutable embedded Choice authority", () => {
     const persisted = serializePrivateOptionGroup(group);
     expect(persisted).toEqual({

@@ -213,6 +213,24 @@ describe("catalogue administration policy", () => {
     ).toThrow(/selection range/i);
   });
 
+  it("rejects application-managed creation of a 51st Choice before persistence", () => {
+    const group = customGroup();
+    const overflow = Array.from({ length: 51 }, (_, index) => ({
+      ...group.choices[0],
+      id: `choice-${index}`,
+      displayOrder: index,
+    }));
+
+    expect(() =>
+      prepareOptionGroupSave({
+        previous: undefined,
+        next: { ...group, choices: overflow },
+        catalogue: fallbackOptionGroups,
+        products: [],
+      }),
+    ).toThrow("Option group sauce exceeds the 50-choice limit");
+  });
+
   it("marks assigned choices everUsed irreversibly and preserves that state after unassignment", () => {
     const group = customGroup();
     const product = normalizeProduct({

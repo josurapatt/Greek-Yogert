@@ -4,7 +4,6 @@ import { execFileSync } from "node:child_process";
 import { defaultProducts } from "../src/data";
 import {
   fallbackOptionGroups,
-  maxChoicesPerOptionGroup,
   maxOptionGroupsPerCatalogue,
   mergeOptionGroupsWithFallback,
   normalizeOptionGroup,
@@ -15,9 +14,11 @@ import {
   projectionFingerprint,
 } from "../src/publicProjection";
 import {
+  assertOptionChoiceCount,
   normalizeLegacyPrivateOptionGroupDocument,
   normalizePrivateOptionChoiceDocument,
   normalizePrivateOptionGroupDocument,
+  optionChoiceReadLimit,
   serializePrivateOptionChoice,
   serializePrivateOptionGroup,
 } from "../src/optionCataloguePersistence";
@@ -239,8 +240,10 @@ async function offlineDryRun(
   expectedFingerprint?: string,
 ) {
   const baseline = argument("baseline") ?? "empty";
-  if (baseline !== "empty" && baseline !== "current")
-    throw new Error("Offline baseline must be empty or current");
+  if (baseline !== "empty" && baseline !== "current" && baseline !== "overflow")
+    throw new Error("Offline baseline must be empty, current, or overflow");
+  if (baseline === "overflow")
+    assertOptionChoiceCount(fallbackOptionGroups[0].id, optionChoiceReadLimit);
   const projection = buildPublicProjection(
     defaultProducts,
     {},
@@ -354,8 +357,9 @@ async function remoteRun(
       if (legacy) return { documentId: snapshot.id, rawGroup, group: legacy };
       const choices = await snapshot.ref
         .collection("choices")
-        .limit(maxChoicesPerOptionGroup)
+        .limit(optionChoiceReadLimit)
         .get();
+      assertOptionChoiceCount(snapshot.id, choices.size);
       return {
         documentId: snapshot.id,
         rawGroup,

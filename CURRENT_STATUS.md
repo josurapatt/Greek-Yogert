@@ -15,7 +15,8 @@ This is the current operational snapshot. Git history is authoritative for earli
 - Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
 - Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
 - Other open work: Draft PR #14 remains paused and unchanged at `b36f8a88728115228f8363b4ab7185e1e1ace1a8`
-- WP-CC-02 application validation: 410 tests passed across 45 files
+- WP-CC-02 application validation: 418 tests passed across 46 files
+- WP-CC-02 overflow-correction baseline before this commit: `b2e8be803a74fef99add09de0d94ab08139b6a88`
 - Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
@@ -64,11 +65,16 @@ This is the current operational snapshot. Git history is authoritative for earli
   authorization, published-image read authorization, Emoji/neutral fallback,
   emulator coverage, and an exact-head/manual-approval isolated-UAT Storage
   workflow. No remote workflow was run.
-- WP-CC-02 per-choice correction validation passed 41 focused tests across 7
-  files, 410 full application tests across 45 files, 25 Firestore Rules tests,
+- WP-CC-02 per-choice correction validation passed 41 baseline focused tests;
+  the overflow correction adds 30 focused tests across 5 files. Full validation
+  passed 418 application tests across 46 files, 26 Firestore Rules tests,
   and 3 Storage Rules tests using portable JDK 21. The real nested Rules also
   passed an atomic one-group-plus-50-Choice create and a 50-Choice reorder/update
-  proof. TypeScript, lint, Production build,
+  proof, allowed the 51-document sentinel read, and allowed a direct Staff
+  51st-Choice write for application-side overflow detection. Canonical reads,
+  subscriptions, trusted reconstruction, and projection tooling reject 51
+  Choices with a stable error while preserving the last valid subscription
+  catalogue. TypeScript, lint, Production build,
   actionlint, responsive Staff UI review, formatting, `git diff --check`, and
   changed-file credential checks passed.
 - Offline dry-run review fingerprint `cc3-62a7a5c1ee582c6a` was identical

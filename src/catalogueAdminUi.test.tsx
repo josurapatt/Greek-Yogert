@@ -5,6 +5,7 @@ import { fallbackOptionGroups } from "./optionCatalogue";
 import type { OptionGroup } from "./types";
 
 const mocks = vi.hoisted(() => ({
+  catalogueError: "",
   saveOptionGroup: vi.fn(async () => undefined),
   setToppingAvailability: vi.fn(async () => undefined),
 }));
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./store", () => ({
   useData: () => ({
     optionGroups: fallbackOptionGroups,
+    catalogueError: mocks.catalogueError,
     products: defaultProducts,
     toppingAvailability: {},
     saveOptionGroup: mocks.saveOptionGroup,
@@ -24,10 +26,20 @@ import ProductOptionAssignmentsField from "./components/ProductOptionAssignments
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.catalogueError = "";
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
 describe("Staff catalogue controls", () => {
+  it("shows a visible catalogue overflow error without replacing the catalogue", () => {
+    mocks.catalogueError =
+      "Option group toppings exceeds the maximum of 50 choices.";
+    render(<OptionGroupManager />);
+
+    expect(screen.getByRole("alert").textContent).toBe(mocks.catalogueError);
+    expect(screen.getByText(/ID: toppings/)).toBeTruthy();
+  });
+
   it("edits group policy and adds a choice with a generated stable ID", async () => {
     render(<OptionGroupManager />);
     const toppingCard = screen

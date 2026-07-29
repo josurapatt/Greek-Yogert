@@ -29,8 +29,8 @@ import {
 import {
   serializePrivateOptionChoice,
   serializePrivateOptionGroup,
+  optionChoiceReadLimit,
 } from "./optionCataloguePersistence";
-import { toPublicOptionGroup } from "./optionCatalogue";
 
 const customGroup: OptionGroup = {
   id: "custom",
@@ -61,6 +61,19 @@ const snapshot = (id: string, value: unknown) => ({
   data: () => value,
 });
 
+const choiceDocuments = (count: number) =>
+  Array.from({ length: count }, (_, index) => {
+    const id = `choice-${String(index).padStart(2, "0")}`;
+    return snapshot(
+      id,
+      serializePrivateOptionChoice({
+        ...customChoice,
+        id,
+        displayOrder: index,
+      }),
+    );
+  });
+
 describe("bounded option catalogue repositories", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -79,6 +92,23 @@ describe("bounded option catalogue repositories", () => {
     ]);
     expect(writer.set.mock.calls[0][1]).not.toHaveProperty("choices");
     expect(writer.set.mock.calls[1][1]).not.toHaveProperty("id");
+  });
+
+  it("rejects a 51st application-managed Choice before any persistence write", () => {
+    const writer = { set: vi.fn() };
+    const overflow = Array.from({ length: 51 }, (_, index) => ({
+      ...customChoice,
+      id: `choice-${index}`,
+      displayOrder: index,
+    }));
+
+    expect(() =>
+      writePrivateOptionGroup(writer as never, {} as never, {
+        ...customGroup,
+        choices: overflow,
+      }),
+    ).toThrow("Option group custom exceeds the 50-choice limit");
+    expect(writer.set).not.toHaveBeenCalled();
   });
 
   it("reads private groups with an explicit bounded ordered query and compatibility fallback", async () => {
@@ -116,6 +146,37 @@ describe("bounded option catalogue repositories", () => {
     expect(groups.find((group) => group.id === "custom")?.choices).toEqual([
       customChoice,
     ]);
+    expect(firestoreMocks.limit).toHaveBeenCalledWith(optionChoiceReadLimit);
+  });
+
+  it("reads all 50 Choices and rejects a 51st sentinel without truncating", async () => {
+    const metadata = serializePrivateOptionGroup(customGroup);
+    firestoreMocks.getDocs
+      .mockResolvedValueOnce({
+        docs: [snapshot("custom", metadata)],
+      })
+      .mockResolvedValueOnce({
+        docs: choiceDocuments(50),
+      });
+
+    const groups = await readPrivateOptionGroups({} as never);
+
+    expect(groups.find((group) => group.id === "custom")?.choices).toHaveLength(
+      50,
+    );
+    expect(firestoreMocks.limit).toHaveBeenCalledWith(optionChoiceReadLimit);
+
+    firestoreMocks.getDocs
+      .mockResolvedValueOnce({
+        docs: [snapshot("custom", metadata)],
+      })
+      .mockResolvedValueOnce({
+        docs: choiceDocuments(optionChoiceReadLimit),
+      });
+
+    await expect(readPrivateOptionGroups({} as never)).rejects.toThrow(
+      "Option group custom exceeds the maximum of 50 choices.",
+    );
   });
 
   it("subscribes to canonical group and Choice documents as one ordered domain catalogue", () => {
@@ -147,6 +208,54 @@ describe("bounded option catalogue repositories", () => {
         (group: OptionGroup) => group.id === "custom",
       ).choices,
     ).toEqual([customChoice]);
+    unsubscribe();
+  });
+
+  it("preserves the last valid subscription catalogue during overflow and recovers", () => {
+    let childNext: ((value: unknown) => void) | undefined;
+    firestoreMocks.onSnapshot.mockImplementation(
+      (source: { parts: unknown[] }, next: (value: unknown) => void) => {
+        if (source.parts[0] === "optionGroups")
+          next({
+            docs: [
+              snapshot("custom", serializePrivateOptionGroup(customGroup)),
+            ],
+          });
+        else {
+          childNext = next;
+          next({ docs: choiceDocuments(50) });
+        }
+        return vi.fn();
+      },
+    );
+    const update = vi.fn();
+    const onError = vi.fn();
+    const unsubscribe = subscribePrivateOptionGroups(
+      {} as never,
+      update,
+      onError,
+    );
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(
+      update.mock.calls[0][0].find(
+        (group: OptionGroup) => group.id === "custom",
+      ).choices,
+    ).toHaveLength(50);
+
+    childNext?.({ docs: choiceDocuments(optionChoiceReadLimit) });
+    expect(onError).toHaveBeenCalledWith(
+      new Error("Option group custom exceeds the maximum of 50 choices."),
+    );
+    expect(update).toHaveBeenCalledOnce();
+
+    childNext?.({ docs: choiceDocuments(50) });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(
+      update.mock.calls[1][0].find(
+        (group: OptionGroup) => group.id === "custom",
+      ).choices,
+    ).toHaveLength(50);
     unsubscribe();
   });
 
@@ -222,16 +331,17 @@ describe("bounded option catalogue repositories", () => {
     ).rejects.toThrow("read limit");
   });
 
-  it("uses public projection only to locate selected canonical Choice documents during trusted reads", async () => {
+  it("uses the complete canonical Choice preflight during trusted reads", async () => {
     const canonical = { ...customGroup, choices: [customChoice] };
     const paths: string[] = [];
+    firestoreMocks.getDocs.mockResolvedValueOnce({
+      docs: [snapshot("choice", serializePrivateOptionChoice(customChoice))],
+    });
     const transaction = {
       get: vi.fn(async (path: string) => {
         paths.push(path);
         if (path === "optionGroups/custom")
           return snapshot("custom", serializePrivateOptionGroup(canonical));
-        if (path === "publicOptionGroups/custom")
-          return snapshot("custom", toPublicOptionGroup(canonical));
         if (path === "optionGroups/custom/choices/choice")
           return snapshot("choice", serializePrivateOptionChoice(customChoice));
         return snapshot(path.split("/").at(-1)!, undefined);
@@ -247,11 +357,27 @@ describe("bounded option catalogue repositories", () => {
 
     expect(paths).toEqual([
       "optionGroups/custom",
-      "publicOptionGroups/custom",
       "optionGroups/custom/choices/choice",
     ]);
     expect(groups.find((group) => group.id === "custom")?.choices).toEqual([
       customChoice,
     ]);
+  });
+
+  it("rejects trusted reconstruction when the private Choice preflight overflows", async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce({
+      docs: choiceDocuments(optionChoiceReadLimit),
+    });
+    const transaction = {
+      get: vi.fn(async () =>
+        snapshot("custom", serializePrivateOptionGroup(customGroup)),
+      ),
+    };
+
+    await expect(
+      readPrivateOptionGroupsInTransaction({} as never, transaction as never, [
+        "custom",
+      ]),
+    ).rejects.toThrow("Option group custom exceeds the maximum of 50 choices.");
   });
 });

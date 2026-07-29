@@ -1,5 +1,18 @@
-import { normalizeOptionChoice, normalizeOptionGroup } from "./optionCatalogue";
+import {
+  maxChoicesPerOptionGroup,
+  normalizeOptionChoice,
+  normalizeOptionGroup,
+} from "./optionCatalogue";
 import type { OptionChoice, OptionGroup } from "./types";
+
+export const optionChoiceReadLimit = maxChoicesPerOptionGroup + 1;
+
+export function assertOptionChoiceCount(groupId: string, count: number): void {
+  if (count > maxChoicesPerOptionGroup)
+    throw new Error(
+      `Option group ${groupId} exceeds the maximum of ${maxChoicesPerOptionGroup} choices.`,
+    );
+}
 
 export type PersistedPrivateOptionGroup = Omit<OptionGroup, "choices">;
 export type PersistedPrivateOptionChoice = Omit<OptionChoice, "id">;

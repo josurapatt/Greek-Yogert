@@ -68,7 +68,7 @@ must independently reconcile Git and the durable files before continuing.
 | ------------ | ----------- | -------------: | ----------------------------------------------------- |
 | Planner      | Chat 01     |              0 | Active                                                |
 | Orchestrator | Chat 02     |              4 | WP-CC-02 correction routed; local delivery pending QA |
-| Production   | Chat 03     |              2 | Per-choice correction validated locally               |
+| Production   | Chat 03     |              2 | Per-choice overflow correction validated locally      |
 | QA           | Chat 04     |              2 | WP-CC-02 exact-head QA is next                        |
 
 ## Prohibited role behaviour

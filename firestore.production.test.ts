@@ -21,6 +21,7 @@ import {
 } from "firebase/firestore";
 import { defaultProducts } from "./src/data";
 import { customerOptionLabels } from "./src/customerOrder";
+import { readPrivateOptionGroups } from "./src/optionCatalogueRepository";
 
 let environment: RulesTestEnvironment;
 const passwordToken = { firebase: { sign_in_provider: "password" } };
@@ -531,6 +532,37 @@ describe("WP4 Production-candidate Firestore authorization", () => {
         doc(ordinaryUser, groupPath, "choices", "ordinary-write"),
         privateOptionChoice("ordinary-write"),
       ),
+    );
+  });
+
+  it("detects a direct Staff-created 51st Choice instead of reconstructing a partial catalogue", async () => {
+    await seed({
+      "users/staff": { role: "staff", active: true },
+    });
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const groupPath = "optionGroups/direct-overflow";
+    const choiceIds = Array.from(
+      { length: 51 },
+      (_, index) => `choice-${String(index).padStart(2, "0")}`,
+    );
+    const batch = writeBatch(staff);
+    batch.set(doc(staff, groupPath), privateOptionGroup("direct-overflow"));
+    choiceIds.forEach((choiceId, index) =>
+      batch.set(
+        doc(staff, groupPath, "choices", choiceId),
+        privateOptionChoice(choiceId, { displayOrder: index }),
+      ),
+    );
+
+    await assertSucceeds(batch.commit());
+    const directRead = await getDocs(
+      query(collection(staff, groupPath, "choices"), limit(51)),
+    );
+    expect(directRead.size).toBe(51);
+    await expect(readPrivateOptionGroups(staff)).rejects.toThrow(
+      "Option group direct-overflow exceeds the maximum of 50 choices.",
     );
   });
 

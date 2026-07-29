@@ -14,17 +14,17 @@ import {
 } from "firebase/firestore";
 import { toFirestoreData } from "./firestoreData";
 import {
-  maxChoicesPerOptionGroup,
   maxOptionGroupsPerCatalogue,
   mergeOptionGroupsWithFallback,
-  normalizePublicOptionGroup,
   publicOptionGroupsToCatalogue,
   productOptionGroupAssignments,
 } from "./optionCatalogue";
 import {
+  assertOptionChoiceCount,
   normalizeLegacyPrivateOptionGroupDocument,
   normalizePrivateOptionChoiceDocument,
   normalizePrivateOptionGroupDocument,
+  optionChoiceReadLimit,
   serializePrivateOptionChoice,
   serializePrivateOptionGroup,
 } from "./optionCataloguePersistence";
@@ -95,9 +95,10 @@ async function privateGroupFromDocument(
     query(
       collection(firestore, "optionGroups", snapshot.id, "choices"),
       orderBy("displayOrder"),
-      limit(maxChoicesPerOptionGroup),
+      limit(optionChoiceReadLimit),
     ),
   );
+  assertOptionChoiceCount(snapshot.id, choices.docs.length);
   return normalizePrivateOptionGroupDocument(
     snapshot.id,
     snapshot.data(),
@@ -189,10 +190,11 @@ export function subscribePrivateOptionGroups(
           query(
             collection(firestore, "optionGroups", group.id, "choices"),
             orderBy("displayOrder"),
-            limit(maxChoicesPerOptionGroup),
+            limit(optionChoiceReadLimit),
           ),
           (choices) => {
             try {
+              assertOptionChoiceCount(group.id, choices.docs.length);
               groups.set(
                 group.id,
                 normalizePrivateOptionGroupDocument(
@@ -300,58 +302,43 @@ export async function readPrivateOptionGroupsInTransaction(
   });
 
   const canonicalIds = [...canonicalMetadata.keys()];
-  const publicSnapshots = await Promise.all(
-    canonicalIds.map((id) =>
-      transaction.get(doc(firestore, "publicOptionGroups", id)),
-    ),
-  );
-  const publicGroups = publicSnapshots.flatMap((snapshot, index) => {
-    if (!snapshot.exists()) return [];
-    const id = canonicalIds[index];
-    const data = snapshot.data() as PublicOptionGroup;
-    assertDocumentIdentity(id, data?.id, "Public option group");
-    return [normalizePublicOptionGroup(data)];
-  });
-  const lookupGroups = [...fullGroups.values(), ...publicGroups];
-  const selected = [...new Set(selectedChoiceIds)].sort();
-  selected.forEach((choiceId) => {
-    const matches = lookupGroups.filter((group) =>
-      group.choices.some((choice) => choice.id === choiceId),
-    );
-    if (matches.length !== 1)
-      throw new Error(
-        `Trusted confirmation cannot resolve option choice ${choiceId}`,
+  const canonicalChoiceSnapshots = await Promise.all(
+    canonicalIds.map(async (id) => {
+      const choices = await getDocs(
+        query(
+          collection(firestore, "optionGroups", id, "choices"),
+          orderBy("displayOrder"),
+          limit(optionChoiceReadLimit),
+        ),
       );
-  });
-  const canonicalLocations = publicGroups.flatMap((group) =>
-    group.choices.map((choice) => ({
-      groupId: group.id,
-      choiceId: choice.id,
-    })),
-  );
-  const choiceSnapshots = await Promise.all(
-    canonicalLocations.map(({ groupId, choiceId }) =>
-      transaction.get(
-        doc(firestore, "optionGroups", groupId, "choices", choiceId),
-      ),
-    ),
+      assertOptionChoiceCount(id, choices.docs.length);
+      return { id, choices: choices.docs };
+    }),
   );
   const choicesByGroup = new Map<
     string,
     ReturnType<typeof normalizePrivateOptionChoiceDocument>[]
   >();
-  canonicalLocations.forEach(({ groupId, choiceId }, index) => {
-    const snapshot = choiceSnapshots[index];
-    if (!snapshot.exists())
-      throw new Error(
-        `Trusted confirmation cannot read option choice ${choiceId}`,
-      );
-    const choices = choicesByGroup.get(groupId) ?? [];
-    choices.push(
-      normalizePrivateOptionChoiceDocument(choiceId, snapshot.data()),
-    );
-    choicesByGroup.set(groupId, choices);
-  });
+  await Promise.all(
+    canonicalChoiceSnapshots.flatMap(({ id, choices }) =>
+      choices.map(async (choice) => {
+        const current = await transaction.get(
+          doc(firestore, "optionGroups", id, "choices", choice.id),
+        );
+        if (!current.exists())
+          throw new Error(
+            `Trusted confirmation cannot read option choice ${choice.id}`,
+          );
+        const normalized = normalizePrivateOptionChoiceDocument(
+          choice.id,
+          current.data(),
+        );
+        const groupChoices = choicesByGroup.get(id) ?? [];
+        groupChoices.push(normalized);
+        choicesByGroup.set(id, groupChoices);
+      }),
+    ),
+  );
   canonicalMetadata.forEach((metadata, id) =>
     fullGroups.set(
       id,
@@ -362,5 +349,16 @@ export async function readPrivateOptionGroupsInTransaction(
       ),
     ),
   );
-  return mergeOptionGroupsWithFallback([...fullGroups.values()]);
+  const groups = mergeOptionGroupsWithFallback([...fullGroups.values()]);
+  const selected = [...new Set(selectedChoiceIds)].sort();
+  selected.forEach((choiceId) => {
+    const matches = groups.filter((group) =>
+      group.choices.some((choice) => choice.id === choiceId),
+    );
+    if (matches.length !== 1)
+      throw new Error(
+        `Trusted confirmation cannot resolve option choice ${choiceId}`,
+      );
+  });
+  return groups;
 }

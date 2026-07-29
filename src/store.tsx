@@ -205,6 +205,7 @@ export function useAuth() {
 interface DataValue {
   products: Product[];
   optionGroups: OptionGroup[];
+  catalogueError: string;
   orders: ShopOrder[];
   customerRequests: CustomerOrderRequest[];
   toppingAvailability: ToppingAvailability;
@@ -249,6 +250,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ? fallbackOptionGroups.map((group) => structuredClone(group))
       : mergeOptionGroupsWithFallback(readLocal(OPTION_GROUPS_KEY, [])),
   );
+  const [catalogueError, setCatalogueError] = useState("");
   const [orders, setOrders] = useState<ShopOrder[]>(() =>
     firebaseReady ? [] : readLocal(ORDERS_KEY, []),
   );
@@ -264,6 +266,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     useState(false);
 
   useEffect(() => {
+    setCatalogueError("");
     if (!db || !user || isAnonymous) {
       setLoading(false);
       return;
@@ -290,11 +293,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
     const stopOptionGroups = subscribePrivateOptionGroups(
       db,
-      setOptionGroups,
-      () =>
-        setOptionGroups(
-          fallbackOptionGroups.map((group) => structuredClone(group)),
-        ),
+      (groups) => {
+        setCatalogueError("");
+        setOptionGroups(groups);
+      },
+      (cause) => setCatalogueError(cause.message),
     );
     const stopAvailability = onSnapshot(
       doc(db, "settings", "toppingAvailability"),
@@ -740,6 +743,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = {
     products,
     optionGroups,
+    catalogueError,
     orders,
     customerRequests,
     toppingAvailability,
