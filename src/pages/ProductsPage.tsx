@@ -4,6 +4,7 @@ import "../catalogue.css";
 import GlobalPackagingAvailabilityToggle from "../components/GlobalPackagingAvailabilityToggle";
 import OptionGroupManager from "../components/OptionGroupManager";
 import ProductOptionAssignmentsField from "../components/ProductOptionAssignmentsField";
+import { catalogueAdminErrorMessage } from "../catalogueAdmin";
 import { normalizeProduct, toppings } from "../data";
 import { getChannelRules, getProductPrice, money } from "../lib";
 import { productSelectedOptionLimits } from "../customerRequestPolicy";
@@ -115,7 +116,10 @@ export default function ProductsPage() {
       setTimeout(() => setSaved(""), 1800);
     } catch (cause) {
       setSaveError(
-        cause instanceof Error ? cause.message : "บันทึกสินค้าไม่สำเร็จ",
+        catalogueAdminErrorMessage(
+          cause,
+          "ไม่สามารถบันทึกสินค้าได้ กรุณาลองใหม่",
+        ),
       );
     } finally {
       setSaving(false);

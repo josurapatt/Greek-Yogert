@@ -1,6 +1,9 @@
 import { Archive, Plus, Save } from "lucide-react";
 import { useState } from "react";
-import { createStableCatalogueId } from "../catalogueAdmin";
+import {
+  catalogueAdminErrorMessage,
+  createStableCatalogueId,
+} from "../catalogueAdmin";
 import { fallbackOptionGroups } from "../optionCatalogue";
 import { useData } from "../store";
 import type { OptionChoice, OptionGroup } from "../types";
@@ -12,7 +15,7 @@ interface GroupEditor {
 
 const newGroup = (): OptionGroup => ({
   id: "__draft-group",
-  displayName: "New option group",
+  displayName: "กลุ่มตัวเลือกใหม่",
   active: true,
   displayOrder: 100,
   required: false,
@@ -25,7 +28,7 @@ const newGroup = (): OptionGroup => ({
 
 const newChoice = (index: number): OptionChoice => ({
   id: `__draft-choice-${index}`,
-  name: "New choice",
+  name: "ตัวเลือกใหม่",
   active: true,
   displayOrder: index,
   classification: "normal",
@@ -97,7 +100,10 @@ export default function OptionGroupManager() {
 
   const removeOrArchiveChoice = (choice: OptionChoice) => {
     if (!editor) return;
-    if (!window.confirm(`Confirm archive for “${choice.name}”?`)) return;
+    if (
+      !window.confirm(`ยืนยันการเก็บ “${choice.name}” เป็นรายการถาวรหรือไม่?`)
+    )
+      return;
     changeChoice(choice.id, "active", false);
   };
 
@@ -114,7 +120,7 @@ export default function OptionGroupManager() {
     if (
       (archivesGroup || archivesChoices) &&
       !window.confirm(
-        "Archive the disabled definitions? Existing historical snapshots will be preserved.",
+        "เก็บรายการที่ปิดใช้งานเป็นรายการถาวรหรือไม่? ข้อมูลประวัติเดิมจะยังคงอยู่",
       )
     )
       return;
@@ -126,7 +132,10 @@ export default function OptionGroupManager() {
       setEditor(null);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Unable to save option group",
+        catalogueAdminErrorMessage(
+          cause,
+          "ไม่สามารถบันทึกกลุ่มตัวเลือกได้ กรุณาลองใหม่",
+        ),
       );
     } finally {
       setSaving(false);
@@ -137,10 +146,10 @@ export default function OptionGroupManager() {
     <section className="catalogue-panel" aria-labelledby="catalogue-heading">
       <div className="section-heading catalogue-heading">
         <div>
-          <h2 id="catalogue-heading">Option groups and toppings</h2>
+          <h2 id="catalogue-heading">กลุ่มตัวเลือกและท็อปปิ้ง</h2>
           <p>
-            Definition status and sale availability are separate. Archived
-            choices keep their stable IDs for historical snapshots.
+            สถานะการใช้งานแยกจากสถานะเปิดขาย ตัวเลือกที่เก็บถาวรจะยังคง ID
+            เดิมไว้สำหรับข้อมูลประวัติ
           </p>
         </div>
         <button
@@ -150,15 +159,21 @@ export default function OptionGroupManager() {
             setEditor({ draft: newGroup() });
           }}
         >
-          <Plus /> Add group
+          <Plus /> เพิ่มกลุ่มตัวเลือก
         </button>
       </div>
       {catalogueError && (
         <p className="validation" role="alert">
-          {catalogueError}
+          {catalogueAdminErrorMessage(
+            catalogueError,
+            "ไม่สามารถโหลดข้อมูลแคตตาล็อกได้ กรุณาลองใหม่",
+          )}
         </p>
       )}
       <div className="catalogue-group-list">
+        {optionGroups.length === 0 && (
+          <p className="hint">ยังไม่มีกลุ่มตัวเลือก</p>
+        )}
         {[...optionGroups]
           .sort(
             (left, right) =>
@@ -173,18 +188,18 @@ export default function OptionGroupManager() {
               <div>
                 <h3>{group.displayName}</h3>
                 <p>
-                  {group.required ? "Required" : "Optional"} ·{" "}
-                  {group.minSelections}–{group.maxSelections} selections ·{" "}
-                  {group.choices.length} choices
+                  {group.required ? "จำเป็นต้องเลือก" : "ไม่จำเป็นต้องเลือก"} ·{" "}
+                  เลือก {group.minSelections}–{group.maxSelections} รายการ ·{" "}
+                  {group.choices.length} ตัวเลือก
                 </p>
                 <small>
-                  ID: {group.id} · order {group.displayOrder}
+                  ID: {group.id} · ลำดับการแสดงผล {group.displayOrder}
                 </small>
               </div>
               <span
                 className={`status ${group.active ? "completed" : "cancelled"}`}
               >
-                {group.active ? "Active" : "Archived"}
+                {group.active ? "เปิดใช้งาน" : "เก็บถาวร"}
               </span>
               <button
                 className="secondary"
@@ -196,7 +211,7 @@ export default function OptionGroupManager() {
                   });
                 }}
               >
-                Edit
+                แก้ไข
               </button>
             </article>
           ))}
@@ -207,16 +222,16 @@ export default function OptionGroupManager() {
           <section className="modal-card catalogue-editor">
             <h2>
               {editor.original
-                ? `Edit ${editor.original.displayName}`
-                : "Add option group"}
+                ? `แก้ไข ${editor.original.displayName}`
+                : "เพิ่มกลุ่มตัวเลือก"}
             </h2>
             <p className="hint">
-              IDs are generated once and remain immutable. Display names may be
-              changed later.
+              ระบบจะสร้าง ID ครั้งเดียวและไม่สามารถแก้ไขได้
+              แต่เปลี่ยนชื่อที่แสดงภายหลังได้
             </p>
             <div className="form-grid">
               <label>
-                Display name
+                ชื่อที่แสดง
                 <input
                   value={editor.draft.displayName}
                   onChange={(event) =>
@@ -225,18 +240,18 @@ export default function OptionGroupManager() {
                 />
               </label>
               <label>
-                Stable ID
+                ID ถาวร
                 <input
                   disabled
                   value={
                     editor.draft.id.startsWith("__draft-")
-                      ? "Generated on save"
+                      ? "ระบบจะสร้างเมื่อบันทึก"
                       : editor.draft.id
                   }
                 />
               </label>
               <label>
-                Display order
+                ลำดับการแสดงผล
                 <input
                   min="0"
                   max="10000"
@@ -248,7 +263,7 @@ export default function OptionGroupManager() {
                 />
               </label>
               <label>
-                Pricing
+                การกำหนดราคา
                 <select
                   value={editor.draft.pricingMode}
                   onChange={(event) =>
@@ -258,12 +273,12 @@ export default function OptionGroupManager() {
                     )
                   }
                 >
-                  <option value="choice-surcharge">Choice surcharge</option>
-                  <option value="legacy-topping">Legacy topping pricing</option>
+                  <option value="choice-surcharge">ราคาเพิ่มตามตัวเลือก</option>
+                  <option value="legacy-topping">ราคาท็อปปิ้งแบบเดิม</option>
                 </select>
               </label>
               <label>
-                Minimum selections
+                จำนวนเลือกขั้นต่ำ
                 <input
                   min="0"
                   max="10"
@@ -275,7 +290,7 @@ export default function OptionGroupManager() {
                 />
               </label>
               <label>
-                Maximum selections
+                จำนวนเลือกสูงสุด
                 <input
                   min="0"
                   max="10"
@@ -294,7 +309,9 @@ export default function OptionGroupManager() {
                     changeGroup("active", event.target.checked)
                   }
                 />
-                Active definition
+                {editor.draft.active
+                  ? "เปิดใช้งานกลุ่มตัวเลือก"
+                  : "กู้คืนกลุ่มตัวเลือก"}
               </label>
               <label className="inline-check">
                 <input
@@ -304,7 +321,7 @@ export default function OptionGroupManager() {
                     changeGroup("required", event.target.checked)
                   }
                 />
-                Required by default
+                จำเป็นต้องเลือกเป็นค่าเริ่มต้น
               </label>
               <label className="inline-check wide">
                 <input
@@ -314,12 +331,12 @@ export default function OptionGroupManager() {
                     changeGroup("allowDuplicates", event.target.checked)
                   }
                 />
-                Allow duplicate selection
+                อนุญาตให้เลือกซ้ำ
               </label>
             </div>
 
             <div className="catalogue-choice-heading">
-              <h3>Choices</h3>
+              <h3>ตัวเลือก</h3>
               <button
                 className="secondary"
                 onClick={() =>
@@ -329,10 +346,15 @@ export default function OptionGroupManager() {
                   ])
                 }
               >
-                <Plus /> Add choice
+                <Plus /> เพิ่มตัวเลือก
               </button>
             </div>
             <div className="catalogue-choice-list">
+              {editor.draft.choices.length === 0 && (
+                <p className="hint">
+                  ยังไม่มีตัวเลือก กด “เพิ่มตัวเลือก” เพื่อเริ่มต้น
+                </p>
+              )}
               {editor.draft.choices.map((choice) => {
                 const available =
                   choice.id.startsWith("__draft-") ||
@@ -343,7 +365,7 @@ export default function OptionGroupManager() {
                     <legend>{choice.name}</legend>
                     <div className="form-grid">
                       <label>
-                        Name
+                        ชื่อตัวเลือก
                         <input
                           value={choice.name}
                           onChange={(event) =>
@@ -352,18 +374,18 @@ export default function OptionGroupManager() {
                         />
                       </label>
                       <label>
-                        Stable ID
+                        ID ถาวร
                         <input
                           disabled
                           value={
                             choice.id.startsWith("__draft-")
-                              ? "Generated on save"
+                              ? "ระบบจะสร้างเมื่อบันทึก"
                               : choice.id
                           }
                         />
                       </label>
                       <label>
-                        Display order
+                        ลำดับการแสดงผล
                         <input
                           min="0"
                           max="10000"
@@ -379,7 +401,7 @@ export default function OptionGroupManager() {
                         />
                       </label>
                       <label>
-                        Classification
+                        ประเภท
                         <select
                           value={choice.classification}
                           onChange={(event) =>
@@ -391,12 +413,12 @@ export default function OptionGroupManager() {
                             )
                           }
                         >
-                          <option value="normal">Normal</option>
-                          <option value="premium">Premium</option>
+                          <option value="normal">ปกติ</option>
+                          <option value="premium">พรีเมียม</option>
                         </select>
                       </label>
                       <label>
-                        Choice surcharge
+                        ราคาเพิ่ม
                         <input
                           min="0"
                           max="5000"
@@ -423,7 +445,9 @@ export default function OptionGroupManager() {
                             )
                           }
                         />
-                        Active definition
+                        {choice.active
+                          ? "เปิดใช้งานตัวเลือก"
+                          : "กู้คืนตัวเลือก"}
                       </label>
                     </div>
                     <div className="catalogue-choice-actions">
@@ -437,14 +461,14 @@ export default function OptionGroupManager() {
                           )
                         }
                       >
-                        {available ? "On sale" : "Sold out"}
+                        {available ? "เปิดขาย" : "หมด"}
                       </button>
                       <button
                         className="secondary"
                         onClick={() => removeOrArchiveChoice(choice)}
                       >
                         <Archive />
-                        Archive
+                        เก็บถาวร
                       </button>
                     </div>
                   </fieldset>
@@ -458,14 +482,14 @@ export default function OptionGroupManager() {
                 disabled={saving}
                 onClick={() => setEditor(null)}
               >
-                Cancel
+                ยกเลิก
               </button>
               <button
                 className="primary"
                 disabled={saving}
                 onClick={() => void save()}
               >
-                <Save /> {saving ? "Saving…" : "Save group"}
+                <Save /> {saving ? "กำลังบันทึก…" : "บันทึกกลุ่มตัวเลือก"}
               </button>
             </div>
           </section>

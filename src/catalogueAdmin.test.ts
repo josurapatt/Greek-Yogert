@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  catalogueAdminErrorMessage,
   createStableCatalogueId,
   hardDeleteChoiceDecision,
   markAssignedChoicesEverUsed,
@@ -46,6 +47,35 @@ const customGroup = (): OptionGroup => ({
 });
 
 describe("catalogue administration policy", () => {
+  it("localizes Staff-facing Catalogue validation and concurrency messages", () => {
+    expect(
+      catalogueAdminErrorMessage(
+        new Error("Option group sauce has an invalid selection range"),
+        "fallback",
+      ),
+    ).toBe("จำนวนเลือกสูงสุดต้องไม่น้อยกว่าจำนวนเลือกขั้นต่ำ");
+    expect(
+      catalogueAdminErrorMessage(
+        new Error("Option group sauce exceeds the 50-choice limit"),
+        "fallback",
+      ),
+    ).toBe("กลุ่มตัวเลือก ID sauce มีตัวเลือกเกินจำนวนสูงสุด 50 รายการ");
+    expect(
+      catalogueAdminErrorMessage(
+        new Error(
+          "Catalogue changed concurrently. Reload Products and try again.",
+        ),
+        "fallback",
+      ),
+    ).toBe("แคตตาล็อกมีการเปลี่ยนแปลง กรุณาโหลดหน้าสินค้าใหม่แล้วลองอีกครั้ง");
+    expect(
+      catalogueAdminErrorMessage(
+        new Error("Private option group sauce must be a map"),
+        "ไม่สามารถโหลดข้อมูลแคตตาล็อกได้ กรุณาลองใหม่",
+      ),
+    ).toBe("ไม่สามารถโหลดข้อมูลแคตตาล็อกได้ กรุณาลองใหม่");
+  });
+
   it("creates deterministic unique IDs and keeps IDs stable across name edits", () => {
     expect(createStableCatalogueId("group", "Sauce", [])).toBe("group-sauce");
     expect(createStableCatalogueId("group", "Sauce", ["group-sauce"])).toBe(

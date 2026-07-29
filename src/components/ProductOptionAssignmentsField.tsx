@@ -19,20 +19,27 @@ export default function ProductOptionAssignmentsField({
   optionGroups,
   onChange,
 }: Props) {
+  const legacyModeLabel =
+    product.optionMode === "toppings"
+      ? "ท็อปปิ้ง"
+      : product.optionMode === "granola"
+        ? "รสกราโนล่า"
+        : "ไม่มีตัวเลือก";
+
   if (product.optionGroupAssignments === undefined)
     return (
       <fieldset className="wide assignment-fieldset">
-        <legend>Configurable option groups</legend>
+        <legend>การผูกกลุ่มตัวเลือกกับสินค้า</legend>
         <p className="hint">
-          This Product still uses its legacy {product.optionMode} configuration.
-          Convert it only when you need explicit group assignments.
+          สินค้านี้ยังใช้การตั้งค่าตัวเลือกแบบเดิม ({legacyModeLabel})
+          เปลี่ยนเป็นการผูกกลุ่มตัวเลือกเฉพาะเมื่อต้องการตั้งค่าแต่ละกลุ่มโดยตรง
         </p>
         <button
           className="secondary"
           type="button"
           onClick={() => onChange(legacyProductOptionGroupAssignments(product))}
         >
-          Configure groups
+          ตั้งค่ากลุ่มตัวเลือก
         </button>
       </fieldset>
     );
@@ -54,10 +61,9 @@ export default function ProductOptionAssignmentsField({
 
   return (
     <fieldset className="wide assignment-fieldset">
-      <legend>Configurable option groups</legend>
+      <legend>การผูกกลุ่มตัวเลือกกับสินค้า</legend>
       <p className="hint">
-        Removing an assignment never resets the group or its historical
-        lifecycle.
+        การยกเลิกการผูกจะไม่รีเซ็ตกลุ่มตัวเลือกหรือข้อมูลประวัติเดิม
       </p>
       <div className="assignment-list">
         {[...optionGroups]
@@ -86,7 +92,7 @@ export default function ProductOptionAssignmentsField({
                       if (
                         !event.target.checked &&
                         !window.confirm(
-                          `Remove ${group.displayName} from this Product? Historical snapshots will remain unchanged.`,
+                          `ยกเลิกการผูก ${group.displayName} ออกจากสินค้านี้หรือไม่? ข้อมูลประวัติเดิมจะไม่เปลี่ยนแปลง`,
                         )
                       )
                         return;
@@ -108,13 +114,13 @@ export default function ProductOptionAssignmentsField({
                     }}
                   />
                   <strong>{group.displayName}</strong>
-                  {!group.active && <small>Archived group</small>}
+                  {!group.active && <small>กลุ่มที่เก็บถาวร</small>}
                 </label>
                 {assignment && (
                   <>
                     <div className="assignment-limits">
                       <label>
-                        Required
+                        จำเป็นต้องเลือก
                         <input
                           checked={assignment.required ?? group.required}
                           type="checkbox"
@@ -126,7 +132,7 @@ export default function ProductOptionAssignmentsField({
                         />
                       </label>
                       <label>
-                        Min
+                        จำนวนเลือกขั้นต่ำ
                         <input
                           min="0"
                           max="10"
@@ -142,7 +148,7 @@ export default function ProductOptionAssignmentsField({
                         />
                       </label>
                       <label>
-                        Max
+                        จำนวนเลือกสูงสุด
                         <input
                           min="0"
                           max="10"
@@ -172,7 +178,7 @@ export default function ProductOptionAssignmentsField({
                           })
                         }
                       />
-                      Allow all active choices
+                      อนุญาตตัวเลือกที่เปิดใช้งานทั้งหมด
                     </label>
                     {!allChoices && (
                       <div className="check-grid">
@@ -219,13 +225,13 @@ export default function ProductOptionAssignmentsField({
         onClick={() => {
           if (
             window.confirm(
-              "Return to the legacy Product option fields? Current explicit assignments will be removed.",
+              "กลับไปใช้ช่องตัวเลือกสินค้าแบบเดิมหรือไม่? การผูกกลุ่มตัวเลือกปัจจุบันจะถูกลบ",
             )
           )
             onChange(undefined);
         }}
       >
-        Use legacy Product fields
+        ใช้ช่องตัวเลือกสินค้าแบบเดิม
       </button>
     </fieldset>
   );

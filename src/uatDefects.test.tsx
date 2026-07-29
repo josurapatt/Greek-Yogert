@@ -65,7 +65,9 @@ describe("manual UAT defect regressions", () => {
     fireEvent.click(support);
     fireEvent.click(container.querySelector(".product-editor .primary")!);
 
-    expect(await screen.findByText("public projection failed")).toBeTruthy();
+    expect(
+      await screen.findByText("ไม่สามารถบันทึกสินค้าได้ กรุณาลองใหม่"),
+    ).toBeTruthy();
     expect(container.querySelector(".product-editor")).toBeTruthy();
 
     fireEvent.click(container.querySelector(".product-editor .primary")!);
