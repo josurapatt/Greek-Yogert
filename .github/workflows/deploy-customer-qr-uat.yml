@@ -8,7 +8,19 @@ on:
       - "**.md"
 jobs:
   deploy-customer-uat:
-    if: github.head_ref == 'feature/customer-qr-ordering-foundation' || github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' || github.head_ref == 'feature/production-rollout-hardening' || github.ref == 'refs/heads/feature/production-rollout-hardening' || github.head_ref == 'feature/production-security-authorization' || github.ref == 'refs/heads/feature/production-security-authorization' || github.head_ref == 'feature/trusted-customer-boundary' || github.ref == 'refs/heads/feature/trusted-customer-boundary' || github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
+    if: >-
+      github.head_ref == 'feature/customer-qr-ordering-foundation' ||
+      github.ref == 'refs/heads/feature/customer-qr-ordering-foundation' ||
+      github.head_ref == 'feature/production-rollout-hardening' ||
+      github.ref == 'refs/heads/feature/production-rollout-hardening' ||
+      github.head_ref == 'feature/production-security-authorization' ||
+      github.ref == 'refs/heads/feature/production-security-authorization' ||
+      github.head_ref == 'feature/trusted-customer-boundary' ||
+      github.ref == 'refs/heads/feature/trusted-customer-boundary' ||
+      github.head_ref == 'feature/anonymous-abuse-controls' ||
+      github.ref == 'refs/heads/feature/anonymous-abuse-controls' ||
+      github.head_ref == 'feature/wp-cc-02-catalogue-admin' ||
+      github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin'
     runs-on: ubuntu-latest
     environment: customer-qr-uat
     steps:
@@ -64,6 +76,7 @@ jobs:
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           pnpm uat:wp4:human-diagnostics
       - name: Deploy isolated UAT Firebase resources
+        if: github.head_ref != 'feature/wp-cc-02-catalogue-admin' && github.ref != 'refs/heads/feature/wp-cc-02-catalogue-admin'
         env:
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
@@ -74,6 +87,48 @@ jobs:
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           node scripts/disableUatCustomerOrdering.mjs
           pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
+      - name: Deploy WP-CC-02 isolated Hosting preview
+        id: deploy-wp-cc-02-preview
+        if: github.head_ref == 'feature/wp-cc-02-catalogue-admin' || github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin'
+        env:
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "const credential=JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8')); if (credential.project_id !== process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID) throw new Error('UAT credential project mismatch')"
+          node -e "const config=require('./firebase.customer-uat.json'); if (!config.hosting || config.functions || config.database || config.storage) throw new Error('WP-CC-02 preview permits Hosting configuration only'); if (config.hosting.public !== 'dist') throw new Error('WP-CC-02 preview must deploy dist')"
+          echo "Exact source: $GITHUB_SHA"
+          echo "Application environment: customer-qr-uat"
+          echo "Firebase project: $CUSTOMER_UAT_FIREBASE_PROJECT_ID"
+          echo "Deployment scope: Hosting preview channel only"
+          result_file="$RUNNER_TEMP/firebase-wp-cc-02-preview-result.json"
+          pnpm dlx firebase-tools@15.23.0 hosting:channel:deploy wp-cc-02-catalogue \
+            --config firebase.customer-uat.json \
+            --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" \
+            --expires 7d \
+            --no-authorized-domains \
+            --non-interactive \
+            --json > "$result_file"
+          preview_url=$(node -e "const data=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const urls=[]; const visit=(value)=>{ if (typeof value === 'string' && /^https:\/\//.test(value)) urls.push(value); else if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') Object.values(value).forEach(visit); }; visit(data.result); const url=urls.find((value)=>value.includes('--wp-cc-02-catalogue-')) || urls[0]; if (!url) process.exit(1); process.stdout.write(url);" "$result_file")
+          preview_expiry=$(node -e "const data=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const expiries=[]; const visit=(value)=>{ if (Array.isArray(value)) value.forEach(visit); else if (value && typeof value === 'object') Object.entries(value).forEach(([key,child])=>{ if (/expir/i.test(key) && typeof child === 'string' && !Number.isNaN(Date.parse(child))) expiries.push(child); visit(child); }); }; visit(data.result); if (!expiries.length) process.exit(1); expiries.sort((left,right)=>Date.parse(left)-Date.parse(right)); process.stdout.write(new Date(expiries[0]).toISOString());" "$result_file")
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "preview_expiry=$preview_expiry" >> "$GITHUB_OUTPUT"
+          {
+            echo "### WP-CC-02 catalogue Human UAT preview"
+            echo ""
+            echo "- Exact source: \`$GITHUB_SHA\`"
+            echo "- Application environment: \`customer-qr-uat\`"
+            echo "- Firebase project: \`$CUSTOMER_UAT_FIREBASE_PROJECT_ID\`"
+            echo "- Deployment scope: Hosting Preview Channel only"
+            echo "- Firebase Hosting channel: \`wp-cc-02-catalogue\`"
+            echo "- Preview expiry: \`$preview_expiry\`"
+            echo "- Staff URL: [$preview_url/]($preview_url/)"
+            echo "- Customer URL: [$preview_url/order]($preview_url/order)"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Run WP4 security and operational-control UAT
         if: github.head_ref == 'feature/anonymous-abuse-controls' || github.ref == 'refs/heads/feature/anonymous-abuse-controls'
         env:
