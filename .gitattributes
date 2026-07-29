@@ -30,6 +30,8 @@
 /src/types.ts text eol=lf
 
 # WP-CC-02 Prettier-supported files must remain LF in Windows worktrees.
+/.github/workflows/deploy-customer-qr-uat.yml text eol=lf
+/scripts/customerUatPreviewWorkflow.test.ts text eol=lf
 /scripts/catalogueOverflowRecovery.test.ts text eol=lf
 /scripts/catalogueOverflowRecovery.ts text eol=lf
 /scripts/runCatalogueOverflowRecovery.mjs text eol=lf

@@ -87,21 +87,60 @@ jobs:
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           node scripts/disableUatCustomerOrdering.mjs
           pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
-      - name: Deploy WP-CC-02 isolated Hosting preview
-        id: deploy-wp-cc-02-preview
+      - name: Deploy WP-CC-02 isolated Firestore Rules
         if: github.head_ref == 'feature/wp-cc-02-catalogue-admin' || github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin'
         env:
+          SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
           CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
         run: |
+          test "$SOURCE_BRANCH" = "feature/wp-cc-02-catalogue-admin"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
           test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
           test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           node -e "const credential=JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8')); if (credential.project_id !== process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID) throw new Error('UAT credential project mismatch')"
-          node -e "const config=require('./firebase.customer-uat.json'); if (!config.hosting || config.functions || config.database || config.storage) throw new Error('WP-CC-02 preview permits Hosting configuration only'); if (config.hosting.public !== 'dist') throw new Error('WP-CC-02 preview must deploy dist')"
-          echo "Exact source: $GITHUB_SHA"
+          node -e "const config=require('./firebase.customer-uat.json'); if (config.firestore?.rules !== 'firestore.production.rules' || !config.hosting || config.functions || config.database || config.storage) throw new Error('WP-CC-02 UAT config permits only Firestore and Hosting resources')"
+          rules_sha256=$(sha256sum firestore.production.rules | awk '{print $1}')
+          echo "Exact source: $EXPECTED_SHA"
+          echo "Firebase project: $CUSTOMER_UAT_FIREBASE_PROJECT_ID"
+          echo "Deployment scope: Firestore Rules only"
+          echo "Firestore Rules SHA-256: $rules_sha256"
+          pnpm dlx firebase-tools@15.23.0 deploy \
+            --config firebase.customer-uat.json \
+            --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" \
+            --only firestore:rules \
+            --non-interactive
+          {
+            echo "### WP-CC-02 isolated Firestore Rules"
+            echo ""
+            echo "- Exact source: \`$EXPECTED_SHA\`"
+            echo "- Firebase project: \`$CUSTOMER_UAT_FIREBASE_PROJECT_ID\`"
+            echo "- Deployment scope: Firestore Rules only"
+            echo "- Rules SHA-256: \`$rules_sha256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy WP-CC-02 isolated Hosting preview
+        id: deploy-wp-cc-02-preview
+        if: github.head_ref == 'feature/wp-cc-02-catalogue-admin' || github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin'
+        env:
+          SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CUSTOMER_UAT_FIREBASE_PROJECT_ID: ${{ secrets.CUSTOMER_UAT_FIREBASE_PROJECT_ID }}
+          CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/customer-uat-service-account.json
+        run: |
+          test "$SOURCE_BRANCH" = "feature/wp-cc-02-catalogue-admin"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"
+          test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"
+          test -n "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          node -e "const credential=JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8')); if (credential.project_id !== process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID) throw new Error('UAT credential project mismatch')"
+          node -e "const config=require('./firebase.customer-uat.json'); if (config.firestore?.rules !== 'firestore.production.rules' || !config.hosting || config.functions || config.database || config.storage) throw new Error('WP-CC-02 UAT config permits only Firestore and Hosting resources'); if (config.hosting.public !== 'dist') throw new Error('WP-CC-02 preview must deploy dist')"
+          echo "Exact source: $EXPECTED_SHA"
           echo "Application environment: customer-qr-uat"
           echo "Firebase project: $CUSTOMER_UAT_FIREBASE_PROJECT_ID"
           echo "Deployment scope: Hosting preview channel only"
@@ -120,10 +159,10 @@ jobs:
           {
             echo "### WP-CC-02 catalogue Human UAT preview"
             echo ""
-            echo "- Exact source: \`$GITHUB_SHA\`"
+            echo "- Exact source: \`$EXPECTED_SHA\`"
             echo "- Application environment: \`customer-qr-uat\`"
             echo "- Firebase project: \`$CUSTOMER_UAT_FIREBASE_PROJECT_ID\`"
-            echo "- Deployment scope: Hosting Preview Channel only"
+            echo "- Deployment scope: Firestore Rules and Hosting Preview Channel only"
             echo "- Firebase Hosting channel: \`wp-cc-02-catalogue\`"
             echo "- Preview expiry: \`$preview_expiry\`"
             echo "- Staff URL: [$preview_url/]($preview_url/)"

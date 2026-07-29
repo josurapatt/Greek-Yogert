@@ -20,6 +20,10 @@ const jobGuard = workflow.slice(
 );
 const liveDeployment = workflow.slice(
   workflow.indexOf("Deploy isolated UAT Firebase resources"),
+  workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
+);
+const rulesDeployment = workflow.slice(
+  workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
   workflow.indexOf("Deploy WP-CC-02 isolated Hosting preview"),
 );
 const previewDeployment = workflow.slice(
@@ -27,7 +31,7 @@ const previewDeployment = workflow.slice(
   workflow.indexOf("Run WP4 security and operational-control UAT"),
 );
 
-describe("WP-CC-02 Customer UAT Hosting preview workflow", () => {
+describe("WP-CC-02 Customer UAT Rules and Hosting preview workflow", () => {
   it("adds only the exact WP-CC-02 branch to the established allowlist", () => {
     const branches = new Set(
       [...jobGuard.matchAll(/feature\/[a-z0-9-]+/g)].map(([branch]) => branch),
@@ -59,6 +63,27 @@ describe("WP-CC-02 Customer UAT Hosting preview workflow", () => {
 
   it("hard-binds the preview to isolated UAT and its encrypted secrets", () => {
     expect(workflow).toContain("environment: customer-qr-uat");
+    expect(rulesDeployment).toContain(
+      'test "$SOURCE_BRANCH" = "feature/wp-cc-02-catalogue-admin"',
+    );
+    expect(rulesDeployment).toContain(
+      'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"',
+    );
+    expect(rulesDeployment).toContain(
+      'test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"',
+    );
+    expect(rulesDeployment).toContain(
+      'test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"',
+    );
+    expect(rulesDeployment).toContain(
+      "credential.project_id !== process.env.CUSTOMER_UAT_FIREBASE_PROJECT_ID",
+    );
+    expect(previewDeployment).toContain(
+      'test "$SOURCE_BRANCH" = "feature/wp-cc-02-catalogue-admin"',
+    );
+    expect(previewDeployment).toContain(
+      'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"',
+    );
     expect(previewDeployment).toContain(
       'test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"',
     );
@@ -88,7 +113,21 @@ describe("WP-CC-02 Customer UAT Hosting preview workflow", () => {
     }
   });
 
-  it("deploys only the seven-day WP-CC-02 Hosting Preview Channel", () => {
+  it("runs Rules tests before deploying only the canonical Firestore Rules", () => {
+    expect(workflow.indexOf("pnpm test:rules")).toBeLessThan(
+      workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
+    );
+    expect(rulesDeployment).toContain(
+      "config.firestore?.rules !== 'firestore.production.rules'",
+    );
+    expect(rulesDeployment).toContain("sha256sum firestore.production.rules");
+    expect(rulesDeployment).toMatch(/--only\s+firestore:rules/);
+    expect(rulesDeployment).not.toContain("firestore:indexes");
+    expect(rulesDeployment).not.toContain("storage:rules");
+    expect(rulesDeployment).not.toContain("functions:");
+  });
+
+  it("deploys only the seven-day WP-CC-02 Hosting Preview Channel after Rules", () => {
     expect(previewDeployment).toContain(
       "hosting:channel:deploy wp-cc-02-catalogue",
     );
@@ -116,14 +155,16 @@ describe("WP-CC-02 Customer UAT Hosting preview workflow", () => {
   });
 
   it("does not print encrypted secret values", () => {
-    const runScript = previewDeployment.slice(
-      previewDeployment.indexOf("        run: |"),
-    );
+    const runScripts = [rulesDeployment, previewDeployment]
+      .map((deployment) =>
+        deployment.slice(deployment.indexOf("        run: |")),
+      )
+      .join("\n");
 
-    expect(runScript).not.toContain("secrets.");
-    expect(runScript).not.toMatch(
+    expect(runScripts).not.toContain("secrets.");
+    expect(runScripts).not.toMatch(
       /echo\s+["']?\$(?:CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON|GOOGLE_APPLICATION_CREDENTIALS)/,
     );
-    expect(runScript).not.toContain('cat "$GOOGLE_APPLICATION_CREDENTIALS"');
+    expect(runScripts).not.toContain('cat "$GOOGLE_APPLICATION_CREDENTIALS"');
   });
 });
