@@ -19,6 +19,7 @@ import type { CartItem, Product } from "../types";
 export default function CustomerOrderPage() {
   const {
     products,
+    optionGroups,
     availability,
     loading,
     orderingControl = { status: "enabled", enabled: true, message: "" },
@@ -47,6 +48,7 @@ export default function CustomerOrderPage() {
     customerStorefrontChannel,
     toppings,
     availability,
+    optionGroups,
   );
   const invalid = priced.find((item) => item.validationError);
   const totals = orderTotals(priced);
@@ -326,6 +328,7 @@ export default function CustomerOrderPage() {
       {selected && (
         <ProductModal
           product={selected}
+          optionGroups={optionGroups}
           channel={customerStorefrontChannel}
           initial={editingItem ?? undefined}
           availability={availability}

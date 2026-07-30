@@ -29,17 +29,18 @@ export default function ProductOptionAssignmentsField({
   if (product.optionGroupAssignments === undefined)
     return (
       <fieldset className="wide assignment-fieldset">
-        <legend>การผูกกลุ่มตัวเลือกกับสินค้า</legend>
+        <legend>กลุ่มตัวเลือกที่ผูกกับสินค้า</legend>
         <p className="hint">
-          สินค้านี้ยังใช้การตั้งค่าตัวเลือกแบบเดิม ({legacyModeLabel})
-          เปลี่ยนเป็นการผูกกลุ่มตัวเลือกเฉพาะเมื่อต้องการตั้งค่าแต่ละกลุ่มโดยตรง
+          สินค้าเดิมนี้ยังใช้รูปแบบ {legacyModeLabel} แบบเก่า
+          หากต้องการใช้กลุ่มตัวเลือกที่สร้างในแค็ตตาล็อก
+          ให้เปลี่ยนมาใช้การผูกกลุ่มด้านล่าง
         </p>
         <button
           className="secondary"
           type="button"
           onClick={() => onChange(legacyProductOptionGroupAssignments(product))}
         >
-          ตั้งค่ากลุ่มตัวเลือก
+          เปลี่ยนมาใช้กลุ่มตัวเลือก
         </button>
       </fieldset>
     );
@@ -61,9 +62,10 @@ export default function ProductOptionAssignmentsField({
 
   return (
     <fieldset className="wide assignment-fieldset">
-      <legend>การผูกกลุ่มตัวเลือกกับสินค้า</legend>
+      <legend>กลุ่มตัวเลือกที่ผูกกับสินค้า</legend>
       <p className="hint">
-        การยกเลิกการผูกจะไม่รีเซ็ตกลุ่มตัวเลือกหรือข้อมูลประวัติเดิม
+        เลือกกลุ่มที่ลูกค้าจะเห็นสำหรับสินค้านี้
+        การยกเลิกการผูกจะไม่เปลี่ยนกลุ่มหรือข้อมูลประวัติเดิม
       </p>
       <div className="assignment-list">
         {[...optionGroups]
@@ -98,15 +100,7 @@ export default function ProductOptionAssignmentsField({
                         return;
                       onChange(
                         event.target.checked
-                          ? [
-                              ...assignments,
-                              {
-                                groupId: group.id,
-                                required: group.required,
-                                minSelections: group.minSelections,
-                                maxSelections: group.maxSelections,
-                              },
-                            ]
+                          ? [...assignments, { groupId: group.id }]
                           : assignments.filter(
                               (entry) => entry.groupId !== group.id,
                             ),
@@ -117,7 +111,8 @@ export default function ProductOptionAssignmentsField({
                   {!group.active && <small>กลุ่มที่เก็บถาวร</small>}
                 </label>
                 {assignment && (
-                  <>
+                  <details className="assignment-advanced">
+                    <summary>ปรับเงื่อนไขเฉพาะสินค้านี้</summary>
                     <div className="assignment-limits">
                       <label>
                         จำเป็นต้องเลือก
@@ -213,26 +208,32 @@ export default function ProductOptionAssignmentsField({
                         })}
                       </div>
                     )}
-                  </>
+                  </details>
                 )}
               </article>
             );
           })}
       </div>
-      <button
-        className="secondary"
-        type="button"
-        onClick={() => {
-          if (
-            window.confirm(
-              "กลับไปใช้ช่องตัวเลือกสินค้าแบบเดิมหรือไม่? การผูกกลุ่มตัวเลือกปัจจุบันจะถูกลบ",
+      <details className="legacy-product-settings">
+        <summary>ตัวเลือกสำหรับสินค้าเดิม</summary>
+        <p className="hint">
+          ใช้เฉพาะเมื่อจำเป็นต้องกลับไปใช้รูปแบบตัวเลือกแบบเก่า
+        </p>
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => {
+            if (
+              window.confirm(
+                "กลับไปใช้ช่องตัวเลือกสินค้าแบบเดิมหรือไม่? การผูกกลุ่มตัวเลือกปัจจุบันจะถูกลบ",
+              )
             )
-          )
-            onChange(undefined);
-        }}
-      >
-        ใช้ช่องตัวเลือกสินค้าแบบเดิม
-      </button>
+              onChange(undefined);
+          }}
+        >
+          กลับไปใช้รูปแบบเดิม
+        </button>
+      </details>
     </fieldset>
   );
 }

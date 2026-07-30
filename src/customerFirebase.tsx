@@ -20,7 +20,10 @@ import {
 } from "firebase/firestore";
 import { defaultProducts } from "./data";
 import { fallbackOptionGroups } from "./optionCatalogue";
-import { subscribePublicOptionGroups } from "./optionCatalogueRepository";
+import {
+  readPublicOptionGroups,
+  subscribePublicOptionGroups,
+} from "./optionCatalogueRepository";
 import { ensureCustomerAnonymousSession } from "./customerAnonymousAuth";
 import { toFirestoreData } from "./firestoreData";
 import { auth, authPersistenceReady, db, firebaseReady } from "./firebase";
@@ -306,11 +309,14 @@ export function CustomerProvider({
       }
       let latestProducts = products;
       let latestAvailability = availability;
+      let latestOptionGroups = optionGroups;
       if (db) {
-        const [menuSnapshot, availabilitySnapshot] = await Promise.all([
-          getDocs(query(collection(db, "publicMenu"), limit(100))),
-          getDoc(doc(db, "publicSettings", "toppingAvailability")),
-        ]);
+        const [menuSnapshot, availabilitySnapshot, catalogue] =
+          await Promise.all([
+            getDocs(query(collection(db, "publicMenu"), limit(100))),
+            getDoc(doc(db, "publicSettings", "toppingAvailability")),
+            readPublicOptionGroups(db),
+          ]);
         latestProducts = menuSnapshot.docs.map((row) =>
           customerPublicProductToProduct(row.data() as PublicCustomerProduct),
         );
@@ -318,8 +324,10 @@ export function CustomerProvider({
           (availabilitySnapshot.data()?.availability as
             | ToppingAvailability
             | undefined) ?? {};
+        latestOptionGroups = catalogue;
         setProducts(latestProducts);
         setAvailability(latestAvailability);
+        setOptionGroups(latestOptionGroups);
       }
       const request = createCustomerRequest(
         envelope.retryId,
@@ -328,6 +336,8 @@ export function CustomerProvider({
         latestProducts,
         latestAvailability,
         envelope.input,
+        undefined,
+        latestOptionGroups,
       );
       if (db) {
         const firestore = db;

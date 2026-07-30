@@ -809,13 +809,19 @@ interface CartValue {
     order: ShopOrder,
     products: Product[],
     availability?: ToppingAvailability,
+    optionGroups?: OptionGroup[],
   ): void;
   changeChannel(
     channel: OrderChannel,
     products: Product[],
     availability?: ToppingAvailability,
+    optionGroups?: OptionGroup[],
   ): void;
-  revalidate(products: Product[], availability?: ToppingAvailability): void;
+  revalidate(
+    products: Product[],
+    availability?: ToppingAvailability,
+    optionGroups?: OptionGroup[],
+  ): void;
 }
 const CartContext = createContext<CartValue | null>(null);
 
@@ -879,6 +885,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     order: ShopOrder,
     products: Product[],
     availability: ToppingAvailability = {},
+    optionGroups?: OptionGroup[],
   ) => {
     setItems(
       repriceCartItems(
@@ -891,6 +898,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         order.channel,
         toppings,
         availability,
+        optionGroups,
       ),
     );
     setEditingOrder(order);
@@ -900,17 +908,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
     nextChannel: OrderChannel,
     products: Product[],
     availability: ToppingAvailability = {},
+    optionGroups?: OptionGroup[],
   ) => {
     setItems((rows) =>
-      repriceCartItems(rows, products, nextChannel, toppings, availability),
+      repriceCartItems(
+        rows,
+        products,
+        nextChannel,
+        toppings,
+        availability,
+        optionGroups,
+      ),
     );
     setChannel(nextChannel);
   };
   const revalidate = useCallback(
-    (products: Product[], availability: ToppingAvailability = {}) => {
+    (
+      products: Product[],
+      availability: ToppingAvailability = {},
+      optionGroups?: OptionGroup[],
+    ) => {
       if (channel)
         setItems((rows) =>
-          repriceCartItems(rows, products, channel, toppings, availability),
+          repriceCartItems(
+            rows,
+            products,
+            channel,
+            toppings,
+            availability,
+            optionGroups,
+          ),
         );
     },
     [channel],

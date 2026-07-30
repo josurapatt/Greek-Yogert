@@ -40,9 +40,7 @@ export default function OptionGroupManager() {
   const {
     optionGroups: storedOptionGroups,
     catalogueError,
-    toppingAvailability,
     saveOptionGroup,
-    setToppingAvailability,
   } = useData();
   const optionGroups = storedOptionGroups ?? fallbackOptionGroups;
   const [editor, setEditor] = useState<GroupEditor | null>(null);
@@ -172,9 +170,6 @@ export default function OptionGroupManager() {
                   เลือก {group.minSelections}–{group.maxSelections} รายการ ·{" "}
                   {group.choices.length} ตัวเลือก
                 </p>
-                <small>
-                  ID: {group.id} · ลำดับการแสดงผล {group.displayOrder}
-                </small>
               </div>
               <span
                 className={`status ${group.active ? "completed" : "cancelled"}`}
@@ -206,8 +201,7 @@ export default function OptionGroupManager() {
                 : "เพิ่มกลุ่มตัวเลือก"}
             </h2>
             <p className="hint">
-              ระบบจะสร้าง ID ครั้งเดียวและไม่สามารถแก้ไขได้
-              แต่เปลี่ยนชื่อที่แสดงภายหลังได้
+              ตั้งชื่อ เพิ่มรายการตัวเลือก และกำหนดจำนวนที่ลูกค้าเลือกได้
             </p>
             <div className="form-grid">
               <label>
@@ -220,53 +214,17 @@ export default function OptionGroupManager() {
                 />
               </label>
               <label>
-                ID ถาวร
-                <input
-                  disabled
-                  value={
-                    editor.draft.id.startsWith("__draft-")
-                      ? "ระบบจะสร้างเมื่อบันทึก"
-                      : editor.draft.id
-                  }
-                />
-              </label>
-              <label>
-                ลำดับการแสดงผล
-                <input
-                  min="0"
-                  max="10000"
-                  type="number"
-                  value={editor.draft.displayOrder}
-                  onChange={(event) =>
-                    changeGroup("displayOrder", Number(event.target.value))
-                  }
-                />
-              </label>
-              <label>
-                การกำหนดราคา
-                <select
-                  value={editor.draft.pricingMode}
-                  onChange={(event) =>
-                    changeGroup(
-                      "pricingMode",
-                      event.target.value as OptionGroup["pricingMode"],
-                    )
-                  }
-                >
-                  <option value="choice-surcharge">ราคาเพิ่มตามตัวเลือก</option>
-                  <option value="legacy-topping">ราคาท็อปปิ้งแบบเดิม</option>
-                </select>
-              </label>
-              <label>
-                จำนวนเลือกขั้นต่ำ
+                จำนวนเลือกขั้นต่ำ (0 = ไม่จำเป็น)
                 <input
                   min="0"
                   max="10"
                   type="number"
                   value={editor.draft.minSelections}
-                  onChange={(event) =>
-                    changeGroup("minSelections", Number(event.target.value))
-                  }
+                  onChange={(event) => {
+                    const minimum = Number(event.target.value);
+                    changeGroup("minSelections", minimum);
+                    changeGroup("required", minimum > 0);
+                  }}
                 />
               </label>
               <label>
@@ -281,38 +239,85 @@ export default function OptionGroupManager() {
                   }
                 />
               </label>
-              <label className="inline-check">
-                <input
-                  checked={editor.draft.active}
-                  type="checkbox"
-                  onChange={(event) =>
-                    changeGroup("active", event.target.checked)
-                  }
-                />
-                {editor.draft.active
-                  ? "เปิดใช้งานกลุ่มตัวเลือก"
-                  : "กู้คืนกลุ่มตัวเลือก"}
-              </label>
-              <label className="inline-check">
-                <input
-                  checked={editor.draft.required}
-                  type="checkbox"
-                  onChange={(event) =>
-                    changeGroup("required", event.target.checked)
-                  }
-                />
-                จำเป็นต้องเลือกเป็นค่าเริ่มต้น
-              </label>
-              <label className="inline-check wide">
-                <input
-                  checked={editor.draft.allowDuplicates}
-                  type="checkbox"
-                  onChange={(event) =>
-                    changeGroup("allowDuplicates", event.target.checked)
-                  }
-                />
-                อนุญาตให้เลือกซ้ำ
-              </label>
+              <details className="wide catalogue-advanced">
+                <summary>การตั้งค่าขั้นสูง</summary>
+                <div className="form-grid">
+                  <label>
+                    ID ถาวร
+                    <input
+                      disabled
+                      value={
+                        editor.draft.id.startsWith("__draft-")
+                          ? "ระบบจะสร้างเมื่อบันทึก"
+                          : editor.draft.id
+                      }
+                    />
+                  </label>
+                  <label>
+                    ลำดับการแสดงผล
+                    <input
+                      min="0"
+                      max="10000"
+                      type="number"
+                      value={editor.draft.displayOrder}
+                      onChange={(event) =>
+                        changeGroup("displayOrder", Number(event.target.value))
+                      }
+                    />
+                  </label>
+                  <label>
+                    การกำหนดราคา
+                    <select
+                      value={editor.draft.pricingMode}
+                      onChange={(event) =>
+                        changeGroup(
+                          "pricingMode",
+                          event.target.value as OptionGroup["pricingMode"],
+                        )
+                      }
+                    >
+                      <option value="choice-surcharge">
+                        ราคาเพิ่มตามตัวเลือก
+                      </option>
+                      <option value="legacy-topping">
+                        ราคาท็อปปิ้งแบบเดิม
+                      </option>
+                    </select>
+                  </label>
+                  <label className="inline-check">
+                    <input
+                      checked={editor.draft.active}
+                      type="checkbox"
+                      onChange={(event) =>
+                        changeGroup("active", event.target.checked)
+                      }
+                    />
+                    {editor.draft.active
+                      ? "เปิดใช้งานกลุ่มตัวเลือก"
+                      : "กู้คืนกลุ่มตัวเลือก"}
+                  </label>
+                  <label className="inline-check">
+                    <input
+                      checked={editor.draft.required}
+                      type="checkbox"
+                      onChange={(event) =>
+                        changeGroup("required", event.target.checked)
+                      }
+                    />
+                    จำเป็นต้องเลือกเป็นค่าเริ่มต้น
+                  </label>
+                  <label className="inline-check">
+                    <input
+                      checked={editor.draft.allowDuplicates}
+                      type="checkbox"
+                      onChange={(event) =>
+                        changeGroup("allowDuplicates", event.target.checked)
+                      }
+                    />
+                    อนุญาตให้เลือกซ้ำ
+                  </label>
+                </div>
+              </details>
             </div>
 
             <div className="catalogue-choice-heading">
@@ -336,10 +341,6 @@ export default function OptionGroupManager() {
                 </p>
               )}
               {editor.draft.choices.map((choice) => {
-                const available =
-                  choice.id.startsWith("__draft-") ||
-                  toppingAvailability[choice.availabilityId ?? choice.id] !==
-                    false;
                 return (
                   <fieldset className="catalogue-choice-card" key={choice.id}>
                     <legend>{choice.name}</legend>
@@ -353,96 +354,54 @@ export default function OptionGroupManager() {
                           }
                         />
                       </label>
-                      <label>
-                        ID ถาวร
-                        <input
-                          disabled
-                          value={
-                            choice.id.startsWith("__draft-")
-                              ? "ระบบจะสร้างเมื่อบันทึก"
-                              : choice.id
-                          }
-                        />
-                      </label>
-                      <label>
-                        ลำดับการแสดงผล
-                        <input
-                          min="0"
-                          max="10000"
-                          type="number"
-                          value={choice.displayOrder}
-                          onChange={(event) =>
-                            changeChoice(
-                              choice.id,
-                              "displayOrder",
-                              Number(event.target.value),
-                            )
-                          }
-                        />
-                      </label>
-                      <label>
-                        ประเภท
-                        <select
-                          value={choice.classification}
-                          onChange={(event) =>
-                            changeChoice(
-                              choice.id,
-                              "classification",
-                              event.target
-                                .value as OptionChoice["classification"],
-                            )
-                          }
-                        >
-                          <option value="normal">ปกติ</option>
-                          <option value="premium">พรีเมียม</option>
-                        </select>
-                      </label>
-                      <label>
-                        ราคาเพิ่ม
-                        <input
-                          min="0"
-                          max="5000"
-                          type="number"
-                          value={choice.surcharge}
-                          onChange={(event) =>
-                            changeChoice(
-                              choice.id,
-                              "surcharge",
-                              Number(event.target.value),
-                            )
-                          }
-                        />
-                      </label>
-                      <label className="inline-check">
-                        <input
-                          checked={choice.active}
-                          type="checkbox"
-                          onChange={(event) =>
-                            changeChoice(
-                              choice.id,
-                              "active",
-                              event.target.checked,
-                            )
-                          }
-                        />
-                        {choice.active
-                          ? "เปิดใช้งานตัวเลือก"
-                          : "กู้คืนตัวเลือก"}
-                      </label>
                     </div>
-                    <div className="catalogue-choice-actions">
-                      <button
-                        className="secondary"
-                        disabled={choice.id.startsWith("__draft-")}
-                        onClick={() =>
-                          void setToppingAvailability(
-                            choice.availabilityId ?? choice.id,
-                            !available,
-                          )
-                        }
-                      >
-                        {available ? "เปิดขาย" : "หมด"}
-                      </button>
+                    <details className="catalogue-choice-advanced">
+                      <summary>ข้อมูลเพิ่มเติมและการเก็บถาวร</summary>
+                      <div className="form-grid">
+                        <label>
+                          ID ถาวร
+                          <input
+                            disabled
+                            value={
+                              choice.id.startsWith("__draft-")
+                                ? "ระบบจะสร้างเมื่อบันทึก"
+                                : choice.id
+                            }
+                          />
+                        </label>
+                        <label>
+                          ลำดับการแสดงผล
+                          <input
+                            min="0"
+                            max="10000"
+                            type="number"
+                            value={choice.displayOrder}
+                            onChange={(event) =>
+                              changeChoice(
+                                choice.id,
+                                "displayOrder",
+                                Number(event.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="inline-check">
+                          <input
+                            checked={choice.active}
+                            type="checkbox"
+                            onChange={(event) =>
+                              changeChoice(
+                                choice.id,
+                                "active",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          {choice.active
+                            ? "เปิดใช้งานตัวเลือก"
+                            : "กู้คืนตัวเลือก"}
+                        </label>
+                      </div>
                       <button
                         className="secondary"
                         onClick={() => removeOrArchiveChoice(choice)}
@@ -450,7 +409,7 @@ export default function OptionGroupManager() {
                         <Archive />
                         เก็บถาวร
                       </button>
-                    </div>
+                    </details>
                   </fieldset>
                 );
               })}

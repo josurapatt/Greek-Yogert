@@ -38,8 +38,13 @@ export default function CartPage() {
     changeChannel,
     revalidate,
   } = useCart();
-  const { products, toppingAvailability, submitOrder, replaceOrder } =
-    useData();
+  const {
+    products,
+    optionGroups,
+    toppingAvailability,
+    submitOrder,
+    replaceOrder,
+  } = useData();
   const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const [customerName, setCustomerName] = useState(
@@ -67,8 +72,8 @@ export default function CartPage() {
   useEffect(() => {
     if (!channel) return;
     setPayment((current) => normalizePaymentMethod(channel, current));
-    revalidate(products, toppingAvailability);
-  }, [channel, products, toppingAvailability, revalidate]);
+    revalidate(products, toppingAvailability, optionGroups);
+  }, [channel, products, optionGroups, toppingAvailability, revalidate]);
   const totals = useMemo(() => orderTotals(items, discount), [items, discount]);
   const invalidItems = items.filter((item) => item.validationError);
 
@@ -81,7 +86,7 @@ export default function CartPage() {
       )
     )
       return;
-    changeChannel(next, products, toppingAvailability);
+    changeChannel(next, products, toppingAvailability, optionGroups);
     setPayment((current) => normalizePaymentMethod(next, current));
   };
   const submit = async (event: FormEvent) => {
@@ -339,6 +344,7 @@ export default function CartPage() {
           return product ? (
             <ProductModal
               product={product}
+              optionGroups={optionGroups}
               channel={channel}
               availability={toppingAvailability}
               initial={editingItem}
@@ -350,6 +356,7 @@ export default function CartPage() {
                   channel,
                   toppings,
                   toppingAvailability,
+                  optionGroups,
                 );
                 update(item.id, {
                   ...repriced,

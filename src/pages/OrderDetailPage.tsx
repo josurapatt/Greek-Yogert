@@ -24,7 +24,13 @@ import type { ShopOrder } from "../types";
 export default function OrderDetailPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const { orders, products, toppingAvailability, setOrderStatus } = useData();
+  const {
+    orders,
+    products,
+    optionGroups,
+    toppingAvailability,
+    setOrderStatus,
+  } = useData();
   const { editOrder } = useCart();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -198,7 +204,7 @@ export default function OrderDetailPage() {
             <button
               className="secondary"
               onClick={() => {
-                editOrder(order, products, toppingAvailability);
+                editOrder(order, products, toppingAvailability, optionGroups);
                 navigate("/cart");
               }}
             >

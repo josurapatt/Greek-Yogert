@@ -2,31 +2,38 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultProducts, normalizeProduct } from "./data";
 import { fallbackOptionGroups } from "./optionCatalogue";
-import type { OptionGroup } from "./types";
+import type { OptionGroup, Product } from "./types";
 
 const mocks = vi.hoisted(() => ({
   catalogueError: "",
+  optionGroups: [] as OptionGroup[],
+  products: [] as Product[],
   saveOptionGroup: vi.fn(async () => undefined),
+  saveProduct: vi.fn(async () => undefined),
   setToppingAvailability: vi.fn(async () => undefined),
 }));
 
 vi.mock("./store", () => ({
   useData: () => ({
-    optionGroups: fallbackOptionGroups,
+    optionGroups: mocks.optionGroups,
     catalogueError: mocks.catalogueError,
-    products: defaultProducts,
+    products: mocks.products,
     toppingAvailability: {},
     saveOptionGroup: mocks.saveOptionGroup,
+    saveProduct: mocks.saveProduct,
     setToppingAvailability: mocks.setToppingAvailability,
   }),
 }));
 
 import OptionGroupManager from "./components/OptionGroupManager";
 import ProductOptionAssignmentsField from "./components/ProductOptionAssignmentsField";
+import ProductsPage from "./pages/ProductsPage";
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.catalogueError = "";
+  mocks.optionGroups = structuredClone(fallbackOptionGroups);
+  mocks.products = structuredClone(defaultProducts);
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
 
@@ -39,7 +46,7 @@ describe("Staff catalogue controls", () => {
     expect(screen.getByRole("alert").textContent).toBe(
       "กลุ่มตัวเลือก ID toppings มีตัวเลือกเกินจำนวนสูงสุด 50 รายการ",
     );
-    expect(screen.getByText(/ID: toppings/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "ท็อปปิ้ง" })).toBeTruthy();
   });
 
   it("renders the Catalogue administration controls in operational Thai", () => {
@@ -70,8 +77,14 @@ describe("Staff catalogue controls", () => {
     expect((screen.getByLabelText("ID ถาวร") as HTMLInputElement).value).toBe(
       "ระบบจะสร้างเมื่อบันทึก",
     );
-    expect(screen.getByLabelText("จำนวนเลือกขั้นต่ำ")).toBeTruthy();
+    expect(
+      screen.getByLabelText("จำนวนเลือกขั้นต่ำ (0 = ไม่จำเป็น)"),
+    ).toBeTruthy();
     expect(screen.getByLabelText("จำนวนเลือกสูงสุด")).toBeTruthy();
+    const advanced = screen
+      .getByText("การตั้งค่าขั้นสูง")
+      .closest("details") as HTMLDetailsElement;
+    expect(advanced.open).toBe(false);
     expect(screen.getByLabelText("อนุญาตให้เลือกซ้ำ")).toBeTruthy();
     expect(screen.getByText("ราคาเพิ่มตามตัวเลือก")).toBeTruthy();
     expect(
@@ -82,12 +95,10 @@ describe("Staff catalogue controls", () => {
     expect(
       (screen.getByLabelText("ชื่อตัวเลือก") as HTMLInputElement).value,
     ).toBe("ตัวเลือกใหม่");
-    expect((screen.getByLabelText("ประเภท") as HTMLSelectElement).value).toBe(
-      "normal",
-    );
-    expect(screen.getByText("ปกติ")).toBeTruthy();
-    expect(screen.getByText("พรีเมียม")).toBeTruthy();
-    expect(screen.getByLabelText("ราคาเพิ่ม")).toBeTruthy();
+    const choiceAdvanced = screen
+      .getByText("ข้อมูลเพิ่มเติมและการเก็บถาวร")
+      .closest("details") as HTMLDetailsElement;
+    expect(choiceAdvanced.open).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: /เก็บถาวร/ }));
     expect(screen.getByLabelText("กู้คืนตัวเลือก")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("กู้คืนตัวเลือก"));
@@ -113,12 +124,7 @@ describe("Staff catalogue controls", () => {
 
   it("edits group policy and adds a choice with a generated stable ID", async () => {
     render(<OptionGroupManager />);
-    const toppingCard = screen
-      .getByText("toppings", {
-        exact: false,
-        selector: "small",
-      })
-      .closest("article")!;
+    const toppingCard = screen.getByText("ท็อปปิ้ง").closest("article")!;
     fireEvent.click(
       Array.from(toppingCard.querySelectorAll("button")).find(
         (button) => button.textContent === "แก้ไข",
@@ -165,12 +171,10 @@ describe("Staff catalogue controls", () => {
       />,
     );
     expect(
-      screen.getByText(
-        "สินค้านี้ยังใช้การตั้งค่าตัวเลือกแบบเดิม (ท็อปปิ้ง) เปลี่ยนเป็นการผูกกลุ่มตัวเลือกเฉพาะเมื่อต้องการตั้งค่าแต่ละกลุ่มโดยตรง",
-      ),
+      screen.getByText(/สินค้าเดิมนี้ยังใช้รูปแบบ ท็อปปิ้ง แบบเก่า/),
     ).toBeTruthy();
     fireEvent.click(
-      screen.getByRole("button", { name: "ตั้งค่ากลุ่มตัวเลือก" }),
+      screen.getByRole("button", { name: "เปลี่ยนมาใช้กลุ่มตัวเลือก" }),
     );
     expect(onChange).toHaveBeenCalledWith([
       expect.objectContaining({ groupId: "toppings" }),
@@ -207,7 +211,64 @@ describe("Staff catalogue controls", () => {
       screen.getByLabelText("อนุญาตตัวเลือกที่เปิดใช้งานทั้งหมด"),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "ใช้ช่องตัวเลือกสินค้าแบบเดิม" }),
+      screen.getByRole("button", { name: "กลับไปใช้รูปแบบเดิม" }),
     ).toBeTruthy();
+  });
+
+  it("edits classification, surcharge, and sale state from a choice status card", async () => {
+    render(<ProductsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /กล้วย.*รสกราโนล่า/ }));
+    expect(screen.getByRole("heading", { name: "แก้ไข กล้วย" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("ประเภทตัวเลือก"), {
+      target: { value: "premium" },
+    });
+    fireEvent.change(screen.getByLabelText("ราคาเพิ่ม"), {
+      target: { value: "12" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "เปลี่ยนเป็นหมด" }));
+    await waitFor(() =>
+      expect(mocks.setToppingAvailability).toHaveBeenCalledWith(
+        expect.any(String),
+        false,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /บันทึกรายละเอียด/ }));
+
+    await waitFor(() => expect(mocks.saveOptionGroup).toHaveBeenCalledOnce());
+    const [saved] = mocks.saveOptionGroup.mock.calls[0] as unknown as [
+      OptionGroup,
+      OptionGroup,
+    ];
+    expect(
+      saved.choices.find((choice) => choice.name === "กล้วย"),
+    ).toMatchObject({
+      classification: "premium",
+      surcharge: 12,
+    });
+  });
+
+  it("starts new products in the catalogue assignment workflow", async () => {
+    render(<ProductsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /เพิ่มสินค้า/ }));
+    expect(screen.getByText("กลุ่มตัวเลือกที่ผูกกับสินค้า")).toBeTruthy();
+    expect(screen.queryByText("การตั้งค่าตัวเลือกแบบเดิม")).toBeNull();
+    const granolaGroup = screen
+      .getByText("รสกราโนล่า", { selector: "strong" })
+      .closest("article")!;
+    fireEvent.click(granolaGroup.querySelector('input[type="checkbox"]')!);
+    fireEvent.change(screen.getByLabelText("ราคาหน้าร้าน"), {
+      target: { value: "59" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /บันทึกสินค้า/ }));
+
+    await waitFor(() => expect(mocks.saveProduct).toHaveBeenCalledOnce());
+    const [savedProduct] = mocks.saveProduct.mock.calls[0] as unknown as [
+      Product,
+    ];
+    expect(savedProduct).toMatchObject({
+      optionGroupAssignments: [{ groupId: "granola-flavour" }],
+    });
   });
 });

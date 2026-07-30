@@ -12,7 +12,7 @@ import { separatedPackagingAvailabilityId } from "./lib";
 import CustomerOrderPage from "./pages/CustomerOrderPage";
 import ProductsPage from "./pages/ProductsPage";
 import SettingsPage from "./pages/SettingsPage";
-import type { Product } from "./types";
+import type { OptionGroup, Product } from "./types";
 
 const mocks = vi.hoisted(() => ({
   useCustomer: vi.fn(),
@@ -32,6 +32,35 @@ const product = defaultProducts.find((entry) => entry.id === "plain-greek")!;
 const configurableProduct = defaultProducts.find(
   (entry) => entry.id === "apple-ohlala",
 )!;
+const customGroup: OptionGroup = {
+  id: "group-uat-3",
+  displayName: "ทดสอบ UAT 3",
+  active: true,
+  displayOrder: 100,
+  required: true,
+  minSelections: 1,
+  maxSelections: 1,
+  allowDuplicates: false,
+  pricingMode: "choice-surcharge",
+  choices: [
+    {
+      id: "choice-mzin37",
+      name: "ทดสอบ",
+      active: true,
+      displayOrder: 1,
+      classification: "normal",
+      surcharge: 5,
+      everUsed: false,
+    },
+  ],
+};
+const customProduct: Product = {
+  ...product,
+  id: "product-uat-3",
+  name: "สินค้า UAT 3",
+  optionMode: "none",
+  optionGroupAssignments: [{ groupId: customGroup.id }],
+};
 
 describe("manual UAT defect regressions", () => {
   beforeEach(() => {
@@ -249,6 +278,43 @@ describe("manual UAT defect regressions", () => {
     expect(
       container.querySelector(".customer-cart-options")?.textContent,
     ).not.toContain(initialFlavor);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("adds a newly created product with an assigned Catalogue group to the customer basket", () => {
+    const submit = vi.fn();
+    mocks.useCustomer.mockReturnValue({
+      products: [customProduct],
+      optionGroups: [customGroup],
+      availability: {},
+      loading: false,
+      submit,
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <CustomerOrderPage />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: new RegExp(customProduct.name) }),
+    );
+    const addChoice = screen.getByRole("button", { name: "เพิ่ม ทดสอบ" });
+    expect(
+      (
+        screen.getByRole("button", {
+          name: /เพิ่มลงตะกร้า/,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    fireEvent.click(addChoice);
+    expect((addChoice as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /เพิ่มลงตะกร้า/ }));
+
+    expect(container.querySelectorAll(".customer-cart-line")).toHaveLength(1);
+    expect(
+      container.querySelector(".customer-cart-options")?.textContent,
+    ).toContain("ทดสอบ UAT 3: ทดสอบ");
     expect(submit).not.toHaveBeenCalled();
   });
 });
