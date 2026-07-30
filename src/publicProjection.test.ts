@@ -11,8 +11,10 @@ import {
   buildPublicProjection,
   diffPublicProjection,
   normalizePublicCustomerRequestPolicy,
+  publicProjectionWritePlan,
   projectionFingerprint,
 } from "./publicProjection";
+import type { OptionGroup } from "./types";
 
 describe("public Customer projection", () => {
   it("whitelists only approved Customer menu fields and emits V3 policy/control", () => {
@@ -240,6 +242,46 @@ describe("public Customer projection", () => {
     ]);
     expect(currentGroups.groupsCreate).toEqual([]);
     expect(existing.stale).toEqual({ id: "stale" });
+  });
+
+  it("plans only changed public documents for a new unassigned group", () => {
+    const current = buildPublicProjection(
+      defaultProducts,
+      {},
+      fallbackOptionGroups,
+    );
+    const thaiGroup: OptionGroup = {
+      id: "group-uat-2",
+      displayName: "ทดสอบ UAT 2",
+      active: true,
+      displayOrder: 100,
+      required: false,
+      minSelections: 0,
+      maxSelections: 1,
+      allowDuplicates: false,
+      pricingMode: "choice-surcharge",
+      choices: [
+        {
+          id: "choice-mzin37",
+          name: "ทดสอบ",
+          active: true,
+          displayOrder: 1,
+          classification: "normal",
+          surcharge: 0,
+          everUsed: false,
+        },
+      ],
+    };
+    const next = buildPublicProjection(defaultProducts, {}, [
+      ...fallbackOptionGroups,
+      thaiGroup,
+    ]);
+
+    expect(publicProjectionWritePlan(current, next)).toEqual({
+      menuIds: [],
+      optionGroupIds: ["group-uat-2"],
+      updatePolicyAndControl: true,
+    });
   });
 
   it("reads V2 and V3 policies but prevents a V3-to-V2 transition", () => {

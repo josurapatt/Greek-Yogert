@@ -14,14 +14,28 @@ import {
   getDocs,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
 import { defaultProducts } from "./src/data";
+import {
+  createStableCatalogueId,
+  prepareOptionGroupSave,
+} from "./src/catalogueAdmin";
 import { customerOptionLabels } from "./src/customerOrder";
-import { readPrivateOptionGroups } from "./src/optionCatalogueRepository";
+import { toFirestoreData } from "./src/firestoreData";
+import {
+  readPrivateOptionGroups,
+  writePrivateOptionGroup,
+} from "./src/optionCatalogueRepository";
+import {
+  buildPublicProjection,
+  publicProjectionWritePlan,
+  publicProjectionControlId,
+} from "./src/publicProjection";
 
 let environment: RulesTestEnvironment;
 const passwordToken = { firebase: { sign_in_provider: "password" } };
@@ -533,6 +547,178 @@ describe("WP4 Production-candidate Firestore authorization", () => {
         privateOptionChoice("ordinary-write"),
       ),
     );
+  });
+
+  it.each([
+    ["one Choice", ["ทดสอบ"], ["choice-mzin37"]],
+    [
+      "multiple Choices",
+      ["ทดสอบ", "น้ำผึ้ง"],
+      ["choice-mzin37", "choice-zrtiv6"],
+    ],
+  ])(
+    "saves a fresh Thai-only group with %s through the complete Catalogue transaction",
+    async (_label, choiceNames, expectedChoiceIds) => {
+      await seedRuntime();
+      await seed({
+        "users/staff": { role: "staff", active: true },
+        "settings/toppingAvailability": { availability: {} },
+        ...Object.fromEntries(
+          defaultProducts.map((product) => [`products/${product.id}`, product]),
+        ),
+      });
+      const staff = environment
+        .authenticatedContext("staff", passwordToken)
+        .firestore();
+      const catalogue = await readPrivateOptionGroups(staff);
+      const groupId = createStableCatalogueId(
+        "group",
+        "ทดสอบ UAT 2",
+        catalogue.map((group) => group.id),
+      );
+      const existingChoiceIds = new Set(
+        catalogue.flatMap((group) => group.choices.map((choice) => choice.id)),
+      );
+      const choices = choiceNames.map((name, index) => {
+        const id = createStableCatalogueId("choice", name, existingChoiceIds);
+        existingChoiceIds.add(id);
+        return {
+          id,
+          name,
+          active: true,
+          displayOrder: index + 1,
+          classification: "normal" as const,
+          surcharge: 0,
+          everUsed: false,
+        };
+      });
+      const prepared = prepareOptionGroupSave({
+        next: {
+          id: groupId,
+          displayName: "ทดสอบ UAT 2",
+          active: true,
+          displayOrder: 100,
+          required: false,
+          minSelections: 0,
+          maxSelections: 1,
+          allowDuplicates: false,
+          pricingMode: "choice-surcharge",
+          choices,
+        },
+        catalogue,
+        products: defaultProducts,
+      });
+      const currentProjection = buildPublicProjection(
+        defaultProducts,
+        {},
+        catalogue,
+      );
+      const projection = buildPublicProjection(
+        defaultProducts,
+        {},
+        prepared.catalogue,
+      );
+      const writePlan = publicProjectionWritePlan(
+        currentProjection,
+        projection,
+      );
+
+      await runTransaction(staff, async (transaction) => {
+        const controlRef = doc(
+          staff,
+          "publicProjectionControl",
+          publicProjectionControlId,
+        );
+        const availabilityRef = doc(staff, "settings", "toppingAvailability");
+        const groupRef = doc(staff, "optionGroups", prepared.group.id);
+        await Promise.all([
+          transaction.get(controlRef),
+          transaction.get(availabilityRef),
+          transaction.get(groupRef),
+        ]);
+        writePrivateOptionGroup(transaction, staff, prepared.group, undefined);
+        writePlan.menuIds.forEach((id) =>
+          transaction.set(
+            doc(staff, "publicMenu", id),
+            toFirestoreData(projection.menu[id]),
+          ),
+        );
+        writePlan.optionGroupIds.forEach((id) =>
+          transaction.set(
+            doc(staff, "publicOptionGroups", id),
+            toFirestoreData(projection.optionGroups[id]),
+          ),
+        );
+        if (writePlan.updatePolicyAndControl) {
+          transaction.set(
+            doc(staff, "publicSettings", "customerRequestPolicy"),
+            toFirestoreData(projection.requestPolicy),
+          );
+          transaction.set(controlRef, toFirestoreData(projection.control));
+        }
+      });
+
+      expect(groupId).toBe("group-uat-2");
+      expect(choices.map((choice) => choice.id)).toEqual(expectedChoiceIds);
+      expect(writePlan).toEqual({
+        menuIds: [],
+        optionGroupIds: [groupId],
+        updatePolicyAndControl: true,
+      });
+      expect(
+        (await getDoc(doc(staff, `optionGroups/${groupId}`))).exists(),
+      ).toBe(true);
+      for (const choiceId of expectedChoiceIds)
+        expect(
+          (
+            await getDoc(
+              doc(staff, `optionGroups/${groupId}/choices/${choiceId}`),
+            )
+          ).exists(),
+        ).toBe(true);
+    },
+  );
+
+  it("leaves no partial Catalogue documents when projection publication fails", async () => {
+    await seed({
+      "users/staff": { role: "staff", active: true },
+    });
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const groupId = "group-atomic-failure";
+    const choiceId = "choice-atomic-failure";
+    const batch = writeBatch(staff);
+    batch.set(doc(staff, `optionGroups/${groupId}`), {
+      ...privateOptionGroup(groupId),
+      displayName: "ทดสอบธุรกรรม",
+    });
+    batch.set(
+      doc(staff, `optionGroups/${groupId}/choices/${choiceId}`),
+      privateOptionChoice(choiceId, { name: "ทดสอบ" }),
+    );
+    batch.set(doc(staff, `publicOptionGroups/${groupId}`), {
+      ...optionGroup("wrong-public-id", { public: true }),
+      displayName: "ทดสอบธุรกรรม",
+    });
+    await assertFails(batch.commit());
+
+    await environment.withSecurityRulesDisabled(async (context) => {
+      const database = context.firestore();
+      expect(
+        (await getDoc(doc(database, `optionGroups/${groupId}`))).exists(),
+      ).toBe(false);
+      expect(
+        (
+          await getDoc(
+            doc(database, `optionGroups/${groupId}/choices/${choiceId}`),
+          )
+        ).exists(),
+      ).toBe(false);
+      expect(
+        (await getDoc(doc(database, `publicOptionGroups/${groupId}`))).exists(),
+      ).toBe(false);
+    });
   });
 
   it("detects a direct Staff-created 51st Choice instead of reconstructing a partial catalogue", async () => {

@@ -25,6 +25,7 @@ import {
   setDoc,
   updateDoc,
   writeBatch,
+  type Firestore,
 } from "firebase/firestore";
 import { auth, db, firebaseReady } from "./firebase";
 import { runtimeConfig } from "@runtime-config";
@@ -43,7 +44,9 @@ import {
 import { removeCustomerRequest } from "./customerRequests";
 import {
   buildPublicProjection,
+  publicProjectionWritePlan,
   publicProjectionControlId,
+  type PublicProjection,
 } from "./publicProjection";
 import {
   fallbackOptionGroups,
@@ -447,6 +450,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
       );
   };
 
+  const writePublicProjectionChanges = (
+    transaction: Parameters<typeof writePrivateOptionGroup>[0],
+    firestore: Firestore,
+    current: PublicProjection,
+    next: PublicProjection,
+  ) => {
+    const plan = publicProjectionWritePlan(current, next);
+    plan.menuIds.forEach((id) =>
+      transaction.set(doc(firestore, "publicMenu", id), next.menu[id]),
+    );
+    plan.optionGroupIds.forEach((id) =>
+      transaction.set(
+        doc(firestore, "publicOptionGroups", id),
+        next.optionGroups[id],
+      ),
+    );
+    if (!plan.updatePolicyAndControl) return;
+    transaction.set(
+      doc(firestore, "publicSettings", "customerRequestPolicy"),
+      next.requestPolicy,
+    );
+    transaction.set(
+      doc(firestore, "publicProjectionControl", publicProjectionControlId),
+      next.control,
+    );
+  };
+
   const saveProduct = async (product: Product) => {
     const normalized = normalizeProduct(product);
     if (db) {
@@ -490,6 +520,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           control.exists(),
           control.data(),
         );
+        const currentProjection = buildPublicProjection(
+          currentProducts,
+          canonicalAvailability,
+          catalogue,
+        );
         const prepared = prepareProductCatalogueSave({
           product: normalized,
           products: currentProducts,
@@ -509,17 +544,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (!sameOptionGroup(previous, group))
             writePrivateOptionGroup(transaction, firestore, group, previous);
         });
-        Object.entries(projection.menu).forEach(([id, value]) =>
-          transaction.set(doc(firestore, "publicMenu", id), value),
+        writePublicProjectionChanges(
+          transaction,
+          firestore,
+          currentProjection,
+          projection,
         );
-        Object.entries(projection.optionGroups).forEach(([id, value]) =>
-          transaction.set(doc(firestore, "publicOptionGroups", id), value),
-        );
-        transaction.set(
-          doc(firestore, "publicSettings", "customerRequestPolicy"),
-          projection.requestPolicy,
-        );
-        transaction.set(controlRef, projection.control);
       });
     } else {
       const prepared = prepareProductCatalogueSave({
@@ -577,6 +607,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           control.exists(),
           control.data(),
         );
+        const currentProjection = buildPublicProjection(
+          currentProducts,
+          canonicalAvailability,
+          catalogue,
+        );
         const currentGroup = catalogue.find(
           (entry) => entry.id === normalized.id,
         );
@@ -605,17 +640,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           prepared.group,
           currentGroup,
         );
-        Object.entries(projection.menu).forEach(([id, value]) =>
-          transaction.set(doc(firestore, "publicMenu", id), value),
+        writePublicProjectionChanges(
+          transaction,
+          firestore,
+          currentProjection,
+          projection,
         );
-        Object.entries(projection.optionGroups).forEach(([id, value]) =>
-          transaction.set(doc(firestore, "publicOptionGroups", id), value),
-        );
-        transaction.set(
-          doc(firestore, "publicSettings", "customerRequestPolicy"),
-          projection.requestPolicy,
-        );
-        transaction.set(controlRef, projection.control);
       });
     } else {
       const prepared = prepareOptionGroupSave({

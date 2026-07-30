@@ -22,6 +22,10 @@ const liveDeployment = workflow.slice(
   workflow.indexOf("Deploy isolated UAT Firebase resources"),
   workflow.indexOf("Detect WP-CC-02 Firestore Rules change"),
 );
+const thaiUatInspection = workflow.slice(
+  workflow.indexOf("Inspect exact WP-CC-02 Thai UAT records"),
+  workflow.indexOf("Capture preserved WP4 Human-UAT evidence"),
+);
 const rulesChangeDetection = workflow.slice(
   workflow.indexOf("Detect WP-CC-02 Firestore Rules change"),
   workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
@@ -115,6 +119,30 @@ describe("WP-CC-02 Customer UAT Rules and Hosting preview workflow", () => {
     ]) {
       expect(workflow).toContain(`secrets.${secret}`);
     }
+  });
+
+  it("inspects only exact Thai test records without mutating UAT", () => {
+    expect(thaiUatInspection).toContain(
+      'test "$SOURCE_BRANCH" = "feature/wp-cc-02-catalogue-admin"',
+    );
+    expect(thaiUatInspection).toContain(
+      'test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" = "greek-yogert-customer-uat-2026"',
+    );
+    expect(thaiUatInspection).toContain(
+      'test "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" != "greek-yogert"',
+    );
+    expect(thaiUatInspection).toContain(
+      'const exactNames = ["ทดสอบ UAT 2", "ทดสอบ UAT 3"]',
+    );
+    expect(thaiUatInspection).toContain(
+      'new Set(["group-uat-2", "group-uat-3"])',
+    );
+    expect(thaiUatInspection).toContain(
+      '.doc("publicProjectionControl/current")',
+    );
+    expect(thaiUatInspection).not.toContain(".set(");
+    expect(thaiUatInspection).not.toContain(".update(");
+    expect(thaiUatInspection).not.toContain(".delete(");
   });
 
   it("deploys canonical Firestore Rules only when this publication changed them", () => {

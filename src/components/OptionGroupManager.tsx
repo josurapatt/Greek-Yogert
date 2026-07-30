@@ -2,7 +2,7 @@ import { Archive, Plus, Save } from "lucide-react";
 import { useState } from "react";
 import {
   catalogueAdminErrorMessage,
-  createStableCatalogueId,
+  resolveCatalogueDraftIds,
 } from "../catalogueAdmin";
 import { fallbackOptionGroups } from "../optionCatalogue";
 import { useData } from "../store";
@@ -35,26 +35,6 @@ const newChoice = (index: number): OptionChoice => ({
   surcharge: 0,
   everUsed: false,
 });
-
-function resolveDraftIds(
-  draft: OptionGroup,
-  catalogue: OptionGroup[],
-): OptionGroup {
-  const groupIds = catalogue.map((group) => group.id);
-  const groupId = draft.id.startsWith("__draft-")
-    ? createStableCatalogueId("group", draft.displayName, groupIds)
-    : draft.id;
-  const choiceIds = new Set(
-    catalogue.flatMap((group) => group.choices.map((choice) => choice.id)),
-  );
-  const choices = draft.choices.map((choice) => {
-    if (!choice.id.startsWith("__draft-")) return choice;
-    const id = createStableCatalogueId("choice", choice.name, choiceIds);
-    choiceIds.add(id);
-    return { ...choice, id };
-  });
-  return { ...draft, id: groupId, choices };
-}
 
 export default function OptionGroupManager() {
   const {
@@ -127,7 +107,7 @@ export default function OptionGroupManager() {
     try {
       setSaving(true);
       setError("");
-      const resolved = resolveDraftIds(editor.draft, optionGroups);
+      const resolved = resolveCatalogueDraftIds(editor.draft, optionGroups);
       await saveOptionGroup(resolved, editor.original);
       setEditor(null);
     } catch (cause) {

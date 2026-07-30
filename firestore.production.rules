@@ -475,59 +475,98 @@ service cloud.firestore {
       return choices.size() <= index
         || validOptionChoice(choices[index], publicData);
     }
-    function validOptionChoices(choices, publicData) {
-      return choices is list
-        && choices.size() <= 50
-        && validOptionChoiceAt(choices, 0, publicData)
+    function validOptionChoices0To4(choices, publicData) {
+      return validOptionChoiceAt(choices, 0, publicData)
         && validOptionChoiceAt(choices, 1, publicData)
         && validOptionChoiceAt(choices, 2, publicData)
         && validOptionChoiceAt(choices, 3, publicData)
-        && validOptionChoiceAt(choices, 4, publicData)
-        && validOptionChoiceAt(choices, 5, publicData)
+        && validOptionChoiceAt(choices, 4, publicData);
+    }
+    function validOptionChoices5To9(choices, publicData) {
+      return validOptionChoiceAt(choices, 5, publicData)
         && validOptionChoiceAt(choices, 6, publicData)
         && validOptionChoiceAt(choices, 7, publicData)
         && validOptionChoiceAt(choices, 8, publicData)
-        && validOptionChoiceAt(choices, 9, publicData)
-        && validOptionChoiceAt(choices, 10, publicData)
+        && validOptionChoiceAt(choices, 9, publicData);
+    }
+    function validOptionChoices10To14(choices, publicData) {
+      return validOptionChoiceAt(choices, 10, publicData)
         && validOptionChoiceAt(choices, 11, publicData)
         && validOptionChoiceAt(choices, 12, publicData)
         && validOptionChoiceAt(choices, 13, publicData)
-        && validOptionChoiceAt(choices, 14, publicData)
-        && validOptionChoiceAt(choices, 15, publicData)
+        && validOptionChoiceAt(choices, 14, publicData);
+    }
+    function validOptionChoices15To19(choices, publicData) {
+      return validOptionChoiceAt(choices, 15, publicData)
         && validOptionChoiceAt(choices, 16, publicData)
         && validOptionChoiceAt(choices, 17, publicData)
         && validOptionChoiceAt(choices, 18, publicData)
-        && validOptionChoiceAt(choices, 19, publicData)
-        && validOptionChoiceAt(choices, 20, publicData)
+        && validOptionChoiceAt(choices, 19, publicData);
+    }
+    function validOptionChoices20To24(choices, publicData) {
+      return validOptionChoiceAt(choices, 20, publicData)
         && validOptionChoiceAt(choices, 21, publicData)
         && validOptionChoiceAt(choices, 22, publicData)
         && validOptionChoiceAt(choices, 23, publicData)
-        && validOptionChoiceAt(choices, 24, publicData)
-        && validOptionChoiceAt(choices, 25, publicData)
+        && validOptionChoiceAt(choices, 24, publicData);
+    }
+    function validOptionChoices25To29(choices, publicData) {
+      return validOptionChoiceAt(choices, 25, publicData)
         && validOptionChoiceAt(choices, 26, publicData)
         && validOptionChoiceAt(choices, 27, publicData)
         && validOptionChoiceAt(choices, 28, publicData)
-        && validOptionChoiceAt(choices, 29, publicData)
-        && validOptionChoiceAt(choices, 30, publicData)
+        && validOptionChoiceAt(choices, 29, publicData);
+    }
+    function validOptionChoices30To34(choices, publicData) {
+      return validOptionChoiceAt(choices, 30, publicData)
         && validOptionChoiceAt(choices, 31, publicData)
         && validOptionChoiceAt(choices, 32, publicData)
         && validOptionChoiceAt(choices, 33, publicData)
-        && validOptionChoiceAt(choices, 34, publicData)
-        && validOptionChoiceAt(choices, 35, publicData)
+        && validOptionChoiceAt(choices, 34, publicData);
+    }
+    function validOptionChoices35To39(choices, publicData) {
+      return validOptionChoiceAt(choices, 35, publicData)
         && validOptionChoiceAt(choices, 36, publicData)
         && validOptionChoiceAt(choices, 37, publicData)
         && validOptionChoiceAt(choices, 38, publicData)
-        && validOptionChoiceAt(choices, 39, publicData)
-        && validOptionChoiceAt(choices, 40, publicData)
+        && validOptionChoiceAt(choices, 39, publicData);
+    }
+    function validOptionChoices40To44(choices, publicData) {
+      return validOptionChoiceAt(choices, 40, publicData)
         && validOptionChoiceAt(choices, 41, publicData)
         && validOptionChoiceAt(choices, 42, publicData)
         && validOptionChoiceAt(choices, 43, publicData)
-        && validOptionChoiceAt(choices, 44, publicData)
-        && validOptionChoiceAt(choices, 45, publicData)
+        && validOptionChoiceAt(choices, 44, publicData);
+    }
+    function validOptionChoices45To49(choices, publicData) {
+      return validOptionChoiceAt(choices, 45, publicData)
         && validOptionChoiceAt(choices, 46, publicData)
         && validOptionChoiceAt(choices, 47, publicData)
         && validOptionChoiceAt(choices, 48, publicData)
         && validOptionChoiceAt(choices, 49, publicData);
+    }
+    function validOptionChoices(choices, publicData) {
+      return choices is list
+        && choices.size() <= 50
+        && validOptionChoices0To4(choices, publicData)
+        && (choices.size() <= 5
+          || validOptionChoices5To9(choices, publicData))
+        && (choices.size() <= 10
+          || validOptionChoices10To14(choices, publicData))
+        && (choices.size() <= 15
+          || validOptionChoices15To19(choices, publicData))
+        && (choices.size() <= 20
+          || validOptionChoices20To24(choices, publicData))
+        && (choices.size() <= 25
+          || validOptionChoices25To29(choices, publicData))
+        && (choices.size() <= 30
+          || validOptionChoices30To34(choices, publicData))
+        && (choices.size() <= 35
+          || validOptionChoices35To39(choices, publicData))
+        && (choices.size() <= 40
+          || validOptionChoices40To44(choices, publicData))
+        && (choices.size() <= 45
+          || validOptionChoices45To49(choices, publicData));
     }
     function validOptionGroup(data, groupId, publicData) {
       return data.keys().hasOnly([

@@ -3,9 +3,11 @@ import {
   catalogueAdminErrorMessage,
   createStableCatalogueId,
   hardDeleteChoiceDecision,
+  isValidGeneratedCatalogueId,
   markAssignedChoicesEverUsed,
   prepareOptionGroupSave,
   prepareProductCatalogueSave,
+  resolveCatalogueDraftIds,
 } from "./catalogueAdmin";
 import { defaultProducts, normalizeProduct } from "./data";
 import {
@@ -76,6 +78,39 @@ describe("catalogue administration policy", () => {
     ).toBe("ไม่สามารถโหลดข้อมูลแคตตาล็อกได้ กรุณาลองใหม่");
   });
 
+  it("classifies safe actionable save failures without exposing diagnostics", () => {
+    expect(
+      catalogueAdminErrorMessage(
+        Object.assign(new Error("7 PERMISSION_DENIED"), {
+          code: "permission-denied",
+        }),
+        "fallback",
+      ),
+    ).toBe("บัญชีนี้ไม่มีสิทธิ์บันทึกแคตตาล็อก กรุณาตรวจสอบสิทธิ์พนักงาน");
+    expect(
+      catalogueAdminErrorMessage(
+        new Error("Invalid generated catalogue identifier"),
+        "fallback",
+      ),
+    ).toBe("ไม่สามารถสร้าง ID ถาวรจากชื่อนี้ได้ กรุณาปรับชื่อแล้วลองใหม่");
+    expect(
+      catalogueAdminErrorMessage(
+        Object.assign(new Error("backend unavailable"), {
+          code: "unavailable",
+        }),
+        "fallback",
+      ),
+    ).toBe(
+      "ไม่สามารถเชื่อมต่อเพื่อบันทึกแคตตาล็อกได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่",
+    );
+    expect(
+      catalogueAdminErrorMessage(
+        new Error("unclassified internal diagnostic"),
+        "fallback",
+      ),
+    ).toBe("fallback");
+  });
+
   it("creates deterministic unique IDs and keeps IDs stable across name edits", () => {
     expect(createStableCatalogueId("group", "Sauce", [])).toBe("group-sauce");
     expect(createStableCatalogueId("group", "Sauce", ["group-sauce"])).toBe(
@@ -95,6 +130,88 @@ describe("catalogue administration policy", () => {
     });
     expect(saved.group.id).toBe("sauce");
     expect(saved.group.displayName).toBe("Sauces");
+  });
+
+  it("resolves Thai-only draft IDs deterministically for one or multiple Choices", () => {
+    const thaiDraft = {
+      ...customGroup(),
+      id: "__draft-group",
+      displayName: "ทดสอบ",
+      choices: [
+        {
+          ...customGroup().choices[0],
+          id: "__draft-choice-1",
+          name: "น้ำผึ้ง",
+        },
+        {
+          ...customGroup().choices[1],
+          id: "__draft-choice-2",
+          name: "น้ำผึ้ง",
+        },
+      ],
+    };
+    const resolved = resolveCatalogueDraftIds(thaiDraft, fallbackOptionGroups);
+    const retried = resolveCatalogueDraftIds(thaiDraft, fallbackOptionGroups);
+
+    expect(resolved).toEqual(retried);
+    expect(resolved.id).toBe("group-mzin37");
+    expect(resolved.choices.map((choice) => choice.id)).toEqual([
+      "choice-zrtiv6",
+      "choice-zrtiv6-2",
+    ]);
+    expect(
+      [resolved.id, ...resolved.choices.map((choice) => choice.id)].every(
+        isValidGeneratedCatalogueId,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["mixed Thai-English", "กลุ่ม Sauce", "group-sauce"],
+    ["Thai with digits", "กลุ่ม 123", "group-123"],
+    ["symbols and whitespace", "  ชุด /// ...  ", "group-cpozv0"],
+  ])("creates a valid ID for %s", (_label, value, expected) => {
+    const id = createStableCatalogueId("group", value, []);
+    expect(id).toBe(expected);
+    expect(isValidGeneratedCatalogueId(id)).toBe(true);
+  });
+
+  it("preserves resolved and existing English IDs after display-name changes", () => {
+    const resolved = resolveCatalogueDraftIds(
+      {
+        ...customGroup(),
+        id: "__draft-group",
+        displayName: "ทดสอบ",
+        choices: [
+          {
+            ...customGroup().choices[0],
+            id: "__draft-choice-1",
+            name: "น้ำผึ้ง",
+          },
+        ],
+      },
+      fallbackOptionGroups,
+    );
+    const renamed = resolveCatalogueDraftIds(
+      {
+        ...resolved,
+        displayName: "ชื่อใหม่",
+        choices: [{ ...resolved.choices[0], name: "ตัวเลือกใหม่" }],
+      },
+      fallbackOptionGroups,
+    );
+    const existingEnglish = resolveCatalogueDraftIds(
+      customGroup(),
+      fallbackOptionGroups,
+    );
+
+    expect(renamed.id).toBe(resolved.id);
+    expect(renamed.choices[0].id).toBe(resolved.choices[0].id);
+    expect(existingEnglish.id).toBe("sauce");
+    expect(existingEnglish.choices.map((choice) => choice.id)).toEqual([
+      "choice-caramel",
+      "choice-berry",
+    ]);
   });
 
   it("edits topping names, classification, surcharge, order, and sale lifecycle without changing IDs", () => {

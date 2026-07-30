@@ -13,6 +13,11 @@ export interface HardDeleteDecision {
   reason?: string;
 }
 
+export interface CatalogueDraftIdSource {
+  id: string;
+  choices: Array<{ id: string }>;
+}
+
 const catalogueConcurrencyError =
   "Catalogue changed concurrently. Reload Products and try again.";
 
@@ -44,6 +49,13 @@ export function catalogueAdminErrorMessage(
   cause: unknown,
   fallback: string,
 ): string {
+  const code =
+    cause &&
+    typeof cause === "object" &&
+    "code" in cause &&
+    typeof cause.code === "string"
+      ? cause.code.toLowerCase()
+      : "";
   const message =
     cause instanceof Error
       ? cause.message
@@ -51,6 +63,18 @@ export function catalogueAdminErrorMessage(
         ? cause
         : "";
   if (!message) return fallback;
+
+  if (
+    code.includes("permission-denied") ||
+    /\bPERMISSION_DENIED\b|Missing or insufficient permissions/i.test(message)
+  )
+    return "บัญชีนี้ไม่มีสิทธิ์บันทึกแคตตาล็อก กรุณาตรวจสอบสิทธิ์พนักงาน";
+  if (
+    code.includes("unavailable") ||
+    code.includes("deadline-exceeded") ||
+    code.includes("network-request-failed")
+  )
+    return "ไม่สามารถเชื่อมต่อเพื่อบันทึกแคตตาล็อกได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่";
 
   const groupChoiceLimit = message.match(
     /^Option group (.+) exceeds (?:the maximum of |the )?(\d+)(?: choices\.|-choice limit)$/,
@@ -72,6 +96,8 @@ export function catalogueAdminErrorMessage(
 
   const messages: Record<string, string> = {
     "A name is required before creating an ID": "กรุณากรอกชื่อก่อนบันทึก",
+    "Invalid generated catalogue identifier":
+      "ไม่สามารถสร้าง ID ถาวรจากชื่อนี้ได้ กรุณาปรับชื่อแล้วลองใหม่",
     "Option group IDs are immutable": "ไม่สามารถเปลี่ยน ID ของกลุ่มตัวเลือกได้",
     "Choices must be archived because physical deletion is disabled":
       "ไม่สามารถลบตัวเลือกออกจากระบบได้ กรุณาเก็บถาวรแทน",
@@ -156,6 +182,16 @@ function idStem(value: string): string {
   return normalized || stableHash(value.trim());
 }
 
+export function isValidGeneratedCatalogueId(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 120 &&
+    value !== "." &&
+    value !== ".." &&
+    !value.includes("/")
+  );
+}
+
 export function createStableCatalogueId(
   kind: CatalogueIdKind,
   label: string,
@@ -165,10 +201,37 @@ export function createStableCatalogueId(
   if (!trimmed) throw new Error("A name is required before creating an ID");
   const existing = new Set(existingIds);
   const base = `${kind}-${idStem(trimmed)}`;
-  if (!existing.has(base)) return base;
+  if (!existing.has(base)) {
+    if (!isValidGeneratedCatalogueId(base))
+      throw new Error("Invalid generated catalogue identifier");
+    return base;
+  }
   let suffix = 2;
   while (existing.has(`${base}-${suffix}`)) suffix += 1;
-  return `${base}-${suffix}`;
+  const id = `${base}-${suffix}`;
+  if (!isValidGeneratedCatalogueId(id))
+    throw new Error("Invalid generated catalogue identifier");
+  return id;
+}
+
+export function resolveCatalogueDraftIds(
+  draft: OptionGroup,
+  catalogue: CatalogueDraftIdSource[],
+): OptionGroup {
+  const groupIds = catalogue.map((group) => group.id);
+  const groupId = draft.id.startsWith("__draft-")
+    ? createStableCatalogueId("group", draft.displayName, groupIds)
+    : draft.id;
+  const choiceIds = new Set(
+    catalogue.flatMap((group) => group.choices.map((choice) => choice.id)),
+  );
+  const choices = draft.choices.map((choice) => {
+    if (!choice.id.startsWith("__draft-")) return choice;
+    const id = createStableCatalogueId("choice", choice.name, choiceIds);
+    choiceIds.add(id);
+    return { ...choice, id };
+  });
+  return { ...draft, id: groupId, choices };
 }
 
 function assignmentReferencesChoice(
