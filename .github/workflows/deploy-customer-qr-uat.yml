@@ -87,8 +87,28 @@ jobs:
           printf '%s' "$CUSTOMER_UAT_FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
           node scripts/disableUatCustomerOrdering.mjs
           pnpm dlx firebase-tools@15.23.0 deploy --config firebase.customer-uat.json --project "$CUSTOMER_UAT_FIREBASE_PROJECT_ID" --only hosting,firestore:rules,firestore:indexes --non-interactive
-      - name: Deploy WP-CC-02 isolated Firestore Rules
+      - name: Detect WP-CC-02 Firestore Rules change
+        id: wp-cc-02-rules-change
         if: github.head_ref == 'feature/wp-cc-02-catalogue-admin' || github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin'
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          BEFORE_SHA: ${{ github.event.before }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          changed=false
+          if [ "$EVENT_ACTION" = "synchronize" ] && [ -n "$BEFORE_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+            if ! git diff --quiet "$BEFORE_SHA" "$EXPECTED_SHA" -- firestore.production.rules; then
+              changed=true
+            fi
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "Firestore Rules changed in this publication: $changed"
+      - name: Deploy WP-CC-02 isolated Firestore Rules
+        if: >-
+          (github.head_ref == 'feature/wp-cc-02-catalogue-admin' ||
+          github.ref == 'refs/heads/feature/wp-cc-02-catalogue-admin') &&
+          steps.wp-cc-02-rules-change.outputs.changed == 'true'
         env:
           SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -162,7 +182,7 @@ jobs:
             echo "- Exact source: \`$EXPECTED_SHA\`"
             echo "- Application environment: \`customer-qr-uat\`"
             echo "- Firebase project: \`$CUSTOMER_UAT_FIREBASE_PROJECT_ID\`"
-            echo "- Deployment scope: Firestore Rules and Hosting Preview Channel only"
+            echo "- Deployment scope: Hosting Preview Channel only (Firestore Rules run only when changed)"
             echo "- Firebase Hosting channel: \`wp-cc-02-catalogue\`"
             echo "- Preview expiry: \`$preview_expiry\`"
             echo "- Staff URL: [$preview_url/]($preview_url/)"

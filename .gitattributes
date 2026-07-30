@@ -38,6 +38,7 @@
 /src/catalogue.css text eol=lf
 /src/catalogueAdmin.test.ts text eol=lf
 /src/catalogueAdmin.ts text eol=lf
+/src/catalogueConcurrency.test.ts text eol=lf
 /src/catalogueAdminUi.test.tsx text eol=lf
 /src/components/OptionGroupManager.tsx text eol=lf
 /src/components/ProductOptionAssignmentsField.tsx text eol=lf

@@ -20,6 +20,10 @@ const jobGuard = workflow.slice(
 );
 const liveDeployment = workflow.slice(
   workflow.indexOf("Deploy isolated UAT Firebase resources"),
+  workflow.indexOf("Detect WP-CC-02 Firestore Rules change"),
+);
+const rulesChangeDetection = workflow.slice(
+  workflow.indexOf("Detect WP-CC-02 Firestore Rules change"),
   workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
 );
 const rulesDeployment = workflow.slice(
@@ -113,9 +117,18 @@ describe("WP-CC-02 Customer UAT Rules and Hosting preview workflow", () => {
     }
   });
 
-  it("runs Rules tests before deploying only the canonical Firestore Rules", () => {
+  it("deploys canonical Firestore Rules only when this publication changed them", () => {
     expect(workflow.indexOf("pnpm test:rules")).toBeLessThan(
       workflow.indexOf("Deploy WP-CC-02 isolated Firestore Rules"),
+    );
+    expect(rulesChangeDetection).toContain(
+      'git diff --quiet "$BEFORE_SHA" "$EXPECTED_SHA" -- firestore.production.rules',
+    );
+    expect(rulesChangeDetection).toContain(
+      'echo "changed=$changed" >> "$GITHUB_OUTPUT"',
+    );
+    expect(rulesDeployment).toContain(
+      "steps.wp-cc-02-rules-change.outputs.changed == 'true'",
     );
     expect(rulesDeployment).toContain(
       "config.firestore?.rules !== 'firestore.production.rules'",

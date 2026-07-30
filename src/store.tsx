@@ -56,6 +56,8 @@ import {
   writePrivateOptionGroup,
 } from "./optionCatalogueRepository";
 import {
+  assertCatalogueControlUnchanged,
+  catalogueControlVersion,
   prepareCatalogueForProducts,
   prepareOptionGroupSave,
   prepareProductCatalogueSave,
@@ -449,6 +451,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeProduct(product);
     if (db) {
       const firestore = db;
+      const controlRef = doc(
+        firestore,
+        "publicProjectionControl",
+        publicProjectionControlId,
+      );
+      const baselineControl = await getDoc(controlRef);
+      const baselineControlVersion = catalogueControlVersion(
+        baselineControl.exists(),
+        baselineControl.data(),
+      );
       const [current, catalogue] = await Promise.all([
         getDocs(query(collection(firestore, "products"), limit(100))),
         readPrivateOptionGroups(firestore),
@@ -457,11 +469,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         normalizeProduct(entry.data() as Product),
       );
       await runTransaction(firestore, async (transaction) => {
-        const controlRef = doc(
-          firestore,
-          "publicProjectionControl",
-          publicProjectionControlId,
-        );
         const availabilityRef = doc(
           firestore,
           "settings",
@@ -478,18 +485,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           (availability.data()?.availability as
             | ToppingAvailability
             | undefined) ?? {};
-        const currentProjection = buildPublicProjection(
-          currentProducts,
-          canonicalAvailability,
-          catalogue,
+        assertCatalogueControlUnchanged(
+          baselineControlVersion,
+          control.exists(),
+          control.data(),
         );
-        if (
-          control.exists() &&
-          control.data().fingerprint !== currentProjection.fingerprint
-        )
-          throw new Error(
-            "Catalogue changed concurrently. Reload Products and try again.",
-          );
         const prepared = prepareProductCatalogueSave({
           product: normalized,
           products: currentProducts,
@@ -539,6 +539,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeOptionGroup(group);
     if (db) {
       const firestore = db;
+      const controlRef = doc(
+        firestore,
+        "publicProjectionControl",
+        publicProjectionControlId,
+      );
+      const baselineControl = await getDoc(controlRef);
+      const baselineControlVersion = catalogueControlVersion(
+        baselineControl.exists(),
+        baselineControl.data(),
+      );
       const [currentProductsSnapshot, catalogue] = await Promise.all([
         getDocs(query(collection(firestore, "products"), limit(100))),
         readPrivateOptionGroups(firestore),
@@ -547,11 +557,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         normalizeProduct(entry.data() as Product),
       );
       await runTransaction(firestore, async (transaction) => {
-        const controlRef = doc(
-          firestore,
-          "publicProjectionControl",
-          publicProjectionControlId,
-        );
         const availabilityRef = doc(
           firestore,
           "settings",
@@ -567,18 +572,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           (availability.data()?.availability as
             | ToppingAvailability
             | undefined) ?? {};
-        const currentProjection = buildPublicProjection(
-          currentProducts,
-          canonicalAvailability,
-          catalogue,
+        assertCatalogueControlUnchanged(
+          baselineControlVersion,
+          control.exists(),
+          control.data(),
         );
-        if (
-          control.exists() &&
-          control.data().fingerprint !== currentProjection.fingerprint
-        )
-          throw new Error(
-            "Catalogue changed concurrently. Reload Products and try again.",
-          );
         const currentGroup = catalogue.find(
           (entry) => entry.id === normalized.id,
         );

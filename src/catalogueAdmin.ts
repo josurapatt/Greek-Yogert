@@ -13,6 +13,33 @@ export interface HardDeleteDecision {
   reason?: string;
 }
 
+const catalogueConcurrencyError =
+  "Catalogue changed concurrently. Reload Products and try again.";
+
+export function catalogueControlVersion(
+  exists: boolean,
+  data: unknown,
+): string {
+  if (!exists) return "missing";
+  if (
+    !data ||
+    typeof data !== "object" ||
+    Array.isArray(data) ||
+    typeof (data as Record<string, unknown>).fingerprint !== "string"
+  )
+    throw new Error("Invalid public projection control");
+  return `present:${(data as Record<string, unknown>).fingerprint}`;
+}
+
+export function assertCatalogueControlUnchanged(
+  expectedVersion: string,
+  exists: boolean,
+  data: unknown,
+): void {
+  if (catalogueControlVersion(exists, data) !== expectedVersion)
+    throw new Error(catalogueConcurrencyError);
+}
+
 export function catalogueAdminErrorMessage(
   cause: unknown,
   fallback: string,
@@ -56,7 +83,7 @@ export function catalogueAdminErrorMessage(
       "มีตัวเลือกที่ใช้ ID ซ้ำกันในแคตตาล็อก",
     "Product contains duplicate option group assignments":
       "สินค้าผูกกลุ่มตัวเลือกเดียวกันซ้ำ",
-    "Catalogue changed concurrently. Reload Products and try again.":
+    [catalogueConcurrencyError]:
       "แคตตาล็อกมีการเปลี่ยนแปลง กรุณาโหลดหน้าสินค้าใหม่แล้วลองอีกครั้ง",
     "This option group changed concurrently. Reload and try again.":
       "กลุ่มตัวเลือกนี้มีการเปลี่ยนแปลง กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง",
