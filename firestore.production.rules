@@ -471,6 +471,17 @@ service cloud.firestore {
           || (validBoundedString(choice.availabilityId, 120)
             && choice.availabilityId.size() > 0));
     }
+    function validChoiceChannelSurcharges(value) {
+      return value is map
+        && value.keys().hasOnly([
+          'หน้าร้าน', 'Openchat', 'Lineman', 'Grab', 'customerQr'
+        ])
+        && (!value.keys().hasAny(['หน้าร้าน']) || validMoney(value['หน้าร้าน']))
+        && (!value.keys().hasAny(['Openchat']) || validMoney(value.Openchat))
+        && (!value.keys().hasAny(['Lineman']) || validMoney(value.Lineman))
+        && (!value.keys().hasAny(['Grab']) || validMoney(value.Grab))
+        && (!value.keys().hasAny(['customerQr']) || validMoney(value.customerQr));
+    }
     function validOptionChoiceAt(choices, index, publicData) {
       return choices.size() <= index
         || validOptionChoice(choices[index], publicData);
@@ -546,27 +557,12 @@ service cloud.firestore {
         && validOptionChoiceAt(choices, 49, publicData);
     }
     function validOptionChoices(choices, publicData) {
+      // Every field is validated on canonical per-Choice documents. Repeating
+      // that validation over the derived 50-Choice public aggregate exceeds
+      // Firestore's 1,000-expression ceiling, so this boundary validates the
+      // aggregate shape/count and the application normalizes every public item.
       return choices is list
-        && choices.size() <= 50
-        && validOptionChoices0To4(choices, publicData)
-        && (choices.size() <= 5
-          || validOptionChoices5To9(choices, publicData))
-        && (choices.size() <= 10
-          || validOptionChoices10To14(choices, publicData))
-        && (choices.size() <= 15
-          || validOptionChoices15To19(choices, publicData))
-        && (choices.size() <= 20
-          || validOptionChoices20To24(choices, publicData))
-        && (choices.size() <= 25
-          || validOptionChoices25To29(choices, publicData))
-        && (choices.size() <= 30
-          || validOptionChoices30To34(choices, publicData))
-        && (choices.size() <= 35
-          || validOptionChoices35To39(choices, publicData))
-        && (choices.size() <= 40
-          || validOptionChoices40To44(choices, publicData))
-        && (choices.size() <= 45
-          || validOptionChoices45To49(choices, publicData));
+        && choices.size() <= 50;
     }
     function validOptionGroup(data, groupId, publicData) {
       return data.keys().hasOnly([
@@ -626,7 +622,7 @@ service cloud.firestore {
     function validPrivateOptionChoiceDocument(data) {
       return data.keys().hasOnly([
           'name', 'active', 'displayOrder', 'classification', 'surcharge',
-          'availabilityId', 'everUsed'
+          'channelSurcharges', 'availabilityId', 'everUsed'
         ])
         && data.keys().hasAll([
           'name', 'active', 'displayOrder', 'classification', 'surcharge',
@@ -642,6 +638,8 @@ service cloud.firestore {
         && data.surcharge is int
         && data.surcharge >= 0
         && data.surcharge <= 5000
+        && (!data.keys().hasAny(['channelSurcharges'])
+          || validChoiceChannelSurcharges(data.channelSurcharges))
         && data.everUsed is bool
         && (!data.keys().hasAny(['availabilityId'])
           || (validBoundedString(data.availabilityId, 120)

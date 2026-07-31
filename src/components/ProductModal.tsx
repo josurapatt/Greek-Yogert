@@ -10,6 +10,7 @@ import { effectiveProductOptionGroups } from "../optionCatalogue";
 import {
   calculatePriceBreakdown,
   channelLabels,
+  getChoiceSurcharge,
   getChannelGroup,
   getChannelRules,
   isSelectionAvailable,
@@ -63,26 +64,62 @@ export default function ProductModal({
   );
   const rules = getChannelRules(product, channel);
   const usesCatalogue = product.optionGroupAssignments !== undefined;
-  const effectiveGroups =
-    usesCatalogue && optionGroups
-      ? effectiveProductOptionGroups(product, optionGroups)
-      : [];
-  const optionMaximum = productSelectedOptionLimits(
-    product,
-    optionGroups,
-  ).maximum;
+  const catalogueState = useMemo(() => {
+    try {
+      return {
+        groups:
+          usesCatalogue && optionGroups
+            ? effectiveProductOptionGroups(product, optionGroups)
+            : [],
+        maximum: productSelectedOptionLimits(product, optionGroups).maximum,
+        error: "",
+      };
+    } catch (cause) {
+      console.error("Product option configuration is temporarily invalid", {
+        productId: product.id,
+        cause,
+      });
+      return {
+        groups: [],
+        maximum: 0,
+        error:
+          "ข้อมูลกลุ่มตัวเลือกกำลังอัปเดต กรุณารอสักครู่แล้วลองเปิดสินค้าอีกครั้ง",
+      };
+    }
+  }, [product, optionGroups, usesCatalogue]);
+  const effectiveGroups = catalogueState.groups;
+  const optionMaximum = catalogueState.maximum;
   const isPlatform = getChannelGroup(channel) === "platform";
-  const breakdown = useMemo(
-    () =>
-      calculatePriceBreakdown(
-        product,
-        selected,
-        toppings,
-        channel,
-        optionGroups,
-      ),
-    [product, selected, channel, optionGroups],
-  );
+  const priceState = useMemo(() => {
+    try {
+      return {
+        breakdown: calculatePriceBreakdown(
+          product,
+          selected,
+          toppings,
+          channel,
+          optionGroups,
+          customerLimits ? "customerQr" : channel,
+        ),
+        error: "",
+      };
+    } catch (cause) {
+      console.error("Product pricing could not be rendered", {
+        productId: product.id,
+        cause,
+      });
+      return {
+        breakdown: {
+          basePrice: product.price,
+          premiumIncludedSurcharge: 0,
+          extraToppingCharges: 0,
+          unitPrice: product.price,
+        },
+        error: "ข้อมูลราคากำลังอัปเดต กรุณารอสักครู่แล้วลองเปิดสินค้าอีกครั้ง",
+      };
+    }
+  }, [product, selected, channel, optionGroups, customerLimits]);
+  const breakdown = priceState.breakdown;
   const packagingSurcharge = packagingSurchargePerUnit(channel, packaging);
   const unitPrice = breakdown.unitPrice + packagingSurcharge;
   const globalSeparatedAvailable =
@@ -114,8 +151,10 @@ export default function ProductModal({
         ? "ท็อปปิ้งที่เปิดขายไม่พอสำหรับเมนูนี้"
         : null;
   const error =
-    availabilityError ??
-    validateSelection(product, selected, channel, availability, optionGroups) ??
+    catalogueState.error ||
+    priceState.error ||
+    availabilityError ||
+    validateSelection(product, selected, channel, availability, optionGroups) ||
     packagingError;
 
   const addTopping = (id: string) =>
@@ -248,8 +287,20 @@ export default function ProductModal({
                               {choice.classification === "premium" && (
                                 <small> พรีเมียม</small>
                               )}
-                              {choice.surcharge > 0 && (
-                                <small> +{money(choice.surcharge)}</small>
+                              {getChoiceSurcharge(
+                                choice,
+                                customerLimits ? "customerQr" : channel,
+                              ) > 0 && (
+                                <small>
+                                  {" "}
+                                  +
+                                  {money(
+                                    getChoiceSurcharge(
+                                      choice,
+                                      customerLimits ? "customerQr" : channel,
+                                    ),
+                                  )}
+                                </small>
                               )}
                               {soldOut && (
                                 <small className="sold-out-label"> หมด</small>

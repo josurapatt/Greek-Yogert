@@ -10,6 +10,8 @@ import type {
   CartItem,
   ChannelGroup,
   ChannelToppingRules,
+  ChoiceSurchargeChannel,
+  OptionChoice,
   OrderChannel,
   OrderDraft,
   OptionGroup,
@@ -21,6 +23,20 @@ import type {
   ToppingAvailability,
   ToppingPackaging,
 } from "./types";
+
+export function getChoiceSurcharge(
+  choice: OptionChoice,
+  channel: ChoiceSurchargeChannel,
+): number {
+  const overrides = choice.channelSurcharges;
+  if (channel === "customerQr")
+    return overrides?.customerQr ?? overrides?.["หน้าร้าน"] ?? choice.surcharge;
+  if (channel === "Openchat")
+    return overrides?.Openchat ?? overrides?.["หน้าร้าน"] ?? choice.surcharge;
+  if (channel === "Grab")
+    return overrides?.Grab ?? overrides?.Lineman ?? choice.surcharge;
+  return overrides?.[channel] ?? choice.surcharge;
+}
 
 const bangkokDateFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Bangkok",
@@ -251,6 +267,7 @@ export function calculatePriceBreakdown(
   available: Topping[],
   channel: OrderChannel,
   optionGroups?: OptionGroup[],
+  choiceSurchargeChannel: ChoiceSurchargeChannel = channel,
 ): PriceBreakdown {
   const basePrice = getProductPrice(product, channel);
   if (optionGroups) {
@@ -261,7 +278,8 @@ export function calculatePriceBreakdown(
       ({ group, choices }) => {
         if (group.pricingMode === "choice-surcharge") {
           extraToppingCharges += choices.reduce(
-            (sum, choice) => sum + choice.surcharge,
+            (sum, choice) =>
+              sum + getChoiceSurcharge(choice, choiceSurchargeChannel),
             0,
           );
           return;
@@ -323,6 +341,7 @@ export function calculateUnitPrice(
   available: Topping[],
   channel: OrderChannel = "หน้าร้าน",
   optionGroups?: OptionGroup[],
+  choiceSurchargeChannel: ChoiceSurchargeChannel = channel,
 ): number {
   return calculatePriceBreakdown(
     product,
@@ -330,6 +349,7 @@ export function calculateUnitPrice(
     available,
     channel,
     optionGroups,
+    choiceSurchargeChannel,
   ).unitPrice;
 }
 
@@ -397,6 +417,7 @@ export function priceCartItem(
   available: Topping[],
   availability: ToppingAvailability = {},
   optionGroups?: OptionGroup[],
+  choiceSurchargeChannel: ChoiceSurchargeChannel = channel,
 ): CartItem {
   const priceBreakdown = calculatePriceBreakdown(
     product,
@@ -404,6 +425,7 @@ export function priceCartItem(
     available,
     channel,
     optionGroups,
+    choiceSurchargeChannel,
   );
   const packaging = normalizeToppingPackaging(item.toppingPackaging);
   const packagingValueError = isValidToppingPackaging(item.toppingPackaging)
@@ -482,6 +504,7 @@ export function repriceCartItems(
   available: Topping[],
   availability: ToppingAvailability = {},
   optionGroups?: OptionGroup[],
+  choiceSurchargeChannel: ChoiceSurchargeChannel = channel,
 ): CartItem[] {
   return items.map((item) => {
     const product = products.find((entry) => entry.id === item.productId);
@@ -493,6 +516,7 @@ export function repriceCartItems(
           available,
           availability,
           optionGroups,
+          choiceSurchargeChannel,
         )
       : {
           ...item,
@@ -509,6 +533,7 @@ export function prepareOrderItems(
   available: Topping[],
   availability: ToppingAvailability = {},
   optionGroups?: OptionGroup[],
+  choiceSurchargeChannel: ChoiceSurchargeChannel = channel,
 ): CartItem[] {
   const priced = repriceCartItems(
     items,
@@ -517,6 +542,7 @@ export function prepareOrderItems(
     available,
     availability,
     optionGroups,
+    choiceSurchargeChannel,
   );
   const invalid = priced.find((item) => item.validationError);
   if (invalid)

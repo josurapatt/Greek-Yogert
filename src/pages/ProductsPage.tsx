@@ -16,6 +16,7 @@ import { useData } from "../store";
 import type {
   ChannelGroup,
   ChannelToppingRules,
+  ChoiceSurchargeChannel,
   OptionChoice,
   OptionGroup,
   OrderChannel,
@@ -81,6 +82,7 @@ export default function ProductsPage() {
     choice: OptionChoice;
   } | null>(null);
   const [choiceSaving, setChoiceSaving] = useState(false);
+  const [choiceStatusChanging, setChoiceStatusChanging] = useState("");
   const [choiceError, setChoiceError] = useState("");
   const change = <K extends keyof Product>(key: K, value: Product[K]) =>
     setEditing((product) => (product ? { ...product, [key]: value } : product));
@@ -173,6 +175,45 @@ export default function ProductsPage() {
       setChoiceSaving(false);
     }
   };
+  const changeChoiceAvailability = async (
+    availabilityId: string,
+    available: boolean,
+  ) => {
+    try {
+      setChoiceStatusChanging(availabilityId);
+      setChoiceError("");
+      await setToppingAvailability(availabilityId, available);
+    } catch (cause) {
+      setChoiceError(
+        catalogueAdminErrorMessage(
+          cause,
+          "ไม่สามารถเปลี่ยนสถานะเปิดขายได้ กรุณาลองใหม่",
+        ),
+      );
+    } finally {
+      setChoiceStatusChanging("");
+    }
+  };
+  const setChoiceChannelSurcharge = (
+    channel: ChoiceSurchargeChannel,
+    value: string,
+  ) =>
+    setChoiceEditor((current) => {
+      if (!current) return current;
+      const channelSurcharges = { ...current.choice.channelSurcharges };
+      if (value === "") delete channelSurcharges[channel];
+      else channelSurcharges[channel] = Number(value);
+      return {
+        ...current,
+        choice: {
+          ...current.choice,
+          channelSurcharges:
+            Object.keys(channelSurcharges).length > 0
+              ? channelSurcharges
+              : undefined,
+        },
+      };
+    });
 
   return (
     <div className="page">
@@ -215,37 +256,60 @@ export default function ProductsPage() {
               const availabilityId = choice.availabilityId ?? choice.id;
               const available = toppingAvailability[availabilityId] !== false;
               return (
-                <button
-                  type="button"
+                <article
                   className={`availability-card ${available ? "available" : "sold-out"}`}
                   key={`${group.id}/${choice.id}`}
-                  onClick={() => {
-                    setChoiceError("");
-                    setChoiceEditor({
-                      group: structuredClone(group),
-                      choice: structuredClone(choice),
-                    });
-                  }}
                 >
-                  <span>
-                    <strong>{choice.name}</strong>
-                    <small>{group.displayName}</small>
-                  </span>
-                  <span className="availability-card-details">
-                    <small>
-                      {choice.classification === "premium"
-                        ? "พรีเมียม"
-                        : "ปกติ"}
-                      {choice.surcharge > 0
-                        ? ` · +${choice.surcharge} บาท`
-                        : ""}
-                    </small>
-                    <b>{available ? "เปิดขาย" : "หมด"}</b>
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="availability-card-editor"
+                    onClick={() => {
+                      setChoiceError("");
+                      setChoiceEditor({
+                        group: structuredClone(group),
+                        choice: structuredClone(choice),
+                      });
+                    }}
+                  >
+                    <span>
+                      <strong>{choice.name}</strong>
+                      <small>{group.displayName}</small>
+                    </span>
+                    <span className="availability-card-details">
+                      <small>
+                        {choice.classification === "premium"
+                          ? "พรีเมียม"
+                          : "ปกติ"}
+                        {choice.surcharge > 0
+                          ? ` · +${choice.surcharge} บาท`
+                          : ""}
+                      </small>
+                      <b>{available ? "เปิดขาย" : "หมด"}</b>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary availability-card-toggle"
+                    disabled={choiceStatusChanging === availabilityId}
+                    onClick={() =>
+                      void changeChoiceAvailability(availabilityId, !available)
+                    }
+                  >
+                    {choiceStatusChanging === availabilityId
+                      ? "กำลังบันทึก…"
+                      : available
+                        ? "ปิดขาย"
+                        : "เปิดขาย"}
+                  </button>
+                </article>
               );
             })}
         </div>
+        {choiceError && !choiceEditor && (
+          <p className="validation" role="alert">
+            {choiceError}
+          </p>
+        )}
       </section>
       <OptionGroupManager />
       <section className="manage-grid">
@@ -756,7 +820,7 @@ export default function ProductsPage() {
                     </select>
                   </label>
                   <label>
-                    ราคาเพิ่ม
+                    ราคาเพิ่มเริ่มต้น
                     <input
                       type="number"
                       min="0"
@@ -767,6 +831,31 @@ export default function ProductsPage() {
                       }
                     />
                   </label>
+                  {(
+                    [
+                      ["หน้าร้าน", "ราคาเพิ่มหน้าร้าน"],
+                      ["Openchat", "ราคาเพิ่ม OpenChat"],
+                      ["Lineman", "ราคาเพิ่ม LINE MAN"],
+                      ["Grab", "ราคาเพิ่ม Grab"],
+                      ["customerQr", "ราคาเพิ่ม Customer QR"],
+                    ] as const
+                  ).map(([channel, label]) => (
+                    <label key={channel}>
+                      {label}
+                      <input
+                        type="number"
+                        min="0"
+                        max="5000"
+                        value={
+                          choiceEditor.choice.channelSurcharges?.[channel] ?? ""
+                        }
+                        placeholder={`ใช้ค่าเริ่มต้น ${choiceEditor.choice.surcharge} บาท`}
+                        onChange={(event) =>
+                          setChoiceChannelSurcharge(channel, event.target.value)
+                        }
+                      />
+                    </label>
+                  ))}
                 </div>
                 <div className="choice-sale-state">
                   <span>
@@ -776,32 +865,17 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     className="secondary"
-                    disabled={choiceSaving}
-                    onClick={async () => {
-                      try {
-                        setChoiceSaving(true);
-                        setChoiceError("");
-                        await setToppingAvailability(
-                          availabilityId,
-                          !available,
-                        );
-                      } catch (cause) {
-                        setChoiceError(
-                          catalogueAdminErrorMessage(
-                            cause,
-                            "ไม่สามารถเปลี่ยนสถานะเปิดขายได้ กรุณาลองใหม่",
-                          ),
-                        );
-                      } finally {
-                        setChoiceSaving(false);
-                      }
-                    }}
+                    disabled={choiceStatusChanging === availabilityId}
+                    onClick={() =>
+                      void changeChoiceAvailability(availabilityId, !available)
+                    }
                   >
                     {available ? "เปลี่ยนเป็นหมด" : "เปิดขายตัวเลือกนี้"}
                   </button>
                 </div>
                 <p className="hint">
-                  ราคาเพิ่มใช้กับกลุ่มที่กำหนดราคาเพิ่มตามตัวเลือก
+                  เว้นว่างเพื่อใช้ราคาเพิ่มเริ่มต้น โดย Customer QR จะใช้ราคา
+                  หน้าร้านเมื่อไม่ได้กำหนดราคาเฉพาะ
                 </p>
                 {choiceError && <p className="validation">{choiceError}</p>}
                 <div className="modal-footer">

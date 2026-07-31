@@ -41,10 +41,14 @@
 /src/catalogueConcurrency.test.ts text eol=lf
 /src/catalogueAdminUi.test.tsx text eol=lf
 /src/components/OptionGroupManager.tsx text eol=lf
+/src/components/AppErrorBoundary.test.tsx text eol=lf
+/src/components/AppErrorBoundary.tsx text eol=lf
 /src/components/ProductModal.tsx text eol=lf
 /src/components/ProductOptionAssignmentsField.tsx text eol=lf
 /src/customerOrder.test.ts text eol=lf
+/src/customerSubmissionTrustedUi.test.tsx text eol=lf
 /src/data.ts text eol=lf
+/src/main.tsx text eol=lf
 /src/pages/CartPage.tsx text eol=lf
 /src/pages/CustomerOrderPage.tsx text eol=lf
 /src/pages/OrderDetailPage.tsx text eol=lf

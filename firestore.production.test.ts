@@ -549,6 +549,62 @@ describe("WP4 Production-candidate Firestore authorization", () => {
     );
   });
 
+  it("keeps the 50-Choice public boundary while validating canonical channel overrides", async () => {
+    await seed({
+      "users/staff": { role: "staff", active: true },
+    });
+    const staff = environment
+      .authenticatedContext("staff", passwordToken)
+      .firestore();
+    const choices = Array.from({ length: 50 }, (_, index) => ({
+      id: `choice-${index}`,
+      name: `Choice ${index}`,
+      active: true,
+      displayOrder: index,
+      classification: "premium",
+      surcharge: 10,
+    }));
+
+    await assertSucceeds(
+      setDoc(doc(staff, "publicOptionGroups/channel-pricing"), {
+        ...optionGroup("channel-pricing", { public: true }),
+        choices,
+      }),
+    );
+    await assertFails(
+      setDoc(
+        doc(staff, "optionGroups/channel-pricing/choices/unsupported"),
+        privateOptionChoice("unsupported", {
+          channelSurcharges: { marketplace: 10 },
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        doc(staff, "optionGroups/channel-pricing/choices/negative"),
+        privateOptionChoice("negative", {
+          channelSurcharges: { Grab: -1 },
+        }),
+      ),
+    );
+  });
+
+  it("allows active Staff without elevated capability to control shared availability", async () => {
+    await seed({
+      "users/active-staff": { role: "staff", active: true },
+    });
+    const staff = environment
+      .authenticatedContext("active-staff", passwordToken)
+      .firestore();
+
+    await assertSucceeds(
+      setDoc(doc(staff, "settings/toppingAvailability"), {
+        availability: { banana: false },
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      }),
+    );
+  });
+
   it.each([
     ["one Choice", ["ทดสอบ"], ["choice-mzin37"]],
     [

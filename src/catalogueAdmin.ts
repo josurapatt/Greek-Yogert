@@ -134,6 +134,8 @@ export function catalogueAdminErrorMessage(
     return "ประเภทตัวเลือกต้องเป็น ปกติ หรือ พรีเมียม";
   if (/^Option choice .+ has an invalid surcharge$/.test(message))
     return "ราคาเพิ่มต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 5,000 บาท";
+  if (/^Option choice .+ has invalid channel surcharges$/.test(message))
+    return "ราคาเพิ่มตามช่องทางต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 5,000 บาท และใช้เฉพาะช่องทางที่ระบบรองรับ";
   if (
     /^Option choice .+ has an invalid (?:active|lifecycle) state$/.test(message)
   )

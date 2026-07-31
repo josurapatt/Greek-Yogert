@@ -423,6 +423,50 @@ describe("catalogue administration policy", () => {
     ).toBe(true);
   });
 
+  it("prepares a new Product with more than ten available Catalogue choices without a partial write", () => {
+    const group = {
+      ...customGroup(),
+      maxSelections: 10,
+      choices: Array.from({ length: 20 }, (_, index) => ({
+        ...customGroup().choices[0],
+        id: `choice-${index}`,
+        displayOrder: index,
+      })),
+    };
+    const second = {
+      ...customGroup(),
+      id: "second-group",
+      displayOrder: 31,
+      maxSelections: 1,
+      choices: [
+        {
+          ...customGroup().choices[1],
+          id: "second-choice",
+        },
+      ],
+    };
+    const product = normalizeProduct({
+      ...defaultProducts[0],
+      id: "new-catalogue-product",
+      optionGroupAssignments: [{ groupId: group.id }, { groupId: second.id }],
+    });
+
+    const prepared = prepareProductCatalogueSave({
+      product,
+      products: [],
+      catalogue: [...fallbackOptionGroups, group, second],
+    });
+
+    expect(prepared.products).toEqual([product]);
+    expect(prepared.products[0].optionGroupAssignments).toEqual([
+      { groupId: "sauce" },
+      { groupId: "second-group" },
+    ]);
+    expect(
+      prepared.catalogue.find((entry) => entry.id === group.id)?.choices,
+    ).toHaveLength(20);
+  });
+
   it("rejects unknown Product assignments and preserves legacy Products", () => {
     const legacy = normalizeProduct(defaultProducts[0]);
     const normalized = normalizeOptionCatalogue(fallbackOptionGroups);

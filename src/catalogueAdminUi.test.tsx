@@ -215,7 +215,7 @@ describe("Staff catalogue controls", () => {
     ).toBeTruthy();
   });
 
-  it("edits classification, surcharge, and sale state from a choice status card", async () => {
+  it("edits classification and channel surcharges from a choice status card", async () => {
     render(<ProductsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: /กล้วย.*รสกราโนล่า/ }));
@@ -223,16 +223,15 @@ describe("Staff catalogue controls", () => {
     fireEvent.change(screen.getByLabelText("ประเภทตัวเลือก"), {
       target: { value: "premium" },
     });
-    fireEvent.change(screen.getByLabelText("ราคาเพิ่ม"), {
+    fireEvent.change(screen.getByLabelText("ราคาเพิ่มเริ่มต้น"), {
       target: { value: "12" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "เปลี่ยนเป็นหมด" }));
-    await waitFor(() =>
-      expect(mocks.setToppingAvailability).toHaveBeenCalledWith(
-        expect.any(String),
-        false,
-      ),
-    );
+    fireEvent.change(screen.getByLabelText("ราคาเพิ่ม LINE MAN"), {
+      target: { value: "18" },
+    });
+    fireEvent.change(screen.getByLabelText("ราคาเพิ่ม Customer QR"), {
+      target: { value: "15" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /บันทึกรายละเอียด/ }));
 
     await waitFor(() => expect(mocks.saveOptionGroup).toHaveBeenCalledOnce());
@@ -245,7 +244,39 @@ describe("Staff catalogue controls", () => {
     ).toMatchObject({
       classification: "premium",
       surcharge: 12,
+      channelSurcharges: {
+        Lineman: 18,
+        customerQr: 15,
+      },
     });
+  });
+
+  it("opens and closes a Choice directly from its status card", async () => {
+    render(<ProductsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "ปิดขาย" })[0]);
+    await waitFor(() =>
+      expect(mocks.setToppingAvailability).toHaveBeenCalledWith(
+        expect.any(String),
+        false,
+      ),
+    );
+    expect(screen.queryByRole("heading", { name: /แก้ไข/ })).toBeNull();
+  });
+
+  it("shows a clear authorization denial from the direct status action", async () => {
+    mocks.setToppingAvailability.mockRejectedValueOnce(
+      Object.assign(new Error("7 PERMISSION_DENIED"), {
+        code: "permission-denied",
+      }),
+    );
+    render(<ProductsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "ปิดขาย" })[0]);
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "บัญชีนี้ไม่มีสิทธิ์บันทึกแคตตาล็อก กรุณาตรวจสอบสิทธิ์พนักงาน",
+    );
   });
 
   it("starts new products in the catalogue assignment workflow", async () => {

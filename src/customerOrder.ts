@@ -184,6 +184,7 @@ export function createCustomerRequest(
     toppings,
     availability,
     optionGroups,
+    "customerQr",
   );
   if (!prepared.length) throw new Error("ตะกร้าว่าง");
   const totals = orderTotals(prepared);

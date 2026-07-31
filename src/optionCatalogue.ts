@@ -1,5 +1,6 @@
 import { granolaFlavorIdsByName, toppings } from "./data";
 import type {
+  ChoiceSurchargeChannel,
   ChannelToppingRules,
   OptionChoice,
   OptionGroup,
@@ -16,6 +17,13 @@ export const maxOptionGroupsPerProduct = 10;
 export const maxOptionGroupsPerCatalogue = 20;
 export const maxChoicesPerOptionGroup = 50;
 export const maxCustomerSelectionsPerProduct = 10;
+export const choiceSurchargeChannels: ChoiceSurchargeChannel[] = [
+  "หน้าร้าน",
+  "Openchat",
+  "Lineman",
+  "Grab",
+  "customerQr",
+];
 
 export interface EffectiveOptionGroup
   extends Omit<
@@ -162,6 +170,26 @@ export function normalizeOptionChoice(choice: OptionChoice): OptionChoice {
   )
     throw new Error(`Option choice ${choice.id} has an invalid surcharge`);
   if (
+    choice.channelSurcharges !== undefined &&
+    (typeof choice.channelSurcharges !== "object" ||
+      choice.channelSurcharges === null ||
+      Array.isArray(choice.channelSurcharges) ||
+      Object.keys(choice.channelSurcharges).some(
+        (channel) =>
+          !choiceSurchargeChannels.includes(channel as ChoiceSurchargeChannel),
+      ) ||
+      Object.values(choice.channelSurcharges).some(
+        (value) =>
+          typeof value !== "number" ||
+          !Number.isInteger(value) ||
+          value < 0 ||
+          value > 5_000,
+      ))
+  )
+    throw new Error(
+      `Option choice ${choice.id} has invalid channel surcharges`,
+    );
+  if (
     choice.availabilityId !== undefined &&
     (typeof choice.availabilityId !== "string" ||
       !choice.availabilityId ||
@@ -189,6 +217,9 @@ export function normalizeOptionChoice(choice: OptionChoice): OptionChoice {
     displayOrder: choice.displayOrder,
     classification: choice.classification,
     surcharge: choice.surcharge,
+    ...(choice.channelSurcharges && Object.keys(choice.channelSurcharges).length
+      ? { channelSurcharges: { ...choice.channelSurcharges } }
+      : {}),
     ...(choice.availabilityId ? { availabilityId: choice.availabilityId } : {}),
     everUsed: choice.everUsed,
   };
@@ -201,8 +232,13 @@ export function normalizePublicOptionChoice(
     ...choice,
     everUsed: true,
   });
-  const { everUsed: _everUsed, ...publicChoice } = normalized;
+  const {
+    everUsed: _everUsed,
+    channelSurcharges: _channelSurcharges,
+    ...publicChoice
+  } = normalized;
   void _everUsed;
+  void _channelSurcharges;
   return publicChoice;
 }
 
@@ -319,10 +355,18 @@ export function toPublicOptionGroup(group: OptionGroup): PublicOptionGroup {
   const normalized = normalizeOptionGroup(group);
   return {
     ...normalized,
-    choices: normalized.choices.map(({ everUsed: _everUsed, ...choice }) => {
-      void _everUsed;
-      return choice;
-    }),
+    choices: normalized.choices.map(
+      ({ everUsed: _everUsed, channelSurcharges, ...choice }) => {
+        void _everUsed;
+        return {
+          ...choice,
+          surcharge:
+            channelSurcharges?.customerQr ??
+            channelSurcharges?.["หน้าร้าน"] ??
+            choice.surcharge,
+        };
+      },
+    ),
   };
 }
 
@@ -508,14 +552,6 @@ export function effectiveProductOptionGroups(
       choices,
     };
   });
-  const maximum = effective.reduce(
-    (sum, group) => sum + (group.active ? group.maxSelections : 0),
-    0,
-  );
-  if (maximum > maxCustomerSelectionsPerProduct)
-    throw new Error(
-      `Product ${product.id} exceeds the ${maxCustomerSelectionsPerProduct}-selection limit`,
-    );
   return effective.sort(compareDisplayOrder);
 }
 
@@ -523,7 +559,7 @@ export function effectiveProductSelectionLimits(
   product: Product,
   catalogue: OptionGroup[] = fallbackOptionGroups,
 ): { minimum: number; maximum: number } {
-  return effectiveProductOptionGroups(product, catalogue).reduce(
+  const limits = effectiveProductOptionGroups(product, catalogue).reduce(
     (limits, group) =>
       group.active
         ? {
@@ -533,6 +569,10 @@ export function effectiveProductSelectionLimits(
         : limits,
     { minimum: 0, maximum: 0 },
   );
+  return {
+    minimum: limits.minimum,
+    maximum: Math.min(limits.maximum, maxCustomerSelectionsPerProduct),
+  };
 }
 
 export function allowedProductOptionChoices(
@@ -607,6 +647,11 @@ export function validateCatalogueSelection(
           : "Invalid product option configuration",
     };
   }
+  if (selectedIds.length > maxCustomerSelectionsPerProduct)
+    return {
+      code: "maximum",
+      message: `Select at most ${maxCustomerSelectionsPerProduct} choices`,
+    };
   const assignedChoices = new Map<string, EffectiveOptionGroup>();
   groups.forEach((group) =>
     group.choices.forEach((choice) => assignedChoices.set(choice.id, group)),

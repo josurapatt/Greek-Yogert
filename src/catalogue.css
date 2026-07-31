@@ -126,20 +126,39 @@
   width: 100%;
   background: white;
   color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.availability-card:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(94 63 121 / 10%);
+}
+
+.availability-card-editor {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
   font: inherit;
   text-align: left;
 }
 
-.availability-card:hover,
-.availability-card:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgb(94 63 121 / 10%);
-}
-
-.availability-card > span {
+.availability-card-editor > span {
   display: grid;
   gap: 0.15rem;
+}
+
+.availability-card-toggle {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.65rem;
 }
 
 .availability-card-details {

@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ProductModal from "./components/ProductModal";
 import { createCustomerRequest } from "./customerOrder";
-import { defaultProducts } from "./data";
+import { defaultProducts, normalizeProduct } from "./data";
+import { fallbackOptionGroups } from "./optionCatalogue";
 import { rebuildTrustedCustomerConfirmation } from "./trustedCustomerConfirmation";
 import type { CartItem } from "./types";
 
@@ -44,5 +45,31 @@ describe("real Customer option builder to trusted confirmation", () => {
       {},
     );
     expect(trusted.items[0].selectedOptions).toEqual(["กราโนล่ารสกล้วย"]);
+  });
+
+  it("contains a transient missing Catalogue group instead of blanking the app", () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+    const product = normalizeProduct({
+      ...defaultProducts[0],
+      optionGroupAssignments: [{ groupId: "group-arriving-later" }],
+    });
+
+    render(
+      <ProductModal
+        product={product}
+        channel="หน้าร้าน"
+        optionGroups={fallbackOptionGroups}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "ข้อมูลกลุ่มตัวเลือกกำลังอัปเดต กรุณารอสักครู่แล้วลองเปิดสินค้าอีกครั้ง",
+      ),
+    ).toBeTruthy();
+    expect(diagnostic).toHaveBeenCalled();
+    diagnostic.mockRestore();
   });
 });

@@ -4,7 +4,7 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-29 (Asia/Bangkok)
+- Last verified: 2026-07-31 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
 - Active WP-CC-02 worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-wp-cc-02`
 - Integrated branch: `main`
@@ -94,6 +94,36 @@ This is the current operational snapshot. Git history is authoritative for earli
 - No Firebase project, remote Firebase data, Production, UAT, migration apply,
   deployment, billing, IAM, Cloud Functions, or PR #14 change occurred during
   WP-CC-02 implementation.
+
+## WP-CC-02 Human UAT corrective round (2026-07-31)
+
+- Task `WP-CC-02-UAT-ROUND-2-BLOCKERS-01` continues on Draft PR #23 from
+  verified parent `e8740865777a2bbdca054e894150d73aed6d011f`.
+- Choice pricing retains the singular `surcharge` as the migration-free
+  fallback and adds optional, bounded canonical overrides for the existing
+  Staff channels plus the Customer QR pricing context. The public projection
+  resolves only the Customer QR effective value into the existing public
+  `surcharge` field, keeping legacy public records compatible and the
+  50-Choice Rules path below the 1,000-expression limit.
+- Assigning Catalogue groups no longer treats the sum of every group maximum
+  as Choices already selected. Per-group limits remain enforced, while actual
+  Customer selections retain the global maximum of 10.
+- Choice status cards now provide direct Thai open/sold-out controls. The
+  authoritative Rules policy remains any non-anonymous active Staff account;
+  the isolated UAT workflow verifies the two guarded Staff designations
+  without adding unrelated capabilities.
+- A transient Product/option-group subscription mismatch is contained in the
+  Product modal and Customer basket instead of throwing during render. An
+  application-level Thai error boundary provides secondary recovery and logs
+  developer diagnostics.
+- The final focused run passed 172/172 across 14 files; the full application
+  run passed 468 tests with the existing overflow-recovery emulator-only test
+  skipped across 47 files. Canonical Firestore Rules passed 31/31 on portable
+  JDK 21. TypeScript, lint, Production build, 22-file Prettier 3.6.2, 24-file
+  LF and credential checks, `git diff --check`, and the runtime
+  Product-Image/Storage scan passed.
+- Product Image and Firebase Storage remain absent. PR #23 remains Draft,
+  WP-CC-03 remains paused, and PR #14 remains untouched.
 
 ## Production rollout state (2026-07-20)
 

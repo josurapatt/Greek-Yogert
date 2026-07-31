@@ -111,6 +111,10 @@ describe("public Customer projection", () => {
           displayOrder: 1,
           classification: "normal" as const,
           surcharge: 5,
+          channelSurcharges: {
+            หน้าร้าน: 6,
+            customerQr: 7,
+          },
           everUsed: true,
         },
       ],
@@ -130,7 +134,11 @@ describe("public Customer projection", () => {
       displayName: "ซอส",
     });
     expect(projection.optionGroups.sauce.choices).toEqual([
-      expect.objectContaining({ id: "honey-sauce", name: "น้ำผึ้ง" }),
+      expect.objectContaining({
+        id: "honey-sauce",
+        name: "น้ำผึ้ง",
+        surcharge: 7,
+      }),
     ]);
     expect(projection.menu[product.id].maxSelectedOptions).toBe(1);
     expect(projection.requestPolicy.productLimits[product.id].groups).toEqual([
