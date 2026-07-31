@@ -157,6 +157,7 @@ export function rebuildTrustedCustomerConfirmation(
         toppings,
         availability,
         privateOptionGroups,
+        "customerQr",
       );
     } catch (cause) {
       mismatch(

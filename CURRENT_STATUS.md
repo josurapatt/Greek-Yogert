@@ -4,19 +4,22 @@ This is the current operational snapshot. Git history is authoritative for earli
 
 ## Status metadata
 
-- Last verified: 2026-07-28 (Asia/Bangkok)
+- Last verified: 2026-07-31 (Asia/Bangkok)
 - Repository: `josurapatt/Greek-Yogert`
-- Active WP-CC-01 correction worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-wp-cc-01-corr-01`
+- Active WP-CC-02 worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-wp-cc-02`
 - Integrated branch: `main`
-- Verified `main` / `origin/main`: `c692d7388c6e80ac8b644e5aad181d2cab22d313` (`0` ahead / `0` behind)
-- Active correction branch: `fix/wp-cc-01-corr-01`
-- Verified WP-CC-01 correction starting SHA: `c692d7388c6e80ac8b644e5aad181d2cab22d313`
-- WP-CC-01 PR [#21 — Configurable catalogue foundation](https://github.com/josurapatt/Greek-Yogert/pull/21) — merged into `main` at `c692d7388c6e80ac8b644e5aad181d2cab22d313` on 2026-07-28; this correction is separate and has not been merged or deployed
+- Verified `main` / `origin/main`: `59d96e6473d977b01e14db4468d91327aa6904e4` (`0` ahead / `0` behind in the primary worktree)
+- Active implementation branch: `feature/wp-cc-02-catalogue-admin`
+- Verified WP-CC-02 starting SHA: `59d96e6473d977b01e14db4468d91327aa6904e4`
+- WP-CC-01 correction PR [#22 — Fix configurable catalogue projection foundation](https://github.com/josurapatt/Greek-Yogert/pull/22) — independently QA-passed and squash-merged into `main` as `59d96e6473d977b01e14db4468d91327aa6904e4`
 - Configurable-catalogue planning branch: `feature/configurable-catalogue-workstream-plan`
 - Configurable-catalogue planning worktree: `C:\Users\surapat.c\Documents\Our Shop\GreekYogurtOrderApp-configurable-catalogue-plan`
-- Other open work: Draft PR #14 remains paused and was not queried or changed by WP-CC-01
-- WP-CC-01 application validation: 378 tests passed across 39 files
-- Verified implementation baseline before this status-only closeout: `a3ebb3af0b5f7da8271e62ef8fdc68c2c71b9453`
+- Other open work: Draft PR #14 remains paused and unchanged at `b36f8a88728115228f8363b4ab7185e1e1ace1a8`
+- WP-CC-02 descope validation: 432 tests passed and 1 emulator-only test
+  skipped across 44 application files; the skipped proof passed in the dedicated
+  26/26 overflow-recovery Emulator run
+- WP-CC-02 overflow-correction baseline before this commit: `b2e8be803a74fef99add09de0d94ab08139b6a88`
+- Approved WP-CC-02 head before product-image descope: `5efbb7998d0745495d8bd763114617750f4ebda3`
 - App Check monitoring work-package base: `15b19caff7a864f7727bfd27466b2f92000648f1`
 - App Check implementation commit: `13f78e7558b740eeb641bdb30451574887e08fe5`
 - App Check final isolated-UAT implementation baseline: `5ece81786f7f5c8834cf5615627e24b45f30480a`
@@ -36,56 +39,91 @@ This is the current operational snapshot. Git history is authoritative for earli
 - PR state gate: complete
 - Production Customer QR status: **Complete and live**; corrected Hosting, Anonymous Authentication, and capable-Staff-enabled Customer Ordering are active
 
-## Configurable catalogue workstream state (2026-07-28)
+## Configurable catalogue workstream state (2026-07-29)
 
 - Approved architecture and five dependency-ordered Work Packages are recorded
   in `docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md`.
 - Team routing and rotation are recorded in `docs/AI_TEAM_PROTOCOL.md`.
-- WP-CC-01 implementation is merged into `main` at
-  `c692d7388c6e80ac8b644e5aad181d2cab22d313` through PR #21. The separate
-  correction task `WP-CC-01-CORR-01` starts from that verified merged SHA on
-  `fix/wp-cc-01-corr-01` and addresses audit findings F-01/F-02/F-03 only.
-- The correction preserves the authoritative merged catalogue for Customer
-  projection, projects active custom groups, and retains inactive persisted
-  groups as inactive, nonselectable public tombstones through reconstruction.
-  Local implementation and required validation are complete; the correction
-  commit is the current branch HEAD and must be verified from Git. Independent
-  QA, merge, and deployment remain pending for the correction.
+- WP-CC-01 and its F-01/F-02/F-03 correction are merged into `main`. PR #22
+  passed independent exact-head QA and was squash-merged as
+  `59d96e6473d977b01e14db4468d91327aa6904e4`.
 - The additive foundation now contains bounded private/public option-group
   models and repositories, deterministic toppings and granola-flavour
   compatibility groups, legacy Product adapters, selection/label/availability/
   duplicate/limit/pricing helpers, Projection and policy V3 with V2 read
   compatibility and downgrade prevention, private-catalogue trusted
   confirmation, Rules coverage, and a guarded dry-run-default projection
-  migration mode. Visible ordering and management workflows are unchanged.
-- Focused compatibility, pricing, projection, repository, and trusted-
-  confirmation validation passed 81 tests across 7 files. The full application
-  suite passed 378 tests across 39 files. Canonical Firestore Emulator
-  validation passed 24 tests. Lint, TypeScript Production build, formatting,
-  Rules syntax, focused diff, and changed-file secret checks passed.
-- WP-CC-01-CORR-01 validation passed 12 focused projection/repository tests
-  across 2 files, 381 full application tests across 39 files, and 24 canonical
-  Firestore Emulator Rules tests on portable JDK 21. Lint, Production build,
-  formatting for all 7 changed supported files, `git diff --check`, and the
-  changed-file credential/secret scan passed.
+  migration mode.
+- WP-CC-02 local implementation adds bounded Staff CRUD and lifecycle controls
+  for groups and choices, deterministic stable IDs, archive-only removal, sale
+  availability, Product assignments, atomic catalogue/Product/public projection
+  writes, and optimistic concurrency rejection. Private group documents contain
+  metadata only; each Choice is canonically stored at
+  `optionGroups/{groupId}/choices/{choiceId}`, with the path as its immutable
+  identity. Existing legacy Product modes and pricing remain supported without
+  a destructive migration.
+- Product-image upload, metadata, display changes, and Firebase Storage are
+  explicitly deferred from WP-CC-02 and PR #23. Existing Product Emoji
+  presentation is restored. Product images may be reconsidered later only
+  through a separate explicitly approved work package.
+- WP-CC-02 per-choice correction validation passed 41 baseline focused tests;
+  the final focused catalogue/projection/compatibility run passed 107 tests with
+  1 emulator-only skip across 10 files. The complete application run passed 432
+  tests with that same skip across 44 files; the dedicated overflow-recovery
+  Firestore Emulator run passed 26/26, and the canonical Firestore Rules suite
+  passed 26/26 on portable JDK 21. TypeScript, lint, Production build, cumulative
+  23-file Prettier 3.6.2 check, 25-file LF check, `git diff --check`, and the
+  25-file credential scan passed. The real nested Firestore Rules passed an
+  atomic one-group-plus-50-Choice create and a 50-Choice reorder/update proof,
+  allowed the 51-document sentinel read, and allowed a direct Staff 51st-Choice
+  write for application-side overflow detection. Canonical reads, subscriptions,
+  trusted reconstruction, and projection tooling reject 51 Choices with a
+  stable error while preserving the last valid subscription catalogue.
 - Offline dry-run review fingerprint `cc3-62a7a5c1ee582c6a` was identical
-  twice. The empty baseline planned 13 writes and performed 0; the simulated
-  current baseline planned 0 writes and performed 0.
+  twice. The empty baseline planned 31 writes, including 18 canonical Choice
+  documents, and performed 0; the simulated current baseline planned 0 writes
+  and performed 0.
 - The pre-merge formatting-only QA correction pins the changed Prettier-supported files
   to LF in `.gitattributes`, preventing Windows `core.autocrlf` from changing a
   clean checkout before Prettier 3.6.2 validation. No application, Rules,
   migration, pricing, projection, authorization, or dependency semantics
   changed.
-- Firebase Storage is required for product images. The isolated UAT project is
-  documented as Spark, while current Firebase policy requires Blaze for Storage.
-  Billing and the Storage-Rules-to-Firestore service permission remain
-  unapproved. Local implementation and Storage Emulator tests may proceed, but
-  remote image UAT and final release readiness are blocked until the user
-  resolves that external gate.
+- Blaze, bucket setup, Storage IAM, service-agent permission, and remote
+  Storage UAT are no longer gates for WP-CC-02 or PR #23.
 - The optional member-code field is deferred.
 - No Firebase project, remote Firebase data, Production, UAT, migration apply,
-  deployment, billing, IAM, Cloud Functions, or PR #14 access/change occurred
-  during WP-CC-01 implementation or this correction.
+  deployment, billing, IAM, Cloud Functions, or PR #14 change occurred during
+  WP-CC-02 implementation.
+
+## WP-CC-02 Human UAT corrective round (2026-07-31)
+
+- Task `WP-CC-02-UAT-ROUND-2-BLOCKERS-01` continues on Draft PR #23 from
+  verified parent `e8740865777a2bbdca054e894150d73aed6d011f`.
+- Choice pricing retains the singular `surcharge` as the migration-free
+  fallback and adds optional, bounded canonical overrides for the existing
+  Staff channels plus the Customer QR pricing context. The public projection
+  resolves only the Customer QR effective value into the existing public
+  `surcharge` field, keeping legacy public records compatible and the
+  50-Choice Rules path below the 1,000-expression limit.
+- Assigning Catalogue groups no longer treats the sum of every group maximum
+  as Choices already selected. Per-group limits remain enforced, while actual
+  Customer selections retain the global maximum of 10.
+- Choice status cards now provide direct Thai open/sold-out controls. The
+  authoritative Rules policy remains any non-anonymous active Staff account;
+  the isolated UAT workflow verifies the two guarded Staff designations
+  without adding unrelated capabilities.
+- A transient Product/option-group subscription mismatch is contained in the
+  Product modal and Customer basket instead of throwing during render. An
+  application-level Thai error boundary provides secondary recovery and logs
+  developer diagnostics.
+- The final focused run passed 172/172 across 14 files; the full application
+  run passed 468 tests with the existing overflow-recovery emulator-only test
+  skipped across 47 files. Canonical Firestore Rules passed 31/31 on portable
+  JDK 21. TypeScript, lint, Production build, 22-file Prettier 3.6.2, 24-file
+  LF and credential checks, `git diff --check`, and the runtime
+  Product-Image/Storage scan passed.
+- Product Image and Firebase Storage remain absent. PR #23 remains Draft,
+  WP-CC-03 remains paused, and PR #14 remains untouched.
 
 ## Production rollout state (2026-07-20)
 
@@ -292,11 +330,12 @@ Defects found and corrected during rehearsal:
 
 ## Remaining deferred scope
 
-- [x] WP-CC-01-CORR-01 local audit correction implementation and required
-      validation
-- [ ] WP-CC-01-CORR-01 independent QA, approval, and merge
+- [x] WP-CC-01-CORR-01 independent QA, approval, and merge through PR #22
 - [x] WP-CC-01 foundation merged through PR #21 at
       `c692d7388c6e80ac8b644e5aad181d2cab22d313`
+- [x] WP-CC-02 catalogue-only descope correction and required validation
+- [ ] WP-CC-02 independent QA, approval, and merge
+- [ ] Product images deferred to a separate explicitly approved work package
 
 - [x] WP5 implementation and exact-head automated isolated Production release rehearsal complete
 - [x] WP5 Human UAT complete with no known defects; trusted mismatch and audit evidence accepted from automation
@@ -311,7 +350,6 @@ Defects found and corrected during rehearsal:
 
 ## Immediate next action
 
-Hand the exact `WP-CC-01-CORR-01` branch HEAD to independent Chat 04 QA. Do not
-start WP-CC-02 while this correction is pending. Keep Cloud Functions,
-Production, billing, IAM, and UI PR #14 out of the workstream, and retain the
-recorded isolated-UAT Firebase Storage decision gate.
+Hand the exact committed `feature/wp-cc-02-catalogue-admin` branch HEAD to
+independent Chat 04 QA. Keep WP-CC-03, Cloud Functions, Production, billing,
+IAM, product images, and UI PR #14 out of scope until separately approved.

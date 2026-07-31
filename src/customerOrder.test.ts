@@ -6,7 +6,7 @@ import {
   rejectCustomerRequest,
   waitingForShop,
 } from "./customerOrder";
-import type { CartItem } from "./types";
+import type { CartItem, OptionGroup, Product } from "./types";
 
 const apple = defaultProducts.find((product) => product.id === "apple-ohlala")!;
 const cartItem = (): CartItem => ({
@@ -47,6 +47,66 @@ describe("customer QR request lifecycle", () => {
         { "granola-banana": false },
       ),
     ).toThrow("หมด");
+  });
+  it("submits a catalogue-assigned product with the authoritative custom group", () => {
+    const optionGroups: OptionGroup[] = [
+      {
+        id: "uat-custom",
+        displayName: "กลุ่มทดสอบ",
+        active: true,
+        displayOrder: 1,
+        required: true,
+        minSelections: 1,
+        maxSelections: 1,
+        allowDuplicates: false,
+        pricingMode: "choice-surcharge",
+        choices: [
+          {
+            id: "uat-custom-choice",
+            name: "ตัวเลือกทดสอบ",
+            active: true,
+            displayOrder: 1,
+            classification: "premium",
+            surcharge: 7,
+            everUsed: false,
+          },
+        ],
+      },
+    ];
+    const product: Product = {
+      ...apple,
+      id: "uat-custom-product",
+      name: "สินค้าแคตตาล็อก",
+      optionMode: "none",
+      optionGroupAssignments: [{ groupId: "uat-custom" }],
+    };
+    const item: CartItem = {
+      ...cartItem(),
+      productId: product.id,
+      productName: product.name,
+      selectedOptions: ["ตัวเลือกทดสอบ"],
+      selectedOptionIds: ["uat-custom-choice"],
+      unitPrice: product.price + 7,
+      lineTotal: product.price + 7,
+    };
+
+    const request = createCustomerRequest(
+      "request-custom",
+      "anonymous-uid",
+      [item],
+      [product],
+      {},
+      {},
+      "2026-07-30T00:00:00.000Z",
+      optionGroups,
+    );
+
+    expect(request.items[0]).toMatchObject({
+      productId: product.id,
+      selectedOptionIds: ["uat-custom-choice"],
+      selectedOptions: ["ตัวเลือกทดสอบ"],
+      unitPrice: product.price + 7,
+    });
   });
   it("uses storefront duplicate topping rules and snapshots line totals", () => {
     const sizeS = defaultProducts.find((product) => product.id === "size-s")!;
@@ -94,27 +154,63 @@ describe("customer QR request lifecycle", () => {
     expect(() => confirmCustomerRequest(result.request, "โอน", 8)).toThrow(
       "ดำเนินการแล้ว",
     );
-    expect(() => confirmCustomerRequest(request, "Platform" as never, 7)).toThrow(
-      "ไม่ถูกต้อง",
-    );
+    expect(() =>
+      confirmCustomerRequest(request, "Platform" as never, 7),
+    ).toThrow("ไม่ถูกต้อง");
   });
   it("quick confirmation applies one payment method to every line", () => {
-    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
+    const request = createCustomerRequest(
+      "request-1",
+      "anonymous-uid",
+      [cartItem(), { ...cartItem(), id: "cart-2" }],
+      defaultProducts,
+      {},
+    );
     const result = confirmCustomerRequest(request, "สด", 1);
-    expect(result.order.items.map((item) => item.paymentMethod)).toEqual(["สด", "สด"]);
+    expect(result.order.items.map((item) => item.paymentMethod)).toEqual([
+      "สด",
+      "สด",
+    ]);
     expect(result.order.paymentMethods).toEqual(["สด"]);
   });
   it("detail confirmation supports different payment methods per line", () => {
-    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
-    const result = confirmCustomerRequest(request, { "cart-1": "สด", "cart-2": "โอน" }, 1);
-    expect(result.order.items.map((item) => item.paymentMethod)).toEqual(["สด", "โอน"]);
+    const request = createCustomerRequest(
+      "request-1",
+      "anonymous-uid",
+      [cartItem(), { ...cartItem(), id: "cart-2" }],
+      defaultProducts,
+      {},
+    );
+    const result = confirmCustomerRequest(
+      request,
+      { "cart-1": "สด", "cart-2": "โอน" },
+      1,
+    );
+    expect(result.order.items.map((item) => item.paymentMethod)).toEqual([
+      "สด",
+      "โอน",
+    ]);
     expect(result.order.paymentMethods).toEqual(["สด", "โอน"]);
     expect(result.request.paymentMethods).toEqual(["สด", "โอน"]);
   });
   it("blocks confirmation when any line has no valid staff payment method", () => {
-    const request = createCustomerRequest("request-1", "anonymous-uid", [cartItem(), { ...cartItem(), id: "cart-2" }], defaultProducts, {});
-    expect(() => confirmCustomerRequest(request, { "cart-1": "สด" }, 1)).toThrow("กรุณาเลือกวิธีชำระเงิน");
-    expect(() => confirmCustomerRequest(request, { "cart-1": "Platform" as never, "cart-2": "สด" }, 1)).toThrow("กรุณาเลือกวิธีชำระเงิน");
+    const request = createCustomerRequest(
+      "request-1",
+      "anonymous-uid",
+      [cartItem(), { ...cartItem(), id: "cart-2" }],
+      defaultProducts,
+      {},
+    );
+    expect(() =>
+      confirmCustomerRequest(request, { "cart-1": "สด" }, 1),
+    ).toThrow("กรุณาเลือกวิธีชำระเงิน");
+    expect(() =>
+      confirmCustomerRequest(
+        request,
+        { "cart-1": "Platform" as never, "cart-2": "สด" },
+        1,
+      ),
+    ).toThrow("กรุณาเลือกวิธีชำระเงิน");
   });
   it("rejects without creating a queue reference", () => {
     const request = createCustomerRequest(

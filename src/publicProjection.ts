@@ -94,6 +94,12 @@ export interface PublicProjectionDiff {
   groupsStale: string[];
 }
 
+export interface PublicProjectionWritePlan {
+  menuIds: string[];
+  optionGroupIds: string[];
+  updatePolicyAndControl: boolean;
+}
+
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
@@ -304,6 +310,18 @@ export function diffPublicProjection(
     groupsUpdate: groups.update,
     groupsCurrent: groups.current,
     groupsStale: groups.stale,
+  };
+}
+
+export function publicProjectionWritePlan(
+  current: PublicProjection,
+  next: PublicProjection,
+): PublicProjectionWritePlan {
+  const diff = diffPublicProjection(next, current.menu, current.optionGroups);
+  return {
+    menuIds: [...diff.create, ...diff.update],
+    optionGroupIds: [...diff.groupsCreate, ...diff.groupsUpdate],
+    updatePolicyAndControl: current.fingerprint !== next.fingerprint,
   };
 }
 

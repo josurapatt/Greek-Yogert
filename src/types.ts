@@ -1,5 +1,6 @@
 export type OrderStatus = "pending" | "completed" | "cancelled";
 export type OrderChannel = "หน้าร้าน" | "Openchat" | "Lineman" | "Grab";
+export type ChoiceSurchargeChannel = OrderChannel | "customerQr";
 export type PaymentMethod = "สด" | "โอน" | "โครงการ" | "Platform";
 export type StaffPaymentMethod = Exclude<PaymentMethod, "Platform">;
 export type ToppingPackaging = "included" | "separated";
@@ -31,11 +32,13 @@ export interface OptionChoice {
   displayOrder: number;
   classification: OptionChoiceClassification;
   surcharge: number;
+  channelSurcharges?: Partial<Record<ChoiceSurchargeChannel, number>>;
   availabilityId?: string;
   everUsed: boolean;
 }
 
-export interface PublicOptionChoice extends Omit<OptionChoice, "everUsed"> {}
+export interface PublicOptionChoice
+  extends Omit<OptionChoice, "everUsed" | "channelSurcharges"> {}
 
 export interface OptionGroup {
   id: string;

@@ -3,11 +3,13 @@ import { defaultProducts, granolaFlavorIdsByName, toppings } from "./data";
 import {
   calculatePriceBreakdown,
   getChannelRules,
+  prepareOrderItems,
   validateSelection,
 } from "./lib";
 import {
   allowedProductOptionChoices,
   effectiveProductOptionGroups,
+  effectiveProductSelectionLimits,
   fallbackOptionGroups,
   granolaFlavourOptionGroupId,
   legacyProductOptionGroupAssignments,
@@ -165,7 +167,7 @@ describe("bounded configurable option catalogue", () => {
     ).toEqual(["berry-sauce", "honey-sauce"]);
   });
 
-  it("rejects duplicate global choice IDs and product totals above ten", () => {
+  it("rejects duplicate global choice IDs and caps cross-group customer selections at ten", () => {
     expect(() =>
       normalizeOptionCatalogue([
         customGroup(),
@@ -180,8 +182,8 @@ describe("bounded configurable option catalogue", () => {
         },
       ]),
     ).toThrow("globally unique");
-    expect(() =>
-      effectiveProductOptionGroups(
+    expect(
+      effectiveProductSelectionLimits(
         {
           ...plain,
           optionGroupAssignments: [
@@ -205,7 +207,7 @@ describe("bounded configurable option catalogue", () => {
           },
         ],
       ),
-    ).toThrow("10-selection limit");
+    ).toEqual({ minimum: 0, maximum: 10 });
   });
 
   it("enforces required/optional, inactive, unavailable, duplicate, and channel rules", () => {
@@ -343,6 +345,127 @@ describe("bounded configurable option catalogue", () => {
         authoritativeToppings,
       ).unitPrice,
     ).toBe(89);
+  });
+
+  it("uses approved channel surcharges with the singular value as fallback", () => {
+    const group = customGroup({
+      choices: customGroup().choices.map((choice) =>
+        choice.id === "berry-sauce"
+          ? {
+              ...choice,
+              channelSurcharges: {
+                หน้าร้าน: 10,
+                Openchat: 11,
+                Lineman: 12,
+                Grab: 13,
+                customerQr: 14,
+              },
+            }
+          : choice,
+      ),
+    });
+    const configurable: Product = {
+      ...plain,
+      optionGroupAssignments: [{ groupId: "sauce" }],
+    };
+    const price = (channel: "หน้าร้าน" | "Openchat" | "Lineman" | "Grab") =>
+      calculatePriceBreakdown(
+        configurable,
+        ["berry-sauce"],
+        toppings,
+        channel,
+        [group],
+      ).extraToppingCharges;
+    expect(price("หน้าร้าน")).toBe(10);
+    expect(price("Openchat")).toBe(11);
+    expect(price("Lineman")).toBe(12);
+    expect(price("Grab")).toBe(13);
+    expect(
+      calculatePriceBreakdown(
+        configurable,
+        ["berry-sauce"],
+        toppings,
+        "หน้าร้าน",
+        [group],
+        "customerQr",
+      ).extraToppingCharges,
+    ).toBe(14);
+    expect(
+      calculatePriceBreakdown(configurable, ["honey-sauce"], toppings, "Grab", [
+        group,
+      ]).extraToppingCharges,
+    ).toBe(7);
+    expect(
+      prepareOrderItems(
+        [
+          {
+            id: "line-channel-price",
+            productId: configurable.id,
+            productName: configurable.name,
+            basePrice: 0,
+            selectedOptions: ["ซอส: เบอร์รี่"],
+            selectedOptionIds: ["berry-sauce"],
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ],
+        [configurable],
+        "หน้าร้าน",
+        toppings,
+        {},
+        [group],
+        "customerQr",
+      )[0],
+    ).toMatchObject({
+      unitPrice: 73,
+      lineTotal: 73,
+      priceBreakdown: {
+        extraToppingCharges: 14,
+        unitPrice: 73,
+      },
+    });
+  });
+
+  it("separates assigned group capacity from the global ten-choice selection cap", () => {
+    const manyChoices = Array.from({ length: 20 }, (_, index) => ({
+      ...customGroup().choices[0],
+      id: `choice-${index}`,
+      displayOrder: index,
+    }));
+    const first = customGroup({
+      id: "first",
+      maxSelections: 10,
+      choices: manyChoices,
+    });
+    const second = customGroup({
+      id: "second",
+      displayOrder: 6,
+      maxSelections: 2,
+      choices: customGroup().choices.map((choice) => ({
+        ...choice,
+        id: `second-${choice.id}`,
+      })),
+    });
+    const configurable: Product = {
+      ...plain,
+      optionGroupAssignments: [{ groupId: "first" }, { groupId: "second" }],
+    };
+    expect(
+      effectiveProductOptionGroups(configurable, [first, second]),
+    ).toHaveLength(2);
+    expect(
+      effectiveProductSelectionLimits(configurable, [first, second]),
+    ).toEqual({ minimum: 0, maximum: 10 });
+    expect(
+      validateCatalogueSelection(
+        configurable,
+        [
+          ...manyChoices.slice(0, 10).map((choice) => choice.id),
+          second.choices[0].id,
+        ],
+        [first, second],
+      )?.code,
+    ).toBe("maximum");
   });
 
   it("keeps every current default selection, label, price, and channel rule byte-compatible", () => {

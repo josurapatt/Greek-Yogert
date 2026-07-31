@@ -1,0 +1,238 @@
+.catalogue-panel {
+  margin: 1.5rem 0 2rem;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: white;
+}
+
+.catalogue-heading,
+.catalogue-choice-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.catalogue-heading {
+  margin-top: 0;
+}
+
+.catalogue-heading p,
+.catalogue-choice-heading h3 {
+  margin-bottom: 0;
+}
+
+.catalogue-group-list,
+.catalogue-choice-list,
+.assignment-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.catalogue-group-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+}
+
+.catalogue-group-card.disabled,
+.assignment-card.disabled {
+  background: #f7f5f8;
+}
+
+.catalogue-group-card h3,
+.catalogue-group-card p {
+  margin-bottom: 0.2rem;
+}
+
+.catalogue-editor {
+  width: min(880px, 100%);
+}
+
+.catalogue-choice-heading {
+  margin: 1.25rem 0 0.75rem;
+}
+
+.catalogue-choice-card,
+.assignment-card,
+.assignment-fieldset {
+  border: 1px solid var(--border) !important;
+  border-radius: 17px;
+  padding: 0.9rem !important;
+}
+
+.catalogue-choice-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.catalogue-advanced,
+.catalogue-choice-advanced,
+.assignment-advanced,
+.legacy-product-settings {
+  margin-top: 0.75rem;
+}
+
+.catalogue-advanced > summary,
+.catalogue-choice-advanced > summary,
+.assignment-advanced > summary,
+.legacy-product-settings > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.catalogue-advanced[open] > summary,
+.catalogue-choice-advanced[open] > summary,
+.assignment-advanced[open] > summary,
+.legacy-product-settings[open] > summary {
+  margin-bottom: 0.8rem;
+}
+
+.assignment-list {
+  margin: 0.75rem 0;
+}
+
+.assignment-card {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.assignment-limits {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.assignment-limits input[type="checkbox"],
+.inline-check input {
+  width: auto;
+}
+
+.switch input {
+  width: auto;
+}
+
+.availability-card {
+  width: 100%;
+  background: white;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.availability-card:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(94 63 121 / 10%);
+}
+
+.availability-card-editor {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.availability-card-editor > span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.availability-card-toggle {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.65rem;
+}
+
+.availability-card-details {
+  justify-items: end;
+  text-align: right;
+}
+
+.availability-card-details b {
+  color: #397144;
+}
+
+.availability-card.sold-out .availability-card-details b {
+  color: #a53d52;
+}
+
+.choice-quick-editor {
+  width: min(560px, 100%);
+}
+
+.choice-sale-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.catalogue-customer-group {
+  margin-top: 1rem;
+}
+
+.catalogue-customer-group h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.catalogue-customer-group h3 em {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+@media (max-width: 700px) {
+  .catalogue-group-card {
+    grid-template-columns: 1fr auto;
+  }
+
+  .catalogue-group-card > .secondary {
+    grid-column: 1 / -1;
+  }
+
+  .catalogue-heading,
+  .catalogue-choice-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .assignment-limits {
+    grid-template-columns: 1fr;
+  }
+
+  .choice-sale-state,
+  .catalogue-customer-group h3 {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .availability-card-details {
+    justify-items: start;
+    text-align: left;
+  }
+}

@@ -64,12 +64,12 @@ handoff. At response 20 it stops taking new work and hands off to the next
 numbered chat (`Chat 02-2`, `Chat 03-2`, or `Chat 04-2`). The replacement chat
 must independently reconcile Git and the durable files before continuing.
 
-| Role         | Active chat | Outbound count | Rotation state                                       |
-| ------------ | ----------- | -------------: | ---------------------------------------------------- |
-| Planner      | Chat 01     |              0 | Active                                               |
-| Orchestrator | Chat 02     |              4 | WP-CC-01 correction routed; WP-CC-02 paused          |
-| Production   | Chat 03     |              2 | Correction delivered locally; independent QA pending |
-| QA           | Chat 04     |              2 | Foundation re-QA passed; correction QA pending       |
+| Role         | Active chat | Outbound count | Rotation state                                        |
+| ------------ | ----------- | -------------: | ----------------------------------------------------- |
+| Planner      | Chat 01     |              0 | Active                                                |
+| Orchestrator | Chat 02     |              4 | WP-CC-02 correction routed; local delivery pending QA |
+| Production   | Chat 03     |              2 | Per-choice overflow correction validated locally      |
+| QA           | Chat 04     |              2 | WP-CC-02 exact-head QA is next                        |
 
 ## Prohibited role behaviour
 
@@ -78,7 +78,7 @@ must independently reconcile Git and the durable files before continuing.
 - Reusing the light-purple UI branch or mixing PR #14 changes into this
   workstream.
 - Searching reflogs, stashes, or old project copies for topping CRUD code.
-- Weakening Firestore or Storage authorization to make tests pass.
+- Weakening Firestore authorization to make tests pass.
 - Repricing, rewriting, or deleting confirmed historical order snapshots.
 - Enabling billing, Blaze, Cloud Functions, App Check enforcement, or any
   Production action without explicit approval.

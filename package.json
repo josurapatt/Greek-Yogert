@@ -14,6 +14,7 @@
     "validate:app-check-bundle": "node scripts/validateAppCheckBundle.mjs",
     "test:rules": "pnpm dlx firebase-tools@15.23.0 emulators:exec --only firestore --project production-security-rules --config firebase.customer-uat.json \"pnpm exec vitest run --config vitest.rules.config.ts firestore.production.test.ts\"",
     "projection:public": "node scripts/runPublicProjection.mjs",
+    "catalogue:recover-overflow": "node scripts/runCatalogueOverflowRecovery.mjs",
     "uat:wp3:diagnose": "node scripts/runWp3HumanUatDiagnostic.mjs",
     "uat:wp3:browser": "node scripts/wp3BrowserUat.mjs",
     "uat:wp4:browser": "node scripts/wp3BrowserUat.mjs",

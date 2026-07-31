@@ -11,7 +11,7 @@ implementation of:
 
 - Staff topping management;
 - minimal configurable option groups;
-- product-image upload, removal, and display;
+- configurable catalogue administration without product-image scope;
 - a direct Queue-card `พร้อมส่ง` action; and
 - an accessible bottom basket for Customer ordering, with the low-risk
   equivalent on Staff ordering.
@@ -20,9 +20,8 @@ The optional member-code field is **deferred**. It must not be started until all
 mandatory work has passed QA and isolated UAT.
 
 No step in this plan authorizes a merge to `main`, a Production deployment, a
-Production migration, a Production Rules deployment, a Production Storage
-deployment, a Production data write, a billing change, or a change to Draft PR
-#14.
+Production migration, a Production Rules deployment, a Production data write,
+a billing change, or a change to Draft PR #14.
 
 ## Verified baseline
 
@@ -79,9 +78,8 @@ must not be used as the feature baseline.
   `CustomerOrderPage`; it lacks only an always-accessible bottom summary.
 - Staff ordering has the same shared cart context, known quantity/total, and a
   `/cart` route, so a Staff bottom-cart bar is a low-risk additive change.
-- Firebase Web config already contains a Storage bucket value, but the app does
-  not initialize Firebase Storage. No `storage.rules`, Storage emulator test,
-  Storage entry in Firebase config, or Storage deployment scope exists.
+- Product-image upload and its Firebase infrastructure are deferred from this
+  workstream. Existing Product Emoji presentation remains authoritative.
 
 ## Approved architecture
 
@@ -135,12 +133,10 @@ interface ProductOptionGroupAssignment {
 }
 ```
 
-Add only these optional Product fields:
+Add only this optional Product field:
 
 ```ts
 optionGroupAssignments?: ProductOptionGroupAssignment[];
-imagePath?: string;
-imageUrl?: string;
 ```
 
 Do not remove or bulk-rewrite the legacy Product fields. They remain the
@@ -197,7 +193,7 @@ trusted-confirmation path.
 Advance the public catalogue projection to schema V3 while preserving the
 legacy public Product fields. The V3 fingerprint covers:
 
-- public products, including assignments and image metadata;
+- public products, including assignments;
 - projected active option groups and choices;
 - availability;
 - per-product total and per-group selection policy; and
@@ -235,42 +231,12 @@ The first valid Product assignment irreversibly sets `everUsed` to true.
 Historical and confirmed snapshots are never queried, rewritten, or deleted by
 catalogue removal.
 
-### 6. Product images
+### 6. Deferred product images
 
-Firebase Storage is required. Firestore blobs/data URLs and a new third-party
-media backend are rejected because they either violate document-size and cost
-boundaries or expand the platform.
-
-Use only:
-
-```text
-product-images/{productId}/{uuid}.{ext}
-```
-
-with JPEG, PNG, and WebP accepted, maximum size 5 MiB. Upload replacement uses
-a new unique object, updates Product plus projection, and then removes the prior
-object. Failed Product/projection writes clean up the new object. Removal clears
-the Product/projection reference and deletes the exact prior object; broken
-references render the fallback.
-
-Storage Rules:
-
-- permit read only to an authorized Staff user or an authenticated customer
-  where `publicMenu/{productId}.imagePath` exactly matches the requested object;
-- permit create/update/delete only to explicit active Staff resolved through
-  the existing `users/{uid}` Firestore authorization document;
-- validate path, 5 MiB size, and exact MIME allowlist on writes; and
-- deny every other path.
-
-The display fallback is:
-
-1. uploaded image;
-2. non-empty existing Emoji;
-3. neutral bowl placeholder.
-
-A shared `ProductVisual` component handles load failure and is used in product
-management, Staff ordering, Customer ordering, and the shared Product modal.
-Topping or choice images are excluded.
+Product-image upload, metadata, display changes, and Firebase Storage are not
+part of WP-CC-02 or PR #23. Existing Product Emoji presentation remains
+unchanged. Product images may be reconsidered later only through a separate,
+explicitly approved work package with its own infrastructure and release gates.
 
 ### 7. Queue and bottom basket
 
@@ -291,35 +257,12 @@ items, channel, totals, and `/cart` route. The same bottom summary can be added
 without changing cart ownership or checkout. It is excluded from the Staff
 `CartPage` itself so it cannot cover checkout controls.
 
-## External blocker: Firebase Storage billing and service permission
+## Product-image scope decision
 
-The isolated UAT project is documented as Spark. Firebase's current policy says
-Cloud Storage requires Blaze from 3 February 2026; a Spark project loses
-read/write access even to an existing default bucket. The repository also
-prohibits enabling billing without explicit approval.
-
-Storage Rules that consult Firestore for the existing explicit Staff role also
-require the Firebase Rules service permission connecting Storage Rules to
-Firestore. That project-level permission must be enabled separately and is not
-authorized by this plan.
-
-Therefore:
-
-- local implementation and Storage Emulator tests are allowed;
-- no UAT or Production bucket, billing, IAM, Rules, or object change is allowed
-  yet;
-- WP-CC-02 cannot receive final image-UAT acceptance, and WP-CC-05 cannot reach
-  release-ready status, until the user either approves Blaze plus the required
-  isolated-UAT Rules service permission or supplies a separate approved
-  Blaze-enabled isolated UAT project; and
-- no Production Storage or billing decision is implied by an isolated-UAT
-  decision.
-
-Official references:
-
-- <https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024>
-- <https://firebase.google.com/docs/storage/security/rules-conditions>
-- <https://firebase.google.com/docs/emulator-suite/connect_storage>
+The user selected Option B on 29 July 2026: product images are deferred from
+WP-CC-02. PR #23 therefore has no Blaze, bucket, Storage IAM, Storage service
+permission, or remote Storage-UAT gate. No billing or infrastructure decision is
+required to review the configurable-catalogue administration scope.
 
 ## Work Package sequence
 
@@ -356,7 +299,7 @@ workflows.
 
 - No Staff CRUD UI.
 - No configurable ordering UI.
-- No product-image code or Storage Rules.
+- No deferred product-image work.
 - No Queue or basket change.
 - No Product, Order, request, history, or report migration.
 - No Firebase deployment or remote data write.
@@ -454,12 +397,12 @@ Do not apply any migration. With no catalogue documents or assignments, the
 legacy adapter remains authoritative. Revert the WP commit before any later data
 write. No historical rollback is needed.
 
-### WP-CC-02 — Staff catalogue management and product images
+### WP-CC-02 — Staff catalogue management
 
 **Exact objective**
 
-Add focused Staff management for groups, toppings, assignments, availability,
-and secure product images on top of WP-CC-01.
+Add focused Staff management for groups, toppings, assignments, and
+availability on top of WP-CC-01.
 
 **Included scope**
 
@@ -467,117 +410,93 @@ and secure product images on top of WP-CC-01.
 - Edit topping display name, classification, surcharge, display order, and sale
   availability.
 - Assign groups and allowed choices to Products with limit overrides.
-- Implement safe archive and guarded hard delete using `everUsed` plus current
-  Product/channel-rule references.
+- Implement archive/disable removal for groups and choices. Physical deletion
+  is unsupported and denied by Firestore Rules.
 - Keep stable IDs immutable after creation.
-- Add product image upload, replacement, removal, management preview, fallback,
-  client validation, Firebase Storage initialization, and exact object cleanup.
-- Add `storage.rules`, Storage emulator config/tests, and guarded isolated-UAT
-  deployment configuration without running it.
 - Preserve atomic Product, catalogue, availability, and public projection
   synchronization.
 
 **Explicit exclusions**
 
-- No topping/choice images.
-- No media library, cropper, image transformation, or external CDN.
+- Product-image upload, metadata, display changes, media infrastructure, and
+  Firebase Storage are deferred to a separate explicitly approved work package.
 - No ordering-screen generic group renderer yet.
 - No Queue or basket change.
-- No billing, IAM, UAT Storage, Production Storage, or deployment action.
+- No billing, IAM, Firebase deployment, or Production action.
 
 **Expected files or modules**
 
 - `src/pages/ProductsPage.tsx`
-- new focused components such as `src/components/OptionGroupManager.tsx`,
-  `src/components/ProductImageField.tsx`, and `src/components/ProductVisual.tsx`
+- new focused components such as `src/components/OptionGroupManager.tsx` and
+  `src/components/ProductOptionAssignmentsField.tsx`
 - `src/store.tsx`
-- `src/firebase.ts`
-- new `src/productImages.ts`
 - `src/types.ts`
 - `src/publicProjection.ts`
 - `firestore.production.rules`
-- new `storage.rules` and Storage Rules test/config files
-- `firebase.json`
-- `firebase.customer-uat.json`
-- `.github/workflows/deploy-customer-qr-uat.yml` only if needed for an explicit
-  future UAT-only Storage deploy gate
 - focused tests and required styles
 
 **Data-model changes**
 
-Persist private/public option groups, irreversible `everUsed`, Product
-assignments, `imagePath`, and `imageUrl`. Continue using the existing
-availability maps.
+Persist private option-group metadata at `optionGroups/{groupId}` and each
+private Choice at `optionGroups/{groupId}/choices/{choiceId}`. The Choice path
+is its immutable identity; documents do not duplicate the ID. Preserve
+irreversible `everUsed`, public denormalized option groups, Product assignments,
+and the existing availability maps.
 
 **Security impact**
 
-Storage introduces a new security surface. Only explicit active Staff can
-mutate the allowlisted product-image path. Customer reads require authentication
-and an exact published Product path. MIME and size checks exist in client and
-Rules. Every non-product path is denied.
+Private catalogue writes remain restricted to explicit active Staff. Public
+catalogue projection writes remain validated and Staff-only.
 
 **Migration or compatibility method**
 
-Existing groups are provided by fallback until explicitly persisted. Existing
-Products without image fields remain valid. Existing Emoji remains unchanged.
-Safe hard delete is unavailable for seeded or previously used choices; archive
-is the fallback.
+Existing groups are provided by fallback until explicitly persisted. Explicit
+legacy embedded private groups remain read-compatible, but canonical writes use
+only group metadata plus Choice documents. Existing Product documents and Emoji
+remain unchanged. Archive is the only supported removal mechanism.
 
 **Required implementation tests**
 
-- Add/edit/disable/re-enable/archive/hard-delete decision for toppings.
+- Add/edit/disable/re-enable/archive behavior and direct-delete denial for
+  groups and choices.
 - Stable-ID immutability and duplicate-ID rejection.
 - Global classification and price changes feed the existing pricing helper.
 - Product assignment and `everUsed` transition.
 - Availability writes remain atomic with public projection.
-- Upload accepts JPEG/PNG/WebP at or below 5 MiB and rejects all other type/size
-  cases before upload.
-- Replace success, Product/projection failure cleanup, remove success, delete
-  failure, stale path, and broken URL fallback.
-- Storage Rules: unauthenticated, anonymous write, unauthorized Email/Password
-  write, inactive Staff write, wrong path, oversized file, wrong MIME, arbitrary
-  read denied; authorized Staff mutation and authenticated published-image read
-  allowed.
 
 **Required QA tests**
 
 - Independent CRUD, deletion, security, and compensation-path review.
 - Focused component/service tests.
-- Firestore and Storage Emulator Rules suites.
+- Firestore Emulator Rules suite.
 - Full application suite, lint, TypeScript build, formatting, config/workflow
   parsing, bundle check, and secret scan.
-- Local/demo-safe visual review of Products management and all fallbacks.
+- Local/demo-safe visual review of Products management.
 
 **Acceptance criteria**
 
 - Every required topping operation works without changing historical snapshots.
 - Product assignments and availability are atomic and projected.
-- Product management can upload, replace, and remove a validated image.
-- Broken/missing images always fall back.
-- No unauthorized mutation or arbitrary object read is possible.
+- No unauthorized catalogue mutation is possible.
 - Local and emulator QA passes.
-- Final image-UAT acceptance remains blocked until the external Storage gate is
-  explicitly resolved.
 
 **Completion evidence**
 
 - Exact SHA/PR/file list.
 - CRUD test matrix.
-- Firestore and Storage Rules test counts.
-- Image compensation-path results.
-- Explicit statement that no remote bucket, billing, IAM, Rules, data, or
-  Production action occurred.
+- Firestore Rules test counts.
+- Explicit statement that no billing, IAM, Firebase, data, or Production action
+  occurred.
 
 **Dependencies**
 
-WP-CC-01 approved and merged. User resolution of the external Storage gate is
-required for remote UAT, but not for local implementation and emulator review.
+WP-CC-01 approved and merged.
 
 **Rollback or disable path**
 
-Do not deploy Storage config. Revert the application commit. Existing Products
-ignore absent image fields and fall back to Emoji. Archive catalogue definitions
-rather than delete after use.
+Revert the application commit before any data write. Existing Products remain
+on the legacy adapter. Archive catalogue definitions rather than delete after
+use.
 
 ### WP-CC-03 — Staff and Customer ordering integration
 
@@ -598,7 +517,6 @@ while preserving current channel behaviour and snapshots.
 - Feed private groups to Staff cart/order paths and public groups to Customer
   paths.
 - Revalidate stale cart selections and Customer requests.
-- Display `ProductVisual` on Staff and Customer product cards and shared modal.
 - Preserve flat Cart/request/Order snapshots and report/export inputs.
 
 **Explicit exclusions**
@@ -621,7 +539,6 @@ while preserving current channel behaviour and snapshots.
 - `src/trustedCustomerConfirmation.ts`
 - `src/lib.ts`
 - `src/store.tsx`
-- `src/components/ProductVisual.tsx`
 - `src/publicProjection.ts`
 - focused existing/new Staff, Customer, projection, confirmation, report, and
   export tests
@@ -653,7 +570,7 @@ render from stored labels/prices. V3 data is additive. No historical write.
 - Real Customer UI request builder to trusted Staff confirmation.
 - Exact labels/prices preserved into confirmed Order.
 - Historical and legacy snapshots, Reports, and Excel compatibility.
-- Product image, Emoji, neutral fallback, and broken URL in both ordering UIs.
+- Existing Product Emoji presentation in both ordering UIs.
 
 **Required QA tests**
 
@@ -670,7 +587,7 @@ render from stored labels/prices. V3 data is additive. No historical write.
   flows.
 - Trusted confirmation rejects stale/tampered choices and accepts the exact
   canonical UI request.
-- Images and fallback render on all required ordering surfaces.
+- Existing Product Emoji presentation remains unchanged.
 - Reports and export still consume immutable flat snapshots.
 - Independent QA passes.
 
@@ -684,8 +601,7 @@ render from stored labels/prices. V3 data is additive. No historical write.
 
 **Dependencies**
 
-WP-CC-02 approved and merged. Remote image checks remain conditional on the
-external Storage gate.
+WP-CC-02 approved and merged.
 
 **Rollback or disable path**
 
@@ -799,21 +715,21 @@ and produce release-ready evidence without merging or touching Production.
 **Included scope**
 
 - Exact-head focused and full automated regression.
-- Firestore and Storage Emulator suites.
+- Firestore Emulator suite.
 - Deterministic catalogue/projection dry-run, reviewed isolated-UAT apply, and
   second zero-write dry-run.
-- Isolated-UAT-only Rules/Hosting/Storage deployment only after exact target,
-  credential-project, billing, and service-permission approval.
+- Isolated-UAT-only Rules/Hosting deployment only after exact target and
+  credential-project approval.
 - Staff functional UAT, Customer functional UAT, responsive UAT, real Customer
-  UI-to-Staff confirmation, Queue/History, Reports, Excel, image upload/replace/
-  remove, cleanup, and rollback rehearsal.
+  UI-to-Staff confirmation, Queue/History, Reports, Excel, cleanup, and rollback
+  rehearsal.
 - Exact final SHA, QA verdict, limitations, release instructions, and rollback.
 
 **Explicit exclusions**
 
 - No merge to `main`.
-- No Production migration, Rules, Storage, Hosting, Authentication, IAM,
-  billing, product, topping, or order action.
+- No Production migration, Rules, Hosting, Authentication, IAM, billing,
+  product, topping, or order action.
 - No PR #14 change.
 - No member code.
 
@@ -827,14 +743,14 @@ and produce release-ready evidence without merging or touching Production.
 
 **Data-model changes**
 
-No new model. Isolated UAT receives only synthetic catalogue, Product, image,
-Customer request, and Order fixtures. No Production data is copied.
+No new model. Isolated UAT receives only synthetic catalogue, Product, Customer
+request, and Order fixtures. No Production data is copied.
 
 **Security impact**
 
-This is the final authorization and target-identity gate. Storage and Firestore
-Rules must be tested before any isolated deployment. Cleanup targets exact
-synthetic IDs only.
+This is the final authorization and target-identity gate. Firestore Rules must
+be tested before any isolated deployment. Cleanup targets exact synthetic IDs
+only.
 
 **Migration or compatibility method**
 
@@ -845,7 +761,7 @@ Production path.
 **Required implementation tests**
 
 - Full application suite.
-- Full canonical Firestore and Storage Rules suites.
+- Full canonical Firestore Rules suite.
 - Lint, TypeScript, Production-disabled build, UAT build, formatting,
   workflow/config parsing, secret scan, bundle inspection, and focused diff.
 - All mandatory feature matrices from WP-CC-01 through WP-CC-04.
@@ -853,7 +769,7 @@ Production path.
 **Required QA tests**
 
 - Exact-head independent QA.
-- Staff CRUD, assignment, availability, image, ordering/cart, and Queue action.
+- Staff CRUD, assignment, availability, ordering/cart, and Queue action.
 - Customer public projection, configurable selection, bottom basket, request,
   status, and trusted confirmation.
 - Legacy Products, carts, requests, confirmed Orders, History, Reports, and
@@ -877,49 +793,52 @@ Production path.
 - Complete command/test counts.
 - Emulator and isolated-UAT workflow/run IDs.
 - Projection fingerprints and zero-write repeat.
-- Staff/Customer UAT checklist, image evidence, Queue/History evidence,
+- Staff/Customer UAT checklist, Queue/History evidence,
   responsive evidence, Excel evidence, cleanup counts, rollback result, and
   formal QA verdict.
 - Explicit Production impact: none.
 
 **Dependencies**
 
-WP-CC-04 approved and merged. The Firebase Storage billing and Rules service
-permission blocker must be explicitly resolved for isolated image UAT.
+WP-CC-04 approved and merged.
 
 **Rollback or disable path**
 
-Restore the saved isolated-UAT Hosting/Rules/Storage candidate, deactivate test
-groups, remove exact synthetic objects/data, and verify zero residual test
-records. Production rollback is outside this workstream.
+Restore the saved isolated-UAT Hosting/Rules candidate, deactivate test groups,
+remove exact synthetic data, and verify zero residual test records. Production
+rollback is outside this workstream.
 
 ## Current task state
 
-| Work Package | Owner      | Status                                                                            | Implementation commit                                                                                         | QA verdict                                        |
-| ------------ | ---------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| WP-CC-01     | Chat 02    | Foundation merged into `main`; audit correction WP-CC-01-CORR-01 locally complete | Foundation merge `c692d7388c6e80ac8b644e5aad181d2cab22d313`; correction branch HEAD must be verified from Git | Prior foundation QA `PASS`; correction QA pending |
-| WP-CC-02     | Unassigned | Paused pending WP-CC-01-CORR-01 and Storage approval                              | Pending                                                                                                       | Pending                                           |
-| WP-CC-03     | Unassigned | Blocked on WP-CC-02                                                               | Pending                                                                                                       | Pending                                           |
-| WP-CC-04     | Unassigned | Blocked on WP-CC-03                                                               | Pending                                                                                                       | Pending                                           |
-| WP-CC-05     | Unassigned | Blocked on WP-CC-04 and Storage approval                                          | Pending                                                                                                       | Pending                                           |
+| Work Package | Owner      | Status                                                                             | Implementation commit                                                                                                       | QA verdict |
+| ------------ | ---------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| WP-CC-01     | Chat 02    | Foundation and audit correction merged into `main`                                 | PR #21 merge `c692d7388c6e80ac8b644e5aad181d2cab22d313`; PR #22 correction merge `59d96e6473d977b01e14db4468d91327aa6904e4` | `PASS`     |
+| WP-CC-02     | Chat 03    | Human UAT round 2 corrections implemented; validation/publication evidence pending | Parent `e8740865777a2bbdca054e894150d73aed6d011f`; corrective commit must be verified from Git                              | Pending    |
+| WP-CC-03     | Unassigned | Blocked on WP-CC-02                                                                | Pending                                                                                                                     | Pending    |
+| WP-CC-04     | Unassigned | Blocked on WP-CC-03                                                                | Pending                                                                                                                     | Pending    |
+| WP-CC-05     | Unassigned | Blocked on WP-CC-04                                                                | Pending                                                                                                                     | Pending    |
 
 ## Commit and QA evidence
 
-| Date       | Package                                  | Branch / SHA                                                                                                                                                                                                                                     | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-28 | Planning                                 | `feature/configurable-catalogue-workstream-plan`, based on `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5`                                                                                                                                            | Architecture and five-package plan prepared; application code unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| 2026-07-28 | WP-CC-01 implementation                  | `feature/configurable-catalogue-wp-cc-01`, starting SHA `20a030ded1bf30ab617f0d8bfba20bcec71732f1`; corrected implementation SHA `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`; merged through PR #21 as `c692d7388c6e80ac8b644e5aad181d2cab22d313` | Bounded catalogue/types/adapters/helpers, V3 projection with V2 compatibility, bounded private/public repositories, private-catalogue trusted confirmation, Rules, and dry-run-default migration completed. Focused 81/81, full app 378/378, canonical Rules 24/24, lint/build/format/Rules syntax/secret checks passed. Offline dry runs shared fingerprint `cc3-62a7a5c1ee582c6a`: 13 planned/0 performed then 0 planned/0 performed. Independent re-QA passed at the corrected implementation SHA before merge. No Firebase project, remote data, Production, deployment, or PR #14 action.                                                                                                                        |
-| 2026-07-28 | WP-CC-01 formatting correction and re-QA | Failed QA SHA `59357627148ba954c978d07b72a462ad54f70c0c`; corrected/re-QA-passed SHA `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`                                                                                                                  | Independent QA reported Prettier 3.6.2 failures caused by Windows checkout line endings. The changed supported files were formatted with Prettier 3.6.2 and pinned to LF in `.gitattributes`; `firestore.production.rules` remains excluded from Prettier and covered by the canonical Rules/emulator suite. Chat 04 re-QA passed: 22/22 Prettier-supported files, diff check, and exact-head identity; prior focused/full/Rules/lint/build/offline-dry-run evidence remains valid because the correction touched none of their implementation inputs. No semantic, scope, Rules, migration, dependency, remote, or Production change.                                                                                |
-| 2026-07-28 | WP-CC-01-CORR-01 audit correction        | Starting SHA `c692d7388c6e80ac8b644e5aad181d2cab22d313`; correction commit is branch HEAD and must be verified from Git                                                                                                                          | Chat 03 corrected F-01 by recording the PR #21 merge, audit findings, and current correction state; corrected F-02 by projecting valid custom groups with the authoritative merged catalogue; and corrected F-03 by preserving inactive persisted groups as inactive, nonselectable public tombstones through reconstruction. Focused tests passed 12/12, full application tests 381/381, and canonical Rules tests 24/24 on portable JDK 21; lint, Production build, formatting for all 7 changed supported files, diff check, and changed-file credential scan passed. Independent correction QA remains pending and WP-CC-02 remains paused. No Firebase project, Production, deployment, merge, or PR #14 action. |
+| Date       | Package                                  | Branch / SHA                                                                                                                                                                                                                                                                                                                  | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-28 | Planning                                 | `feature/configurable-catalogue-workstream-plan`, based on `6e28459fc1ecafb9eca33360a2f2e6d7b68694a5`                                                                                                                                                                                                                         | Architecture and five-package plan prepared; application code unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-07-28 | WP-CC-01 implementation                  | `feature/configurable-catalogue-wp-cc-01`, starting SHA `20a030ded1bf30ab617f0d8bfba20bcec71732f1`; corrected implementation SHA `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`; merged through PR #21 as `c692d7388c6e80ac8b644e5aad181d2cab22d313`                                                                              | Bounded catalogue/types/adapters/helpers, V3 projection with V2 compatibility, bounded private/public repositories, private-catalogue trusted confirmation, Rules, and dry-run-default migration completed. Focused 81/81, full app 378/378, canonical Rules 24/24, lint/build/format/Rules syntax/secret checks passed. Offline dry runs shared fingerprint `cc3-62a7a5c1ee582c6a`: 13 planned/0 performed then 0 planned/0 performed. Independent re-QA passed at the corrected implementation SHA before merge. No Firebase project, remote data, Production, deployment, or PR #14 action.                                                                                                                                                                                                                                                      |
+| 2026-07-28 | WP-CC-01 formatting correction and re-QA | Failed QA SHA `59357627148ba954c978d07b72a462ad54f70c0c`; corrected/re-QA-passed SHA `bc8f6fdad04fe4fc347c6ea11e13cf0aa24017bc`                                                                                                                                                                                               | Independent QA reported Prettier 3.6.2 failures caused by Windows checkout line endings. The changed supported files were formatted with Prettier 3.6.2 and pinned to LF in `.gitattributes`; `firestore.production.rules` remains excluded from Prettier and covered by the canonical Rules/emulator suite. Chat 04 re-QA passed: 22/22 Prettier-supported files, diff check, and exact-head identity; prior focused/full/Rules/lint/build/offline-dry-run evidence remains valid because the correction touched none of their implementation inputs. No semantic, scope, Rules, migration, dependency, remote, or Production change.                                                                                                                                                                                                              |
+| 2026-07-28 | WP-CC-01-CORR-01 audit correction        | Starting SHA `c692d7388c6e80ac8b644e5aad181d2cab22d313`; correction commit `8c06fcd75e44bc8237184054ac40f5fce1539e58`; merged through PR #22 as `59d96e6473d977b01e14db4468d91327aa6904e4`                                                                                                                                    | Chat 03 corrected F-01/F-02/F-03. Focused tests passed 12/12, full application tests 381/381, and canonical Rules tests 24/24 on portable JDK 21; lint, Production build, formatting, diff check, and changed-file credential scan passed. Independent exact-head QA passed and PR #22 was squash-merged without deployment, Firebase Production, WP-CC-02 implementation, or PR #14 change during the merge gate.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-07-29 | WP-CC-02 Staff catalogue administration  | `feature/wp-cc-02-catalogue-admin`, starting SHA `59d96e6473d977b01e14db4468d91327aa6904e4`; original local commit `f18a9b10a5681e7ee4e81c567a9b9d2264ca77d4`; per-choice correction baseline `b2e8be803a74fef99add09de0d94ab08139b6a88`; descope correction follows approved head `5efbb7998d0745495d8bd763114617750f4ebda3` | Staff group/choice/topping management, availability, deterministic stable IDs, Product assignments, atomic public projection synchronization, canonical Choice subcollections, and controlled overflow recovery remain intact. Product-image application and Firebase infrastructure were removed by explicit Option B authority; Product Emoji behaviour remains unchanged. Focused tests passed 107 with 1 emulator-only skip; full application passed 432 with the same skip across 44 files; overflow-recovery Emulator and canonical Firestore Rules each passed 26/26. TypeScript, lint, build, 23-file Prettier, 25-file LF/diff/credential checks, and empty/current/overflow offline dry runs passed. Exact commit must be verified from Git. No push, PR update, merge, deployment, remote Firebase, WP-CC-03, or PR #14 action occurred. |
+| 2026-07-31 | WP-CC-02 Human UAT round 2 corrections   | `feature/wp-cc-02-catalogue-admin`, verified parent `e8740865777a2bbdca054e894150d73aed6d011f`                                                                                                                                                                                                                                | Adds optional canonical channel-specific Choice surcharge overrides with singular fallback; resolves Customer QR pricing into the existing public surcharge field; separates assigned-group capacity from the global ten actual Customer selections; adds direct Choice sale-status controls; preserves active-Staff authorization; contains transient product/catalogue render mismatch and adds a Thai application error boundary. Focused 172/172, full application 468 passed with 1 existing emulator-only skip, and canonical Rules 31/31 passed; TypeScript, lint, build, formatting, LF, diff, credential, and Product Image/Storage scans passed. Product Image/Storage remain absent. Publication, isolated-UAT workflow, and corrective SHA must be recorded after completion.                                                           |
 
 ## Unresolved blockers and decisions
 
-1. **User decision required before remote product-image UAT:** approve Blaze and
-   the required Storage-Rules-to-Firestore service permission on
-   `greek-yogert-customer-uat-2026`, or provide a separate approved
-   Blaze-enabled isolated UAT project.
-2. No Production Storage, billing, IAM, migration, Rules, Hosting, or data
-   decision has been made.
+### Exceptional catalogue overflow recovery
+
+If the Staff application reports `Option group <groupId> exceeds the maximum of 50 choices.`, ordinary Staff clients must not attempt deletion. With `GOOGLE_APPLICATION_CREDENTIALS` pointing to an externally supplied service-account credential for the same approved non-Production project, an approved operator first runs `pnpm catalogue:recover-overflow -- --project <approved-non-production-project> --group <groupId> --choice <choiceId>` to inspect one inactive, never-used and unreferenced excess Choice. After separate environment approval, repeat with `--apply`; record the exact deleted path and structured evidence, then verify the built-in authoritative catalogue read and the projection dry run. The command rejects Production, unverifiable or mismatched credentials, any count other than exactly 51, active/used/referenced/missing Choices, and deletes exactly one Choice. This is an exceptional controlled recovery procedure, not a Staff UI feature.
+
+1. Product images are deferred and may be reconsidered only as a separate,
+   explicitly approved work package.
+2. No Production, billing, IAM, migration, Rules, Hosting, or data decision has
+   been made.
 3. PR #14 remains paused and untouched.
 4. Optional member code remains deferred.
 
@@ -929,16 +848,15 @@ Chat 02 must:
 
 1. read `AGENTS.md`, `CURRENT_STATUS.md`,
    `docs/AI_TEAM_PROTOCOL.md`, and this file;
-2. verify `origin/main` remains at
-   `c692d7388c6e80ac8b644e5aad181d2cab22d313` for this correction;
-3. send the exact correction commit to Chat 04;
+2. verify the WP-CC-02 starting `origin/main` remains
+   `59d96e6473d977b01e14db4468d91327aa6904e4`;
+3. send the exact `feature/wp-cc-02-catalogue-admin` branch HEAD to Chat 04;
 4. stop advancement on a QA `FAIL`; and
-5. escalate only architecture/scope or the recorded Storage decision to Chat 01.
+5. escalate only architecture/scope decisions to Chat 01.
 
-The next permitted action is independent Chat 04 QA of the exact
-`WP-CC-01-CORR-01` commit. Chat 03 does not self-approve. WP-CC-02 remains
-paused until this correction is independently QA'd and the required gates are
-handled by Chat 02.
+The next permitted action is independent Chat 04 QA of the exact WP-CC-02
+branch HEAD after the descope correction is validated and committed. Chat 03
+does not self-approve. WP-CC-03 remains paused.
 
-No work after WP-CC-01 may start until repository governance and predecessor
+No work after WP-CC-02 may start until repository governance and predecessor
 approval/merge gates are satisfied.

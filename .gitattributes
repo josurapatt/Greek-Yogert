@@ -5,7 +5,9 @@
 /CURRENT_STATUS.md text eol=lf
 /docs/AI_TEAM_PROTOCOL.md text eol=lf
 /docs/CONFIGURABLE_CATALOGUE_WORKSTREAM.md text eol=lf
+/firestore.production.rules text eol=lf
 /firestore.production.test.ts text eol=lf
+/scripts/projectPublicData.test.ts text eol=lf
 /scripts/projectPublicData.ts text eol=lf
 /scripts/wp4UatValidation.ts text eol=lf
 /src/customerFirebase.tsx text eol=lf
@@ -16,6 +18,8 @@
 /src/lib.ts text eol=lf
 /src/optionCatalogue.test.ts text eol=lf
 /src/optionCatalogue.ts text eol=lf
+/src/optionCataloguePersistence.test.ts text eol=lf
+/src/optionCataloguePersistence.ts text eol=lf
 /src/optionCatalogueRepository.test.ts text eol=lf
 /src/optionCatalogueRepository.ts text eol=lf
 /src/publicProjection.test.ts text eol=lf
@@ -24,3 +28,30 @@
 /src/trustedCustomerConfirmation.test.ts text eol=lf
 /src/trustedCustomerConfirmation.ts text eol=lf
 /src/types.ts text eol=lf
+
+# WP-CC-02 Prettier-supported files must remain LF in Windows worktrees.
+/.github/workflows/deploy-customer-qr-uat.yml text eol=lf
+/scripts/customerUatPreviewWorkflow.test.ts text eol=lf
+/scripts/catalogueOverflowRecovery.test.ts text eol=lf
+/scripts/catalogueOverflowRecovery.ts text eol=lf
+/scripts/runCatalogueOverflowRecovery.mjs text eol=lf
+/src/catalogue.css text eol=lf
+/src/catalogueAdmin.test.ts text eol=lf
+/src/catalogueAdmin.ts text eol=lf
+/src/catalogueConcurrency.test.ts text eol=lf
+/src/catalogueAdminUi.test.tsx text eol=lf
+/src/components/OptionGroupManager.tsx text eol=lf
+/src/components/AppErrorBoundary.test.tsx text eol=lf
+/src/components/AppErrorBoundary.tsx text eol=lf
+/src/components/ProductModal.tsx text eol=lf
+/src/components/ProductOptionAssignmentsField.tsx text eol=lf
+/src/customerOrder.test.ts text eol=lf
+/src/customerSubmissionTrustedUi.test.tsx text eol=lf
+/src/data.ts text eol=lf
+/src/main.tsx text eol=lf
+/src/pages/CartPage.tsx text eol=lf
+/src/pages/CustomerOrderPage.tsx text eol=lf
+/src/pages/OrderDetailPage.tsx text eol=lf
+/src/pages/OrderPage.tsx text eol=lf
+/src/pages/ProductsPage.tsx text eol=lf
+/src/uatDefects.test.tsx text eol=lf

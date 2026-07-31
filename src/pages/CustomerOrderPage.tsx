@@ -19,6 +19,7 @@ import type { CartItem, Product } from "../types";
 export default function CustomerOrderPage() {
   const {
     products,
+    optionGroups,
     availability,
     loading,
     orderingControl = { status: "enabled", enabled: true, message: "" },
@@ -41,13 +42,24 @@ export default function CustomerOrderPage() {
     message: string;
   } | null>(null);
   const [sending, setSending] = useState(false);
-  const priced = repriceCartItems(
-    items,
-    products,
-    customerStorefrontChannel,
-    toppings,
-    availability,
-  );
+  let catalogueRenderError = "";
+  let priced: CartItem[] = [];
+  try {
+    priced = repriceCartItems(
+      items,
+      products,
+      customerStorefrontChannel,
+      toppings,
+      availability,
+      optionGroups,
+      "customerQr",
+    );
+  } catch (cause) {
+    console.error("Customer basket catalogue state is temporarily invalid", {
+      cause,
+    });
+    catalogueRenderError = "ข้อมูลเมนูกำลังอัปเดต กรุณารอสักครู่แล้วลองใหม่";
+  }
   const invalid = priced.find((item) => item.validationError);
   const totals = orderTotals(priced);
   const totalUnits = priced.reduce((sum, item) => sum + item.quantity, 0);
@@ -145,6 +157,11 @@ export default function CustomerOrderPage() {
     );
   return (
     <main className="customer-page">
+      {catalogueRenderError && (
+        <p className="validation" role="alert">
+          {catalogueRenderError}
+        </p>
+      )}
       <header>
         {runtimeConfig.isCustomerQrUat && (
           <span className="demo-pill">โหมดทดลอง</span>
@@ -326,6 +343,7 @@ export default function CustomerOrderPage() {
       {selected && (
         <ProductModal
           product={selected}
+          optionGroups={optionGroups}
           channel={customerStorefrontChannel}
           initial={editingItem ?? undefined}
           availability={availability}

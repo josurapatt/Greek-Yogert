@@ -174,6 +174,7 @@ export function createCustomerRequest(
   availability: ToppingAvailability,
   input: { customerName?: string; customerNote?: string } = {},
   now = new Date().toISOString(),
+  optionGroups?: OptionGroup[],
 ): CustomerOrderRequest {
   if (!ownerUid) throw new Error("ไม่พบตัวตนลูกค้า");
   const prepared = prepareOrderItems(
@@ -182,6 +183,8 @@ export function createCustomerRequest(
     customerStorefrontChannel,
     toppings,
     availability,
+    optionGroups,
+    "customerQr",
   );
   if (!prepared.length) throw new Error("ตะกร้าว่าง");
   const totals = orderTotals(prepared);
@@ -205,7 +208,7 @@ export function createCustomerRequest(
     createdAt: now,
     updatedAt: now,
   };
-  assertCustomerRequestPolicy(request, products);
+  assertCustomerRequestPolicy(request, products, { optionGroups });
   return request;
 }
 

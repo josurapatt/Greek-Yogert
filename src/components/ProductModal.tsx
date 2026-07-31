@@ -6,9 +6,11 @@ import {
   productSelectedOptionLimits,
 } from "../customerRequestPolicy";
 import { toppings } from "../data";
+import { effectiveProductOptionGroups } from "../optionCatalogue";
 import {
   calculatePriceBreakdown,
   channelLabels,
+  getChoiceSurcharge,
   getChannelGroup,
   getChannelRules,
   isSelectionAvailable,
@@ -23,6 +25,7 @@ import {
 } from "../lib";
 import type {
   CartItem,
+  OptionGroup,
   OrderChannel,
   Product,
   ToppingAvailability,
@@ -34,6 +37,7 @@ interface Props {
   channel: OrderChannel;
   initial?: CartItem;
   availability?: ToppingAvailability;
+  optionGroups?: OptionGroup[];
   customerLimits?: boolean;
   onClose(): void;
   onSave(item: CartItem): void;
@@ -44,6 +48,7 @@ export default function ProductModal({
   channel,
   initial,
   availability = {},
+  optionGroups,
   customerLimits = false,
   onClose,
   onSave,
@@ -58,12 +63,63 @@ export default function ProductModal({
     normalizeToppingPackaging(initial?.toppingPackaging),
   );
   const rules = getChannelRules(product, channel);
-  const optionMaximum = productSelectedOptionLimits(product).maximum;
+  const usesCatalogue = product.optionGroupAssignments !== undefined;
+  const catalogueState = useMemo(() => {
+    try {
+      return {
+        groups:
+          usesCatalogue && optionGroups
+            ? effectiveProductOptionGroups(product, optionGroups)
+            : [],
+        maximum: productSelectedOptionLimits(product, optionGroups).maximum,
+        error: "",
+      };
+    } catch (cause) {
+      console.error("Product option configuration is temporarily invalid", {
+        productId: product.id,
+        cause,
+      });
+      return {
+        groups: [],
+        maximum: 0,
+        error:
+          "ข้อมูลกลุ่มตัวเลือกกำลังอัปเดต กรุณารอสักครู่แล้วลองเปิดสินค้าอีกครั้ง",
+      };
+    }
+  }, [product, optionGroups, usesCatalogue]);
+  const effectiveGroups = catalogueState.groups;
+  const optionMaximum = catalogueState.maximum;
   const isPlatform = getChannelGroup(channel) === "platform";
-  const breakdown = useMemo(
-    () => calculatePriceBreakdown(product, selected, toppings, channel),
-    [product, selected, channel],
-  );
+  const priceState = useMemo(() => {
+    try {
+      return {
+        breakdown: calculatePriceBreakdown(
+          product,
+          selected,
+          toppings,
+          channel,
+          optionGroups,
+          customerLimits ? "customerQr" : channel,
+        ),
+        error: "",
+      };
+    } catch (cause) {
+      console.error("Product pricing could not be rendered", {
+        productId: product.id,
+        cause,
+      });
+      return {
+        breakdown: {
+          basePrice: product.price,
+          premiumIncludedSurcharge: 0,
+          extraToppingCharges: 0,
+          unitPrice: product.price,
+        },
+        error: "ข้อมูลราคากำลังอัปเดต กรุณารอสักครู่แล้วลองเปิดสินค้าอีกครั้ง",
+      };
+    }
+  }, [product, selected, channel, optionGroups, customerLimits]);
+  const breakdown = priceState.breakdown;
   const packagingSurcharge = packagingSurchargePerUnit(channel, packaging);
   const unitPrice = breakdown.unitPrice + packagingSurcharge;
   const globalSeparatedAvailable =
@@ -95,8 +151,10 @@ export default function ProductModal({
         ? "ท็อปปิ้งที่เปิดขายไม่พอสำหรับเมนูนี้"
         : null;
   const error =
-    availabilityError ??
-    validateSelection(product, selected, channel, availability) ??
+    catalogueState.error ||
+    priceState.error ||
+    availabilityError ||
+    validateSelection(product, selected, channel, availability, optionGroups) ||
     packagingError;
 
   const addTopping = (id: string) =>
@@ -107,8 +165,26 @@ export default function ProductModal({
         );
         return rows;
       }
-      if (!isSelectionAvailable(product, id, availability)) return rows;
-      if (!rules.allowDuplicateToppings && rows.includes(id)) return rows;
+      if (!isSelectionAvailable(product, id, availability, optionGroups))
+        return rows;
+      if (usesCatalogue) {
+        const group = effectiveGroups.find((entry) =>
+          entry.choices.some((choice) => choice.id === id),
+        );
+        if (!group) return rows;
+        const groupChoiceIds = new Set(
+          group.choices.map((choice) => choice.id),
+        );
+        const groupCount = rows.filter((choiceId) =>
+          groupChoiceIds.has(choiceId),
+        ).length;
+        if (
+          groupCount >= group.maxSelections ||
+          (!group.allowDuplicates && rows.includes(id))
+        )
+          return rows;
+      } else if (!rules.allowDuplicateToppings && rows.includes(id))
+        return rows;
       setSelectionLimitError("");
       return [...rows, id];
     });
@@ -121,7 +197,7 @@ export default function ProductModal({
     });
   const save = () => {
     if (error) return;
-    const names = customerOptionLabels(product, selected);
+    const names = customerOptionLabels(product, selected, optionGroups);
     onSave({
       id: initial?.id ?? crypto.randomUUID(),
       productId: product.id,
@@ -171,7 +247,94 @@ export default function ProductModal({
             <li key={line}>{line}</li>
           ))}
         </ul>
-        {product.optionMode === "granola" && (
+        {usesCatalogue &&
+          effectiveGroups
+            .filter((group) => group.active)
+            .map((group) => {
+              const choiceIds = new Set(
+                group.choices.map((choice) => choice.id),
+              );
+              const groupCount = selected.filter((id) =>
+                choiceIds.has(id),
+              ).length;
+              return (
+                <div className="catalogue-customer-group" key={group.id}>
+                  <h3>
+                    {group.displayName}{" "}
+                    <em>
+                      {group.minSelections > 0
+                        ? `เลือก ${group.minSelections}–${group.maxSelections} รายการ`
+                        : `เลือกได้ไม่เกิน ${group.maxSelections} รายการ`}
+                    </em>
+                  </h3>
+                  <div className="topping-list">
+                    {group.choices
+                      .filter((choice) => choice.active)
+                      .map((choice) => {
+                        const count = selected.filter(
+                          (id) => id === choice.id,
+                        ).length;
+                        const soldOut = !isSelectionAvailable(
+                          product,
+                          choice.id,
+                          availability,
+                          optionGroups,
+                        );
+                        return (
+                          <div className="topping-row" key={choice.id}>
+                            <span>
+                              {choice.name}
+                              {choice.classification === "premium" && (
+                                <small> พรีเมียม</small>
+                              )}
+                              {getChoiceSurcharge(
+                                choice,
+                                customerLimits ? "customerQr" : channel,
+                              ) > 0 && (
+                                <small>
+                                  {" "}
+                                  +
+                                  {money(
+                                    getChoiceSurcharge(
+                                      choice,
+                                      customerLimits ? "customerQr" : channel,
+                                    ),
+                                  )}
+                                </small>
+                              )}
+                              {soldOut && (
+                                <small className="sold-out-label"> หมด</small>
+                              )}
+                            </span>
+                            <div>
+                              <button
+                                onClick={() => removeTopping(choice.id)}
+                                disabled={!count}
+                                aria-label={`ลด ${choice.name}`}
+                              >
+                                <Minus />
+                              </button>
+                              <b>{count}</b>
+                              <button
+                                onClick={() => addTopping(choice.id)}
+                                disabled={
+                                  soldOut ||
+                                  groupCount >= group.maxSelections ||
+                                  (!group.allowDuplicates && count > 0)
+                                }
+                                aria-label={`เพิ่ม ${choice.name}`}
+                              >
+                                <Plus />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })}
+        {!usesCatalogue && product.optionMode === "granola" && (
           <div>
             <h3>
               เลือกรสกราโนล่า <em>จำเป็น</em>
@@ -198,7 +361,7 @@ export default function ProductModal({
             </div>
           </div>
         )}
-        {product.optionMode === "toppings" && (
+        {!usesCatalogue && product.optionMode === "toppings" && (
           <div>
             <h3>
               ท็อปปิ้งที่รวมในเมนู{" "}
